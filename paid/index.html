@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paid Ads — Nuovo Luxury</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--google:#4285F4;--bing:#0078d4;--gold:#d4a843;--red:#f87171;--green:#10b981}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px}
+body{min-height:100vh}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+.tl{display:flex;align-items:center;gap:20px}
+.logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase}
+.logo span{color:var(--gold)}
+.nav{display:flex;gap:4px;margin-left:20px}
+.nav a{font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.2s}
+.nav a:hover{color:var(--text)}
+.nav a.active{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2)}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.tr{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s}
+.bsm:hover{border-color:var(--gold)}
+.bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+
+.main{padding:28px;max-width:1400px;margin:0 auto}
+
+/* Hero stats by channel */
+.channel-hero{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.channel-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:24px 26px;position:relative;overflow:hidden}
+.channel-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;opacity:0.8}
+.channel-card.google::before{background:var(--google)}
+.channel-card.bing::before{background:var(--bing)}
+.ch-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ch-name{font-size:14px;font-weight:600;letter-spacing:0.03em;display:flex;align-items:center;gap:8px}
+.ch-dot{width:8px;height:8px;border-radius:50%}
+.ch-spend-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:4px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;outline:none;width:120px}
+.ch-spend-input:focus{border-color:var(--gold)}
+.ch-spend-input::placeholder{color:var(--dim)}
+.ch-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.ch-m{}
+.ch-m-lbl{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.ch-m-val{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;line-height:1}
+.ch-m-val.gold{color:var(--gold)}
+.ch-m-val.green{color:var(--green)}
+.ch-m-val.red{color:var(--red)}
+.ch-m-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px}
+
+/* KPI strip */
+.kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px}
+.kpi-lbl{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.kpi-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace}
+.kpi-val.gold{color:var(--gold)}
+.kpi-val.green{color:var(--green)}
+
+/* Card */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
+.ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.ct-right{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;text-transform:none;letter-spacing:0}
+.cw{position:relative;height:240px}
+.cw-sm{position:relative;height:160px}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
+
+/* Funnel */
+.funnel-row{display:grid;grid-template-columns:140px 1fr 100px 80px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.funnel-row:last-child{border-bottom:none}
+.funnel-stage{font-weight:500}
+.funnel-bar-bg{background:var(--bg3);border-radius:20px;height:8px;overflow:hidden}
+.funnel-bar-fill{height:8px;border-radius:20px;transition:width 1s ease}
+.fnum{font-family:'DM Mono',monospace;text-align:right}
+.fpct{font-family:'DM Mono',monospace;text-align:right;color:var(--muted);font-size:11px}
+
+/* Tables */
+.tbl-row{display:grid;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.tbl-row:last-child{border-bottom:none}
+.tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
+.tbl-row.pages{grid-template-columns:1fr 60px 60px 70px}
+.tbl-row.devices{grid-template-columns:90px 1fr 60px 70px 60px}
+.tbl-row.geo{grid-template-columns:1fr 50px 60px 50px}
+.tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tnum{font-family:'DM Mono',monospace;text-align:right}
+.tnum.gold{color:var(--gold)}
+.tnum.green{color:var(--green)}
+.tnum.mu{color:var(--muted)}
+
+/* Loading */
+.ld{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
+.sp{width:14px;height:14px;border:1.5px solid var(--dim);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Setup screen */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.setup-card{max-width:420px;width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;text-align:center}
+.setup-logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:2rem;text-align:left}
+.setup-logo span{color:var(--gold)}
+h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
+.sub{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:2rem;text-align:left}
+.btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
+
+.footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+.help-text{font-size:11px;color:var(--muted);background:var(--bg3);border-radius:6px;padding:8px 12px;margin-top:10px;line-height:1.5}
+
+@media(max-width:900px){.channel-hero,.row2{grid-template-columns:1fr}.row3{grid-template-columns:1fr}.kpi-strip{grid-template-columns:repeat(3,1fr)}.ch-metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">Nuovo Luxury <span>/ Paid Ads</span></div>
+    <h1>Sign in to view paid ads data</h1>
+    <p class="sub">Connect with your Google account that owns the Nuovo Luxury GA4 property.</p>
+    <button class="btn-google" onclick="startOAuth()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none">
+  <div class="topbar">
+    <div class="tl">
+      <div class="logo">Nuovo Luxury <span>/ Paid Ads</span></div>
+      <div class="nav">
+        <a href="/">AI Traffic</a>
+        <a href="/paid" class="active">Paid Ads</a>
+      </div>
+      <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
+    </div>
+    <div class="tr">
+      <button class="bsm preset-btn" onclick="setPreset(this,'today')" data-preset="today">Today</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'yesterday')" data-preset="yesterday">Yesterday</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
+      <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
+      <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      <span style="color:var(--dim);font-size:11px">→</span>
+      <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      <button class="bsm" onclick="refresh()">↻</button>
+      <button class="bsm" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Channel hero cards with spend input -->
+    <div class="channel-hero">
+      <div class="channel-card google">
+        <div class="ch-hdr">
+          <div class="ch-name"><span class="ch-dot" style="background:var(--google)"></span>Google Ads</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase">Spend £</span>
+            <input type="number" class="ch-spend-input" id="spend-google" placeholder="0.00" step="0.01" onchange="saveSpend()" oninput="recalc()">
+          </div>
+        </div>
+        <div class="ch-metrics">
+          <div class="ch-m">
+            <div class="ch-m-lbl">Sessions</div>
+            <div class="ch-m-val" id="g-sessions">—</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">Revenue</div>
+            <div class="ch-m-val gold" id="g-revenue">—</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">ROAS</div>
+            <div class="ch-m-val" id="g-roas">—</div>
+            <div class="ch-m-sub" id="g-roas-sub">enter spend</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">CPA</div>
+            <div class="ch-m-val" id="g-cpa">—</div>
+            <div class="ch-m-sub" id="g-cpa-sub">per purchase</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="channel-card bing">
+        <div class="ch-hdr">
+          <div class="ch-name"><span class="ch-dot" style="background:var(--bing)"></span>Microsoft Ads (Bing)</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase">Spend £</span>
+            <input type="number" class="ch-spend-input" id="spend-bing" placeholder="0.00" step="0.01" onchange="saveSpend()" oninput="recalc()">
+          </div>
+        </div>
+        <div class="ch-metrics">
+          <div class="ch-m">
+            <div class="ch-m-lbl">Sessions</div>
+            <div class="ch-m-val" id="b-sessions">—</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">Revenue</div>
+            <div class="ch-m-val gold" id="b-revenue">—</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">ROAS</div>
+            <div class="ch-m-val" id="b-roas">—</div>
+            <div class="ch-m-sub" id="b-roas-sub">enter spend</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">CPA</div>
+            <div class="ch-m-val" id="b-cpa">—</div>
+            <div class="ch-m-sub" id="b-cpa-sub">per purchase</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lead-gen specific metrics (CPL for forms, cost per call) -->
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-lbl">Form submits</div><div class="kpi-val" id="k-forms">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Cost per form</div><div class="kpi-val gold" id="k-cpf">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Phone calls</div><div class="kpi-val" id="k-calls">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Cost per call</div><div class="kpi-val gold" id="k-cpc">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Begin checkout</div><div class="kpi-val" id="k-begin">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Checkout → buy</div><div class="kpi-val green" id="k-ck-buy">—</div></div>
+    </div>
+
+    <!-- Conversion funnel -->
+    <div class="card">
+      <div class="ct"><span>Conversion funnel — paid traffic</span><span class="ct-right" id="funnel-period">last 28 days</span></div>
+      <div id="funnel"><div class="ld"><span class="sp"></span></div></div>
+    </div>
+
+    <!-- Daily trend chart -->
+    <div class="card">
+      <div class="ct"><span>Daily sessions, revenue & key events</span></div>
+      <div class="cw"><canvas id="trend-chart"></canvas></div>
+    </div>
+
+    <!-- Top campaigns -->
+    <div class="card">
+      <div class="ct"><span>Top campaigns by revenue</span></div>
+      <div id="campaigns"><div class="ld"><span class="sp"></span></div></div>
+    </div>
+
+    <!-- Top landing pages -->
+    <div class="row2">
+      <div class="card">
+        <div class="ct"><span>Top revenue pages</span></div>
+        <div id="rev-pages"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span>Top converting pages (key event rate)</span></div>
+        <div id="conv-pages"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+    </div>
+
+    <!-- Device & geo -->
+    <div class="row2">
+      <div class="card">
+        <div class="ct"><span>By device</span></div>
+        <div id="devices"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span>By country</span></div>
+        <div id="countries"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+    </div>
+
+    <!-- Help info -->
+    <div class="card">
+      <div class="ct"><span>How to use this dashboard</span></div>
+      <div style="font-size:12px;line-height:1.7;color:var(--muted)">
+        <strong style="color:var(--text)">Daily workflow (30 seconds):</strong> Open Google Ads and Microsoft Ads, copy yesterday's spend for each, paste into the spend boxes above. The dashboard instantly calculates ROAS, CPA, cost per form submit, and cost per phone call.<br><br>
+        <strong style="color:var(--text)">For higher-ticket products (saunas, pergolas):</strong> Focus on the <span style="color:var(--gold)">Cost per form</span> and <span style="color:var(--gold)">Cost per call</span> metrics — these represent qualified leads, not just clicks. Form submissions and phone calls are early intent signals for high-consideration purchases.<br><br>
+        <strong style="color:var(--text)">For lower-ticket products (BBQs, accessories):</strong> Focus on <span style="color:var(--gold)">CPA</span> (cost per purchase) and ROAS — these tell you if a campaign is profitable on direct revenue alone.<br><br>
+        <strong style="color:var(--text)">The conversion funnel:</strong> Shows where paid traffic drops off. If you have lots of "Begin checkout" but few "Purchases", the issue is at checkout (shipping cost, payment friction). If you have lots of sessions but few "Add to cart", the issue is product page or pricing.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="ftl" id="fts">—</div>
+    <div style="display:flex;gap:16px">
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase"><span style="width:8px;height:8px;border-radius:50%;background:var(--google)"></span>Google Ads</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase"><span style="width:8px;height:8px;border-radius:50%;background:var(--bing)"></span>Microsoft Ads</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROP='346978985';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
+
+let token=null, charts={}, dateRange={startDate:'28daysAgo',endDate:'today'};
+let cache={google:{},bing:{}};
+
+// OAuth callback handling
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
+
+function startOAuth(){
+  const base='https://accounts.google.com/o/oauth2/v2/auth';
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+window.location.pathname,
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly'
+  });
+  window.location.href=base+'?'+params.toString();
+}
+
+function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+
+window.addEventListener('load',()=>{
+  const today=new Date();
+  const fmt=d=>d.toISOString().slice(0,10);
+  document.getElementById('date-to').value=fmt(today);
+  const d28=new Date(today); d28.setDate(today.getDate()-28);
+  document.getElementById('date-from').value=fmt(d28);
+  loadSpend();
+  const saved=localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();}
+});
+
+function launch(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  refresh();
+  setInterval(refresh,30*60*1000);
+}
+
+function setPreset(btn,preset){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const today=new Date();
+  const fmt=d=>d.toISOString().slice(0,10);
+  if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
+  else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:fmt(y),endDate:fmt(y)};}
+  else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  document.getElementById('funnel-period').textContent='last '+preset+(preset==='today'||preset==='yesterday'?'':' days');
+  loadSpend();
+  refresh();
+}
+
+function setCustom(){
+  const from=document.getElementById('date-from').value;
+  const to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    dateRange={startDate:from,endDate:to};
+    loadSpend();
+    refresh();
+  }
+}
+
+function saveSpend(){
+  const key='spend_'+dateRange.startDate+'_'+dateRange.endDate;
+  const g=parseFloat(document.getElementById('spend-google').value)||0;
+  const b=parseFloat(document.getElementById('spend-bing').value)||0;
+  localStorage.setItem(key,JSON.stringify({google:g,bing:b}));
+}
+
+function loadSpend(){
+  const key='spend_'+dateRange.startDate+'_'+dateRange.endDate;
+  const saved=localStorage.getItem(key);
+  if(saved){const s=JSON.parse(saved);document.getElementById('spend-google').value=s.google||'';document.getElementById('spend-bing').value=s.bing||'';}
+  else{document.getElementById('spend-google').value='';document.getElementById('spend-bing').value='';}
+}
+
+async function ga4(body){
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'API '+r.status);}
+  return r.json();
+}
+
+async function refresh(){
+  document.getElementById('fst').textContent='Fetching...';
+  if(!token){signOut();return;}
+
+  // Filter for paid: sessionMedium = cpc (Google Ads + Microsoft Ads both use cpc)
+  // Source: google or bing
+  const paidFil={andGroup:{expressions:[
+    {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
+    {filter:{fieldName:'sessionSource',inListFilter:{values:['google','bing']}}}
+  ]}};
+
+  try{
+    const [bySource, byDate, byCampaign, byPage, byPageConv, byDevice, byCountry, funnelData] = await Promise.all([
+      // By source breakdown
+      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
+        {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
+        {name:'conversions:phone_calls'},{name:'conversions:form_submit'},{name:'conversions:begin_checkout'},{name:'conversions:add_to_cart'}
+      ],dimensionFilter:paidFil}),
+      // Daily trend
+      ga4({dateRanges:[dateRange],dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:paidFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
+      // Top campaigns
+      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'},{name:'sessionCampaignName'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:form_submit'},{name:'conversions:phone_calls'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:10}),
+      // Top revenue pages
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'totalRevenue'},{name:'sessions'},{name:'transactions'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:8}),
+      // Top converting pages
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'keyEvents'},{name:'sessions'},{name:'keyEventRate'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'keyEventRate'},desc:true}],limit:8}),
+      // Devices
+      ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
+      // Countries
+      ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
+      // Funnel events
+      ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','phone_calls']}}}]}}})
+    ]);
+
+    renderSourceMetrics(bySource);
+    renderKPIs(bySource, funnelData);
+    renderFunnel(funnelData, bySource);
+    renderTrend(byDate);
+    renderCampaigns(byCampaign);
+    renderRevPages(byPage);
+    renderConvPages(byPageConv);
+    renderDevices(byDevice);
+    renderCountries(byCountry);
+    recalc();
+
+    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('fts').textContent='GA4 · Property '+PROP+' · '+new Date().toLocaleString('en-GB');
+  }catch(e){
+    if(e.message.includes('401')||e.message.includes('403')){signOut();}
+    document.getElementById('fst').textContent='Error: '+e.message;
+    console.error(e);
+  }
+}
+
+function renderSourceMetrics(data){
+  cache.google={sessions:0,engaged:0,revenue:0,transactions:0,keyEvents:0,calls:0,forms:0,begin:0,addCart:0};
+  cache.bing={sessions:0,engaged:0,revenue:0,transactions:0,keyEvents:0,calls:0,forms:0,begin:0,addCart:0};
+  (data.rows||[]).forEach(r=>{
+    const src=r.dimensionValues[0].value.toLowerCase();
+    const key=src==='google'?'google':src==='bing'?'bing':null;
+    if(!key) return;
+    cache[key].sessions=parseInt(r.metricValues[0].value||0);
+    cache[key].engaged=parseInt(r.metricValues[1].value||0);
+    cache[key].revenue=parseFloat(r.metricValues[2].value||0);
+    cache[key].transactions=parseInt(r.metricValues[3].value||0);
+    cache[key].keyEvents=parseInt(r.metricValues[4].value||0);
+    cache[key].calls=parseInt(r.metricValues[5]?.value||0);
+    cache[key].forms=parseInt(r.metricValues[6]?.value||0);
+    cache[key].begin=parseInt(r.metricValues[7]?.value||0);
+    cache[key].addCart=parseInt(r.metricValues[8]?.value||0);
+  });
+  document.getElementById('g-sessions').textContent=cache.google.sessions.toLocaleString();
+  document.getElementById('g-revenue').textContent='£'+cache.google.revenue.toLocaleString('en-GB',{maximumFractionDigits:0});
+  document.getElementById('b-sessions').textContent=cache.bing.sessions.toLocaleString();
+  document.getElementById('b-revenue').textContent='£'+cache.bing.revenue.toLocaleString('en-GB',{maximumFractionDigits:0});
+}
+
+function recalc(){
+  const gSpend=parseFloat(document.getElementById('spend-google').value)||0;
+  const bSpend=parseFloat(document.getElementById('spend-bing').value)||0;
+  // ROAS
+  setRoasCpa('g',cache.google,gSpend);
+  setRoasCpa('b',cache.bing,bSpend);
+  // KPIs
+  const totalSpend=gSpend+bSpend;
+  const totalForms=cache.google.forms+cache.bing.forms;
+  const totalCalls=cache.google.calls+cache.bing.calls;
+  const totalBegin=cache.google.begin+cache.bing.begin;
+  const totalTrans=cache.google.transactions+cache.bing.transactions;
+  document.getElementById('k-forms').textContent=totalForms;
+  document.getElementById('k-calls').textContent=totalCalls;
+  document.getElementById('k-begin').textContent=totalBegin;
+  document.getElementById('k-cpf').textContent=totalSpend>0&&totalForms>0?'£'+(totalSpend/totalForms).toFixed(2):'—';
+  document.getElementById('k-cpc').textContent=totalSpend>0&&totalCalls>0?'£'+(totalSpend/totalCalls).toFixed(2):'—';
+  document.getElementById('k-ck-buy').textContent=totalBegin>0?(totalTrans/totalBegin*100).toFixed(1)+'%':'—';
+  saveSpend();
+}
+
+function setRoasCpa(prefix,data,spend){
+  const roasEl=document.getElementById(prefix+'-roas');
+  const roasSubEl=document.getElementById(prefix+'-roas-sub');
+  const cpaEl=document.getElementById(prefix+'-cpa');
+  if(spend>0){
+    const roas=data.revenue/spend;
+    roasEl.textContent=roas.toFixed(2)+'x';
+    roasEl.className='ch-m-val '+(roas>=2?'green':roas>=1?'gold':'red');
+    roasSubEl.textContent='profit: £'+(data.revenue-spend).toLocaleString('en-GB',{maximumFractionDigits:0});
+    if(data.transactions>0){
+      cpaEl.textContent='£'+(spend/data.transactions).toFixed(2);
+      cpaEl.className='ch-m-val';
+    }else{cpaEl.textContent='—';cpaEl.className='ch-m-val';}
+  }else{
+    roasEl.textContent='—';roasEl.className='ch-m-val';
+    roasSubEl.textContent='enter spend';
+    cpaEl.textContent='—';
+  }
+}
+
+function renderKPIs(bySource, funnelData){
+  // Already done in recalc
+}
+
+function renderFunnel(funnelData, bySource){
+  const events={};
+  (funnelData.rows||[]).forEach(r=>{events[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value||0);});
+  const totalSessions=cache.google.sessions+cache.bing.sessions;
+  const stages=[
+    {name:'Sessions',value:totalSessions,color:'var(--google)'},
+    {name:'View item',value:events.view_item||0,color:'#5b8def'},
+    {name:'Add to cart',value:events.add_to_cart||0,color:'#7eb3ff'},
+    {name:'Begin checkout',value:events.begin_checkout||0,color:'var(--gold)'},
+    {name:'Purchase',value:events.purchase||0,color:'var(--green)'}
+  ];
+  const max=stages[0].value||1;
+  document.getElementById('funnel').innerHTML=stages.map((s,i)=>{
+    const pct=Math.round(s.value/max*100);
+    const dropPct=i>0&&stages[i-1].value>0?((1-s.value/stages[i-1].value)*100).toFixed(0):'';
+    return`<div class="funnel-row">
+      <span class="funnel-stage">${s.name}</span>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
+      <span class="fnum">${s.value.toLocaleString()}</span>
+      <span class="fpct">${i>0&&dropPct?'-'+dropPct+'%':'—'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTrend(byDate){
+  const dm={};
+  (byDate.rows||[]).forEach(r=>{
+    const d=r.dimensionValues[0].value;
+    const src=r.dimensionValues[1].value.toLowerCase();
+    if(!dm[d])dm[d]={google:0,bing:0,rev:0,ke:0};
+    if(src==='google')dm[d].google+=parseInt(r.metricValues[0].value||0);
+    else if(src==='bing')dm[d].bing+=parseInt(r.metricValues[0].value||0);
+    dm[d].rev+=parseFloat(r.metricValues[1].value||0);
+    dm[d].ke+=parseInt(r.metricValues[2].value||0);
+  });
+  const dates=Object.keys(dm).sort();
+  const step=Math.max(1,Math.floor(dates.length/14));
+  const labels=dates.map((d,i)=>i%step===0?d.slice(4,6)+'/'+d.slice(6,8):'');
+  
+  if(charts.t)charts.t.destroy();
+  charts.t=new Chart(document.getElementById('trend-chart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Google',data:dates.map(d=>dm[d].google),borderColor:'#4285F4',backgroundColor:'#4285F420',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3,yAxisID:'y'},
+      {label:'Bing',data:dates.map(d=>dm[d].bing),borderColor:'#0078d4',backgroundColor:'#0078d420',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3,yAxisID:'y'},
+      {label:'Revenue (£)',data:dates.map(d=>dm[d].rev),borderColor:'#d4a843',borderWidth:1.5,borderDash:[4,4],pointRadius:0,fill:false,tension:0.3,yAxisID:'y1'}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#a8a49e',font:{family:'Syne',size:11},boxWidth:10,padding:14}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},maxRotation:0}},
+        y:{position:'left',grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},precision:0}},
+        y1:{position:'right',grid:{display:false},ticks:{color:'#d4a843',font:{family:'DM Mono',size:10},callback:v=>'£'+v}}
+      }
+    }
+  });
+}
+
+function renderCampaigns(data){
+  const rows=(data.rows||[]).filter(r=>r.dimensionValues[1].value!=='(not set)');
+  const el=document.getElementById('campaigns');
+  if(!rows.length){el.innerHTML='<div class="ld">No campaign data — make sure UTM tracking is enabled</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr" style="grid-template-columns:80px 1fr 70px 80px 70px 70px 70px">
+    <span>Source</span><span>Campaign</span><span>Sessions</span><span>Revenue</span><span>Key ev.</span><span>Forms</span><span>Calls</span>
+  </div>`+rows.map(r=>{
+    const src=r.dimensionValues[0].value;
+    const name=r.dimensionValues[1].value;
+    const dot=src==='google'?'#4285F4':'#0078d4';
+    return`<div class="tbl-row" style="grid-template-columns:80px 1fr 70px 80px 70px 70px 70px;font-size:12px">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${dot}"></span><span style="font-size:11px;color:var(--muted)">${src}</span></span>
+      <span class="tpath" title="${name}">${name.slice(0,40)}</span>
+      <span class="tnum">${r.metricValues[0].value}</span>
+      <span class="tnum gold">£${parseFloat(r.metricValues[1].value||0).toLocaleString('en-GB',{maximumFractionDigits:0})}</span>
+      <span class="tnum">${r.metricValues[2].value}</span>
+      <span class="tnum">${r.metricValues[3]?.value||0}</span>
+      <span class="tnum">${r.metricValues[4]?.value||0}</span>
+    </div>`;
+  }).join('');
+}
+
+function cleanPath(p){return(p||'/').replace('https://www.nuovoluxury.co.uk','').slice(0,38)||'/';}
+
+function renderRevPages(data){
+  const rows=(data.rows||[]).filter(r=>parseFloat(r.metricValues[0].value||0)>0);
+  const el=document.getElementById('rev-pages');
+  if(!rows.length){el.innerHTML='<div class="ld">No revenue in this period</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr pages"><span>Page</span><span>Rev</span><span>Sess</span><span>AOV</span></div>`+
+    rows.map(r=>{
+      const rev=parseFloat(r.metricValues[0].value||0);
+      const sess=parseInt(r.metricValues[1].value||0);
+      const trans=parseInt(r.metricValues[2].value||0);
+      const aov=trans>0?rev/trans:0;
+      return`<div class="tbl-row pages"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum gold">£${rev.toLocaleString('en-GB',{maximumFractionDigits:0})}</span><span class="tnum mu">${sess}</span><span class="tnum mu">${aov>0?'£'+aov.toFixed(0):'—'}</span></div>`;
+    }).join('');
+}
+
+function renderConvPages(data){
+  const rows=(data.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>0);
+  const el=document.getElementById('conv-pages');
+  if(!rows.length){el.innerHTML='<div class="ld">No key events</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr pages"><span>Page</span><span>KE</span><span>Sess</span><span>CR</span></div>`+
+    rows.map(r=>{
+      const ke=parseInt(r.metricValues[0].value||0);
+      const sess=parseInt(r.metricValues[1].value||0);
+      const rate=(parseFloat(r.metricValues[2].value||0)*100).toFixed(1);
+      return`<div class="tbl-row pages"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${ke}</span><span class="tnum mu">${sess}</span><span class="tnum green">${rate}%</span></div>`;
+    }).join('');
+}
+
+function renderDevices(data){
+  const rows=data.rows||[];
+  const total=rows.reduce((a,r)=>a+parseInt(r.metricValues[0].value||0),0)||1;
+  const el=document.getElementById('devices');
+  el.innerHTML=`<div class="tbl-row tbl-hdr devices"><span>Device</span><span>Share</span><span>Sess</span><span>Rev</span><span>KE</span></div>`+
+    rows.map(r=>{
+      const sess=parseInt(r.metricValues[0].value||0);
+      const rev=parseFloat(r.metricValues[1].value||0);
+      const ke=parseInt(r.metricValues[2].value||0);
+      const pct=Math.round(sess/total*100);
+      return`<div class="tbl-row devices">
+        <span style="font-weight:500;text-transform:capitalize">${r.dimensionValues[0].value}</span>
+        <div><div style="background:var(--bg3);border-radius:20px;height:4px;overflow:hidden"><div style="height:4px;background:var(--gold);width:${pct}%"></div></div></div>
+        <span class="tnum">${sess}</span>
+        <span class="tnum gold">£${rev.toLocaleString('en-GB',{maximumFractionDigits:0})}</span>
+        <span class="tnum mu">${ke}</span>
+      </div>`;
+    }).join('');
+}
+
+function renderCountries(data){
+  const rows=data.rows||[];
+  const total=rows.reduce((a,r)=>a+parseInt(r.metricValues[0].value||0),0)||1;
+  const el=document.getElementById('countries');
+  if(!rows.length){el.innerHTML='<div class="ld">No data</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr geo"><span>Country</span><span>Sess</span><span>Rev</span><span>%</span></div>`+
+    rows.map(r=>{
+      const sess=parseInt(r.metricValues[0].value||0);
+      const rev=parseFloat(r.metricValues[1].value||0);
+      const pct=Math.round(sess/total*100);
+      return`<div class="tbl-row geo"><span style="font-weight:500">${r.dimensionValues[0].value}</span><span class="tnum">${sess}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum mu">${pct}%</span></div>`;
+    }).join('');
+}
+</script>
+</body>
+</html>
