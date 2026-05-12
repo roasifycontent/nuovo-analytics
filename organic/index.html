@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organic SEO — Nuovo Luxury</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f5f3ec;--muted:#a8a49e;--dim:#6a6660;
+  --gold:#d4a843;--green:#10b981;--red:#f87171;
+  --google:#4285F4;--bing:#0078d4;--purple:#a78bfa;
+  --up:#10b981;--down:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px}
+body{min-height:100vh}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+.tl{display:flex;align-items:center;gap:20px}
+.logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase}
+.logo span{color:var(--gold)}
+.nav{display:flex;gap:4px;margin-left:8px}
+.nav a{font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase;transition:color 0.2s}
+.nav a:hover{color:var(--text)}
+.nav a.active{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2)}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.tr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s}
+.bsm:hover{border-color:var(--gold)}
+.bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+
+.main{padding:28px;max-width:1400px;margin:0 auto}
+
+/* Hero stats - 4 channel cards */
+.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden;transition:border-color 0.2s}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0.7}
+.stat-card.google::before{background:var(--google)}
+.stat-card.bing::before{background:var(--bing)}
+.stat-card.other::before{background:var(--purple)}
+.stat-card.total::before{background:var(--gold)}
+.stat-lbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.stat-num{font-size:30px;font-weight:700;line-height:1;font-family:'DM Mono',monospace;margin-bottom:4px}
+.stat-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-family:'DM Mono',monospace;margin-left:6px}
+.delta.up{color:var(--up)}.delta.down{color:var(--down)}
+
+/* KPI strip */
+.kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px}
+.kpi-lbl{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.kpi-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace}
+.kpi-val.gold{color:var(--gold)}
+.kpi-val.green{color:var(--green)}
+
+/* Card */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
+.ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.ct-tip{font-size:11px;color:var(--dim);text-transform:none;letter-spacing:0;font-family:'DM Mono',monospace}
+.cw{position:relative;height:240px}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+
+/* Tables */
+.tbl-row{display:grid;gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.tbl-row:last-child{border-bottom:none}
+.tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
+.tbl-row.kw{grid-template-columns:1fr 60px 60px 55px 55px}
+.tbl-row.kw-rising{grid-template-columns:1fr 60px 70px 60px}
+.tbl-row.pages{grid-template-columns:1fr 60px 60px 70px 55px}
+.tbl-row.blogs{grid-template-columns:1fr 60px 80px 60px}
+.tbl-row.opps{grid-template-columns:1fr 60px 55px 60px}
+.tbl-row.geo{grid-template-columns:1fr 50px 70px 50px}
+.tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tkw{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.tnum{font-family:'DM Mono',monospace;text-align:right}
+.tnum.gold{color:var(--gold)}
+.tnum.green{color:var(--green)}
+.tnum.purple{color:var(--purple)}
+.tnum.mu{color:var(--muted)}
+.tnum.dim{color:var(--dim)}
+.pos-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;text-align:center}
+.pos-1-3{background:rgba(16,185,129,0.15);color:var(--green)}
+.pos-4-10{background:rgba(212,168,67,0.15);color:var(--gold)}
+.pos-11-20{background:rgba(167,139,250,0.15);color:var(--purple)}
+.pos-21{background:rgba(248,113,113,0.1);color:var(--red)}
+
+/* Loading */
+.ld{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
+.sp{width:14px;height:14px;border:1.5px solid var(--dim);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Setup screen */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.setup-card{max-width:480px;width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem}
+.setup-logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:2rem}
+.setup-logo span{color:var(--gold)}
+h1{font-size:22px;font-weight:700;margin-bottom:8px}
+.sub{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:1.5rem}
+.btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
+.scope-note{font-size:11px;color:var(--muted);background:var(--bg3);border-radius:6px;padding:10px 14px;line-height:1.5;margin-top:8px}
+.scope-note strong{color:var(--gold)}
+
+.footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+
+.insight{background:linear-gradient(135deg,rgba(212,168,67,0.06) 0%,transparent 100%);border:0.5px solid var(--border-gold,rgba(212,168,67,0.2));border-radius:8px;padding:14px 18px;margin-bottom:12px;display:flex;align-items:flex-start;gap:12px}
+.insight-icon{width:32px;height:32px;border-radius:50%;background:rgba(212,168,67,0.1);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:16px;flex-shrink:0}
+.insight-text{flex:1;font-size:12px;line-height:1.5}
+.insight-text strong{color:var(--gold);font-weight:600}
+
+@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.kpi-strip{grid-template-columns:repeat(3,1fr)}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">Nuovo Luxury <span>/ Organic SEO</span></div>
+    <h1>Sign in to view SEO data</h1>
+    <p class="sub">Connect with your Google account to access GA4 organic traffic AND Search Console keyword data.</p>
+    <button class="btn-google" onclick="startOAuth()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="scope-note"><strong>Note:</strong> This dashboard needs Search Console access. If you've signed in elsewhere with only GA4 scope, click sign in again here to grant both permissions.</div>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none">
+  <div class="topbar">
+    <div class="tl">
+      <div class="logo">Nuovo Luxury <span>/ Organic SEO</span></div>
+      <div class="nav">
+        <a href="/">← Home</a>
+        <a href="/ai">AI Traffic</a>
+        <a href="/paid">Paid Ads</a>
+        <a href="/organic" class="active">Organic</a>
+      </div>
+      <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
+    </div>
+    <div class="tr">
+      <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
+      <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
+      <button class="bsm" onclick="refresh()">↻</button>
+      <button class="bsm" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Hero stats -->
+    <div class="hero">
+      <div class="stat-card google">
+        <div class="stat-lbl"><span class="sdot" style="background:var(--google)"></span>Google organic</div>
+        <div class="stat-num" id="h-google">—</div>
+        <div class="stat-sub">sessions <span class="delta" id="hd-google"></span></div>
+      </div>
+      <div class="stat-card bing">
+        <div class="stat-lbl"><span class="sdot" style="background:var(--bing)"></span>Bing organic</div>
+        <div class="stat-num" id="h-bing">—</div>
+        <div class="stat-sub">sessions <span class="delta" id="hd-bing"></span></div>
+      </div>
+      <div class="stat-card other">
+        <div class="stat-lbl"><span class="sdot" style="background:var(--purple)"></span>Other organic</div>
+        <div class="stat-num" id="h-other">—</div>
+        <div class="stat-sub">DDG, Yahoo, etc.</div>
+      </div>
+      <div class="stat-card total">
+        <div class="stat-lbl"><span class="sdot" style="background:var(--gold)"></span>Total organic</div>
+        <div class="stat-num" id="h-total">—</div>
+        <div class="stat-sub">all sources</div>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-lbl">Revenue</div><div class="kpi-val gold" id="k-rev">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Key events</div><div class="kpi-val" id="k-ke">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Form submits</div><div class="kpi-val" id="k-forms">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Phone calls</div><div class="kpi-val" id="k-calls">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Avg. position (GSC)</div><div class="kpi-val" id="k-pos">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">CTR (GSC)</div><div class="kpi-val green" id="k-ctr">—</div></div>
+    </div>
+
+    <!-- Insights -->
+    <div id="insights"></div>
+
+    <!-- Top keywords -->
+    <div class="card">
+      <div class="ct"><span>Top performing keywords</span><span class="ct-tip">From Google Search Console</span></div>
+      <div id="keywords"><div class="ld"><span class="sp"></span>Loading Search Console data...</div></div>
+    </div>
+
+    <!-- Rising keywords + opportunities -->
+    <div class="row2">
+      <div class="card">
+        <div class="ct"><span>Rising keywords</span><span class="ct-tip">Biggest position gains</span></div>
+        <div id="rising"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span>Opportunities</span><span class="ct-tip">Page 2 keywords — boost to page 1</span></div>
+        <div id="opps"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+    </div>
+
+    <!-- Top pages by organic revenue & traffic -->
+    <div class="card">
+      <div class="ct"><span>Top organic pages — revenue & conversions</span><span class="ct-tip">From GA4</span></div>
+      <div id="top-pages"><div class="ld"><span class="sp"></span></div></div>
+    </div>
+
+    <!-- Blog performance -->
+    <div class="card">
+      <div class="ct"><span>Blog & content performance</span><span class="ct-tip">Pages, guides, buyer guides</span></div>
+      <div id="blogs"><div class="ld"><span class="sp"></span></div></div>
+    </div>
+
+    <!-- Trend chart -->
+    <div class="card">
+      <div class="ct"><span>Daily organic sessions & revenue</span></div>
+      <div class="cw"><canvas id="trend-chart"></canvas></div>
+    </div>
+
+    <!-- Geographic + Device -->
+    <div class="row2">
+      <div class="card">
+        <div class="ct"><span>Top countries</span></div>
+        <div id="countries"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span>By device</span></div>
+        <div id="devices"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+    </div>
+
+    <!-- How to use -->
+    <div class="card">
+      <div class="ct"><span>How to use this dashboard</span></div>
+      <div style="font-size:12px;line-height:1.7;color:var(--muted)">
+        <strong style="color:var(--text)">The rising keywords list</strong> shows queries where your average position has improved most over the last 28 days vs prior 28. These are the topics Google is currently liking your content for — double down by adding more depth to those pages or building related content.<br><br>
+        <strong style="color:var(--text)">The opportunities list</strong> shows keywords ranking on page 2 (positions 11-20). These are the quickest wins — small optimisations (better title, more content, internal links) can push them to page 1 where they get 10× the clicks.<br><br>
+        <strong style="color:var(--text)">Blog & content performance</strong> separates your buyer guides and pillar pages from product/collection pages. If a guide has high traffic but low conversions, it's not internally linking enough to products. If it has low traffic but high conversions, it deserves more SEO attention.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="ftl" id="fts">—</div>
+    <div style="display:flex;gap:16px">
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase"><span style="width:8px;height:8px;border-radius:50%;background:var(--google)"></span>Google</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase"><span style="width:8px;height:8px;border-radius:50%;background:var(--bing)"></span>Bing</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase"><span style="width:8px;height:8px;border-radius:50%;background:var(--purple)"></span>Other</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROP='346978985';
+const SITE_URL='https://www.nuovoluxury.co.uk/';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
+
+let token=null, charts={}, dateRange={startDate:'28daysAgo',endDate:'today'};
+let daysBack=28;
+
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
+
+function startOAuth(){
+  const base='https://accounts.google.com/o/oauth2/v2/auth';
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:'https://project-apa7y.vercel.app/organic',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
+    include_granted_scopes:'true'
+  });
+  window.location.href=base+'?'+params.toString();
+}
+
+function signOut(){
+  token=null;
+  localStorage.removeItem('nuovo_token');
+  localStorage.removeItem('nuovo_scope');
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('setup').style.display='flex';
+}
+
+window.addEventListener('load',()=>{
+  const saved=localStorage.getItem('nuovo_token');
+  const scope=localStorage.getItem('nuovo_scope')||'';
+  if(saved){
+    token=saved;
+    // If the token doesn't include webmasters scope, prompt re-auth
+    if(!scope.includes('webmasters')){
+      // Token exists but no GSC scope - launch dashboard and show prompt to re-auth
+      launch();
+    } else {
+      launch();
+    }
+  }
+});
+
+function launch(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  refresh();
+  setInterval(refresh,30*60*1000);
+}
+
+function setPreset(btn,preset){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  daysBack=parseInt(preset);
+  dateRange={startDate:`${preset}daysAgo`,endDate:'today'};
+  refresh();
+}
+
+async function ga4(body){
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'GA4 '+r.status);}
+  return r.json();
+}
+
+async function gsc(body){
+  const url=`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){
+    const e=await r.json();
+    const msg=e.error?.message||'GSC '+r.status;
+    if(r.status===403){throw new Error('GSC_NO_SCOPE');}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+function gscDates(days){
+  const today=new Date();
+  const end=new Date(today); end.setDate(today.getDate()-3); // GSC has ~3 day lag
+  const start=new Date(end); start.setDate(end.getDate()-days);
+  const fmt=d=>d.toISOString().slice(0,10);
+  return {startDate:fmt(start),endDate:fmt(end)};
+}
+
+async function refresh(){
+  document.getElementById('fst').textContent='Fetching...';
+  if(!token){signOut();return;}
+
+  const orgFil={filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}};
+  const gscRange=gscDates(daysBack);
+  const gscRangePrev=gscDates(daysBack*2);
+  gscRangePrev.endDate=gscRange.startDate;
+
+  try{
+    // Parallel - GA4 queries
+    const [bySource, kpiData, byPage, byCountry, byDevice, byDate, blogPages] = await Promise.all([
+      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
+      ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:form_submit'},{name:'conversions:phone_calls'}],dimensionFilter:orgFil}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:15}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:orgFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:15})
+    ]);
+
+    renderHero(bySource);
+    renderKPIs(kpiData);
+    renderTopPages(byPage);
+    renderCountries(byCountry);
+    renderDevices(byDevice);
+    renderTrend(byDate);
+    renderBlogs(blogPages);
+
+    // GSC queries - separate try because scope might be missing
+    try{
+      const [kwData, kwPrev, kwOpps] = await Promise.all([
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:25,startRow:0}),
+        gsc({startDate:gscRangePrev.startDate,endDate:gscRangePrev.endDate,dimensions:['query'],rowLimit:50,startRow:0}),
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:50,startRow:0})
+      ]);
+      renderKeywords(kwData);
+      renderRising(kwData, kwPrev);
+      renderOpportunities(kwOpps);
+      updateAvgPosCTR(kwData);
+      buildInsights(kwData, kwPrev, byPage);
+    } catch(gscErr){
+      if(gscErr.message==='GSC_NO_SCOPE'){
+        document.getElementById('keywords').innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Search Console access not granted. <a href="#" onclick="signOut();startOAuth();return false;" style="color:var(--gold)">Re-sign in</a> to enable.</div>';
+        document.getElementById('rising').innerHTML='<div class="ld">—</div>';
+        document.getElementById('opps').innerHTML='<div class="ld">—</div>';
+      } else {
+        document.getElementById('keywords').innerHTML='<div class="ld">GSC: '+gscErr.message+'</div>';
+      }
+    }
+
+    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('fts').textContent='GA4 Property '+PROP+' · '+new Date().toLocaleString('en-GB');
+  }catch(e){
+    if(e.message.includes('401')||e.message.includes('403')){signOut();}
+    document.getElementById('fst').textContent='Error: '+e.message;
+    console.error(e);
+  }
+}
+
+function renderHero(data){
+  let google=0,bing=0,other=0;
+  (data.rows||[]).forEach(r=>{
+    const src=r.dimensionValues[0].value.toLowerCase();
+    const s=parseInt(r.metricValues[0].value||0);
+    if(src==='google')google+=s;
+    else if(src==='bing')bing+=s;
+    else other+=s;
+  });
+  const total=google+bing+other;
+  document.getElementById('h-google').textContent=google.toLocaleString();
+  document.getElementById('h-bing').textContent=bing.toLocaleString();
+  document.getElementById('h-other').textContent=other.toLocaleString();
+  document.getElementById('h-total').textContent=total.toLocaleString();
+}
+
+function renderKPIs(data){
+  const row=(data.rows||[])[0];
+  if(!row){return;}
+  const rev=parseFloat(row.metricValues[0].value||0);
+  const ke=parseInt(row.metricValues[1].value||0);
+  const forms=parseInt(row.metricValues[2]?.value||0);
+  const calls=parseInt(row.metricValues[3]?.value||0);
+  document.getElementById('k-rev').textContent='£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0});
+  document.getElementById('k-ke').textContent=ke;
+  document.getElementById('k-forms').textContent=forms;
+  document.getElementById('k-calls').textContent=calls;
+}
+
+function updateAvgPosCTR(kwData){
+  const rows=kwData.rows||[];
+  if(!rows.length) return;
+  let totImp=0, totClicks=0, posSum=0;
+  rows.forEach(r=>{
+    totImp+=r.impressions||0;
+    totClicks+=r.clicks||0;
+    posSum+=(r.position||0)*(r.impressions||0);
+  });
+  const avgPos=totImp>0?(posSum/totImp).toFixed(1):'—';
+  const ctr=totImp>0?(totClicks/totImp*100).toFixed(2)+'%':'—';
+  document.getElementById('k-pos').textContent=avgPos;
+  document.getElementById('k-ctr').textContent=ctr;
+}
+
+function posClass(p){
+  if(p<=3) return 'pos-1-3';
+  if(p<=10) return 'pos-4-10';
+  if(p<=20) return 'pos-11-20';
+  return 'pos-21';
+}
+
+function renderKeywords(data){
+  const rows=(data.rows||[]).slice(0,20);
+  const el=document.getElementById('keywords');
+  if(!rows.length){el.innerHTML='<div class="ld">No keyword data — make sure Search Console is verified for this site</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr kw"><span>Keyword</span><span>Clicks</span><span>Impr.</span><span>CTR</span><span>Pos.</span></div>`+
+    rows.map(r=>{
+      const kw=r.keys[0];
+      const clicks=r.clicks||0;
+      const impr=r.impressions||0;
+      const ctr=(r.ctr*100).toFixed(1)+'%';
+      const pos=r.position.toFixed(1);
+      return`<div class="tbl-row kw"><span class="tkw" title="${kw}">${kw}</span><span class="tnum green">${clicks}</span><span class="tnum mu">${impr.toLocaleString()}</span><span class="tnum">${ctr}</span><span style="text-align:right"><span class="pos-badge ${posClass(r.position)}">${pos}</span></span></div>`;
+    }).join('');
+}
+
+function renderRising(curr, prev){
+  const prevMap={};
+  (prev.rows||[]).forEach(r=>{prevMap[r.keys[0]]={pos:r.position,clicks:r.clicks||0};});
+  
+  const rising=(curr.rows||[])
+    .filter(r=>prevMap[r.keys[0]] && (r.impressions||0)>=20)
+    .map(r=>({
+      keyword:r.keys[0],
+      currPos:r.position,
+      prevPos:prevMap[r.keys[0]].pos,
+      delta:prevMap[r.keys[0]].pos-r.position,
+      clicks:r.clicks||0
+    }))
+    .filter(r=>r.delta>0.5)
+    .sort((a,b)=>b.delta-a.delta)
+    .slice(0,10);
+
+  const el=document.getElementById('rising');
+  if(!rising.length){el.innerHTML='<div style="padding:14px;font-size:12px;color:var(--muted)">No significant position changes in this period</div>';return;}
+  
+  el.innerHTML=`<div class="tbl-row tbl-hdr kw-rising"><span>Keyword</span><span>Now</span><span>Change</span><span>Clicks</span></div>`+
+    rising.map(r=>{
+      return`<div class="tbl-row kw-rising"><span class="tkw" title="${r.keyword}">${r.keyword}</span><span style="text-align:right"><span class="pos-badge ${posClass(r.currPos)}">${r.currPos.toFixed(1)}</span></span><span class="tnum green">↑ ${r.delta.toFixed(1)}</span><span class="tnum mu">${r.clicks}</span></div>`;
+    }).join('');
+}
+
+function renderOpportunities(data){
+  const opps=(data.rows||[])
+    .filter(r=>r.position>=10 && r.position<=20 && r.impressions>=50)
+    .sort((a,b)=>b.impressions-a.impressions)
+    .slice(0,10);
+
+  const el=document.getElementById('opps');
+  if(!opps.length){el.innerHTML='<div style="padding:14px;font-size:12px;color:var(--muted)">No page 2 keywords yet — keep building authority</div>';return;}
+
+  el.innerHTML=`<div class="tbl-row tbl-hdr opps"><span>Keyword</span><span>Pos.</span><span>Impr.</span><span>Potential</span></div>`+
+    opps.map(r=>{
+      const kw=r.keys[0];
+      // Potential = current impressions * (typical page 1 CTR vs current CTR)
+      const targetCTR=0.05; // 5% if moved to page 1 avg
+      const additionalClicks=Math.round(r.impressions*targetCTR-(r.clicks||0));
+      return`<div class="tbl-row opps"><span class="tkw" title="${kw}">${kw}</span><span style="text-align:right"><span class="pos-badge pos-11-20">${r.position.toFixed(1)}</span></span><span class="tnum mu">${r.impressions.toLocaleString()}</span><span class="tnum gold">+${additionalClicks}/mo</span></div>`;
+    }).join('');
+}
+
+function cleanPath(p){return(p||'/').replace('https://www.nuovoluxury.co.uk','').slice(0,46)||'/';}
+
+function renderTopPages(data){
+  const rows=(data.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>0);
+  const el=document.getElementById('top-pages');
+  if(!rows.length){el.innerHTML='<div class="ld">No data</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr pages"><span>Page</span><span>Sessions</span><span>Revenue</span><span>Key events</span><span>Trans.</span></div>`+
+    rows.map(r=>{
+      const sess=parseInt(r.metricValues[0].value||0);
+      const rev=parseFloat(r.metricValues[1].value||0);
+      const ke=parseInt(r.metricValues[2].value||0);
+      const tr=parseInt(r.metricValues[3].value||0);
+      return`<div class="tbl-row pages"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${sess.toLocaleString()}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum">${ke||'—'}</span><span class="tnum mu">${tr||'—'}</span></div>`;
+    }).join('');
+}
+
+function renderBlogs(data){
+  const rows=(data.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>0);
+  const el=document.getElementById('blogs');
+  if(!rows.length){el.innerHTML='<div class="ld">No blog/guide traffic in this period</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr blogs"><span>Guide / Page</span><span>Sessions</span><span>Revenue</span><span>Eng%</span></div>`+
+    rows.map(r=>{
+      const sess=parseInt(r.metricValues[0].value||0);
+      const rev=parseFloat(r.metricValues[1].value||0);
+      const eng=(parseFloat(r.metricValues[3].value||0)*100).toFixed(0);
+      return`<div class="tbl-row blogs"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${sess.toLocaleString()}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum mu">${eng}%</span></div>`;
+    }).join('');
+}
+
+function renderCountries(data){
+  const rows=data.rows||[];
+  const total=rows.reduce((a,r)=>a+parseInt(r.metricValues[0].value||0),0)||1;
+  const el=document.getElementById('countries');
+  if(!rows.length){el.innerHTML='<div class="ld">No data</div>';return;}
+  el.innerHTML=`<div class="tbl-row tbl-hdr geo"><span>Country</span><span>Sess</span><span>Rev</span><span>%</span></div>`+
+    rows.map(r=>{
+      const sess=parseInt(r.metricValues[0].value||0);
+      const rev=parseFloat(r.metricValues[1].value||0);
+      const pct=Math.round(sess/total*100);
+      return`<div class="tbl-row geo"><span style="font-weight:500">${r.dimensionValues[0].value}</span><span class="tnum">${sess}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum mu">${pct}%</span></div>`;
+    }).join('');
+}
+
+function renderDevices(data){
+  const rows=data.rows||[];
+  const total=rows.reduce((a,r)=>a+parseInt(r.metricValues[0].value||0),0)||1;
+  const el=document.getElementById('devices');
+  el.innerHTML=`<div class="tbl-row tbl-hdr geo"><span>Device</span><span>Sess</span><span>Rev</span><span>%</span></div>`+
+    rows.map(r=>{
+      const sess=parseInt(r.metricValues[0].value||0);
+      const rev=parseFloat(r.metricValues[1].value||0);
+      const pct=Math.round(sess/total*100);
+      return`<div class="tbl-row geo"><span style="font-weight:500;text-transform:capitalize">${r.dimensionValues[0].value}</span><span class="tnum">${sess}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum mu">${pct}%</span></div>`;
+    }).join('');
+}
+
+function renderTrend(byDate){
+  const dates=(byDate.rows||[]).map(r=>r.dimensionValues[0].value);
+  const sessions=(byDate.rows||[]).map(r=>parseInt(r.metricValues[0].value||0));
+  const revenue=(byDate.rows||[]).map(r=>parseFloat(r.metricValues[1].value||0));
+  const step=Math.max(1,Math.floor(dates.length/14));
+  const labels=dates.map((d,i)=>i%step===0?d.slice(4,6)+'/'+d.slice(6,8):'');
+
+  if(charts.t)charts.t.destroy();
+  charts.t=new Chart(document.getElementById('trend-chart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Sessions',data:sessions,borderColor:'#d4a843',backgroundColor:'rgba(212,168,67,0.1)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.3,yAxisID:'y'},
+      {label:'Revenue (£)',data:revenue,borderColor:'#10b981',borderWidth:1.5,borderDash:[4,4],pointRadius:0,fill:false,tension:0.3,yAxisID:'y1'}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#a8a49e',font:{family:'Syne',size:11},boxWidth:10,padding:14}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},maxRotation:0}},
+        y:{position:'left',grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},precision:0}},
+        y1:{position:'right',grid:{display:false},ticks:{color:'#10b981',font:{family:'DM Mono',size:10},callback:v=>'£'+v}}
+      }
+    }
+  });
+}
+
+function buildInsights(kwData, kwPrev, byPage){
+  const insights=[];
+  const rows=kwData.rows||[];
+  const prevMap={};
+  (kwPrev.rows||[]).forEach(r=>{prevMap[r.keys[0]]={pos:r.position,clicks:r.clicks||0};});
+
+  // Top mover
+  const movers=rows
+    .filter(r=>prevMap[r.keys[0]])
+    .map(r=>({kw:r.keys[0],delta:prevMap[r.keys[0]].pos-r.position,curr:r.position}))
+    .filter(r=>r.delta>2)
+    .sort((a,b)=>b.delta-a.delta);
+  if(movers.length){
+    const top=movers[0];
+    insights.push(`<div class="insight"><div class="insight-icon">↑</div><div class="insight-text"><strong>${top.kw}</strong> climbed ${top.delta.toFixed(1)} positions to #${top.curr.toFixed(1)}. Consider adding more depth to that ranking page to consolidate the gain.</div></div>`);
+  }
+
+  // Biggest page-2 opportunity
+  const page2=rows.filter(r=>r.position>=10&&r.position<=15&&r.impressions>=100).sort((a,b)=>b.impressions-a.impressions);
+  if(page2.length){
+    const opp=page2[0];
+    const potential=Math.round(opp.impressions*0.05-(opp.clicks||0));
+    insights.push(`<div class="insight"><div class="insight-icon">→</div><div class="insight-text"><strong>${opp.keys[0]}</strong> is on page 2 (#${opp.position.toFixed(1)}) with ${opp.impressions.toLocaleString()} monthly impressions. Push it to page 1 to gain an estimated <strong>+${potential} clicks/mo</strong>.</div></div>`);
+  }
+
+  // High-traffic low-conversion page
+  const pages=(byPage.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>=20);
+  for(const r of pages){
+    const sess=parseInt(r.metricValues[0].value||0);
+    const tr=parseInt(r.metricValues[3].value||0);
+    if(sess>=50 && tr===0){
+      insights.push(`<div class="insight"><div class="insight-icon">!</div><div class="insight-text"><strong>${cleanPath(r.dimensionValues[0].value)}</strong> has ${sess.toLocaleString()} sessions but no transactions. Worth checking the page for CRO improvements (clearer CTAs, related products, trust signals).</div></div>`);
+      break;
+    }
+  }
+
+  document.getElementById('insights').innerHTML=insights.join('');
+}
+</script>
+</body>
+</html>

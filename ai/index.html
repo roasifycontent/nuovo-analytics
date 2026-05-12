@@ -219,7 +219,7 @@ function startOAuth(){
     client_id:CLIENT_ID,
     redirect_uri:'https://project-apa7y.vercel.app/ai',
     response_type:'token',
-    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
     include_granted_scopes:'true',
     state:'sign-in'
   });

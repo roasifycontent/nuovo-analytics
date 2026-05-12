@@ -422,7 +422,7 @@ body::before{
       <div>
         <div class="section-num">01 / Active dashboards</div>
       </div>
-      <div class="section-num" id="dashboard-count">2 available</div>
+      <div class="section-num" id="dashboard-count">3 available</div>
     </div>
 
     <div class="dash-grid">
@@ -479,6 +479,32 @@ body::before{
         </div>
       </a>
 
+      <a href="/organic" class="dash-card">
+        <div class="dash-head">
+          <div class="dash-eyebrow">Organic SEO</div>
+          <span class="dash-arrow">→</span>
+        </div>
+        <h2 class="dash-title">The <em>compounding</em><br>traffic engine.</h2>
+        <p class="dash-desc">Keyword rankings from Search Console, organic revenue from GA4, rising queries, page-2 opportunities and content performance — all in one view.</p>
+        <div class="dash-stats">
+          <div class="stat">
+            <div class="stat-lbl">28d sessions</div>
+            <div class="stat-val" id="org-sessions">—</div>
+            <div class="stat-sub">organic search</div>
+          </div>
+          <div class="stat">
+            <div class="stat-lbl">Revenue</div>
+            <div class="stat-val gold" id="org-rev">—</div>
+            <div class="stat-sub">tracked</div>
+          </div>
+          <div class="stat">
+            <div class="stat-lbl">Avg position</div>
+            <div class="stat-val small" id="org-pos">—</div>
+            <div class="stat-sub">across keywords</div>
+          </div>
+        </div>
+      </a>
+
     </div>
   </section>
 
@@ -491,9 +517,9 @@ body::before{
 
     <div class="coming-grid">
       <div class="coming-card">
-        <div class="coming-eyebrow">Organic / SEO</div>
-        <h3 class="coming-title"><em style="font-style:italic;color:var(--gold-soft)">Search</em> rankings</h3>
-        <p class="coming-desc">Google &amp; Bing organic, keyword positions, click-through, indexation health.</p>
+        <div class="coming-eyebrow">Social / Referral</div>
+        <h3 class="coming-title"><em style="font-style:italic;color:var(--gold-soft)">Social</em> referrals</h3>
+        <p class="coming-desc">Instagram, TikTok, Pinterest, YouTube traffic and conversions — discover which content drives sales.</p>
         <div class="coming-tag">— Planned</div>
       </div>
       <div class="coming-card">
@@ -539,6 +565,37 @@ async function ga4(body){
 async function loadPreviews(){
   if(!token) return;
   try{
+    // Organic preview (28 days)
+    try{
+      const orgData = await ga4({
+        dateRanges:[{startDate:'28daysAgo',endDate:'today'}],
+        metrics:[{name:'sessions'},{name:'totalRevenue'}],
+        dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}}
+      });
+      const orgRow=(orgData.rows||[])[0];
+      if(orgRow){
+        document.getElementById('org-sessions').textContent=parseInt(orgRow.metricValues[0].value||0).toLocaleString();
+        const orgRev=parseFloat(orgRow.metricValues[1].value||0);
+        if(orgRev>0) document.getElementById('org-rev').textContent='£'+orgRev.toLocaleString('en-GB',{maximumFractionDigits:0});
+      }
+      // Avg position from GSC
+      const scope=localStorage.getItem('nuovo_scope')||'';
+      if(scope.includes('webmasters')){
+        const today=new Date();
+        const end=new Date(today);end.setDate(today.getDate()-3);
+        const start=new Date(end);start.setDate(end.getDate()-28);
+        const fmt=d=>d.toISOString().slice(0,10);
+        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmt(start),endDate:fmt(end),dimensions:['query'],rowLimit:50})});
+        if(gscR.ok){
+          const gscD=await gscR.json();
+          const r=gscD.rows||[];
+          let imp=0,pos=0;
+          r.forEach(x=>{imp+=x.impressions||0;pos+=(x.position||0)*(x.impressions||0);});
+          if(imp>0) document.getElementById('org-pos').textContent='#'+(pos/imp).toFixed(1);
+        }
+      }
+    }catch(e){console.warn('org preview',e);}
+
     // AI traffic preview (90 days)
     const aiRx='chatgpt|claude|perplexity|copilot\\.microsoft|copilot\\.bing';
     const aiData = await ga4({

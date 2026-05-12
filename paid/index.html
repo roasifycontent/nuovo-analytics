@@ -134,6 +134,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
         <a href="/">← Home</a>
         <a href="/ai">AI Traffic</a>
         <a href="/paid" class="active">Paid Ads</a>
+        <a href="/organic">Organic</a>
       </div>
       <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
     </div>
@@ -313,7 +314,7 @@ function startOAuth(){
     client_id:CLIENT_ID,
     redirect_uri:'https://project-apa7y.vercel.app/paid',
     response_type:'token',
-    scope:'https://www.googleapis.com/auth/analytics.readonly'
+    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly'
   });
   window.location.href=base+'?'+params.toString();
 }
