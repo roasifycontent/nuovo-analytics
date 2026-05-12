@@ -148,7 +148,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 <script>
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
-const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot','bing']}};
+const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot.microsoft','copilot.bing']}};
 let token=null,charts={};
 
 function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
