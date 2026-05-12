@@ -346,8 +346,49 @@ async function ga4(body){
   return r.json();
 }
 
+const GSC_URLS=[
+  'https://www.nuovoluxury.co.uk/',
+  'https://www.nuovoluxury.co.uk',
+  'https://nuovoluxury.co.uk/',
+  'https://nuovoluxury.co.uk',
+  'sc-domain:nuovoluxury.co.uk'
+];
+let gscSiteUrl=null;
+
+async function gscFindSite(){
+  if(gscSiteUrl) return gscSiteUrl;
+  // First try listing all sites the user has access to
+  try{
+    const r=await fetch('https://www.googleapis.com/webmasters/v3/sites',{headers:{'Authorization':'Bearer '+token}});
+    if(r.ok){
+      const data=await r.json();
+      const sites=(data.siteEntry||[]).map(s=>s.siteUrl);
+      console.log('GSC sites found:',sites);
+      // Find the matching one
+      const match=sites.find(s=>s.includes('nuovoluxury'));
+      if(match){gscSiteUrl=match;console.log('Using GSC site:',match);return match;}
+    }
+  }catch(e){console.warn('GSC list sites failed:',e);}
+  
+  // Fallback: try each URL format
+  for(const url of GSC_URLS){
+    try{
+      const r=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(url)}/searchAnalytics/query`,{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({startDate:'2026-05-01',endDate:'2026-05-10',dimensions:['query'],rowLimit:1})
+      });
+      if(r.ok){gscSiteUrl=url;console.log('GSC working with:',url);return url;}
+      const e=await r.json();
+      console.log('GSC tried',url,'->',r.status,e.error?.message);
+    }catch(e){}
+  }
+  throw new Error('GSC_NO_SITE');
+}
+
 async function gsc(body){
-  const url=`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`;
+  const siteUrl=await gscFindSite();
+  const url=`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
   const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){
     const e=await r.json();
@@ -397,6 +438,7 @@ async function refresh(){
 
     // GSC queries - separate try because scope might be missing
     try{
+      await gscFindSite(); // pre-discover the site URL
       const [kwData, kwPrev, kwOpps] = await Promise.all([
         gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:25,startRow:0}),
         gsc({startDate:gscRangePrev.startDate,endDate:gscRangePrev.endDate,dimensions:['query'],rowLimit:50,startRow:0}),
@@ -408,13 +450,16 @@ async function refresh(){
       updateAvgPosCTR(kwData);
       buildInsights(kwData, kwPrev, byPage);
     } catch(gscErr){
+      console.error('GSC error:',gscErr);
       if(gscErr.message==='GSC_NO_SCOPE'){
-        document.getElementById('keywords').innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Search Console access not granted. <a href="#" onclick="signOut();startOAuth();return false;" style="color:var(--gold)">Re-sign in</a> to enable.</div>';
-        document.getElementById('rising').innerHTML='<div class="ld">—</div>';
-        document.getElementById('opps').innerHTML='<div class="ld">—</div>';
+        document.getElementById('keywords').innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Search Console access not granted. <a href="#" onclick="startOAuth();return false;" style="color:var(--gold)">Sign in with Search Console permission</a></div>';
+      } else if(gscErr.message==='GSC_NO_SITE'){
+        document.getElementById('keywords').innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Could not find nuovoluxury.co.uk in your Search Console. Make sure the site is <a href="https://search.google.com/search-console" target="_blank" style="color:var(--gold)">verified in Search Console</a> under the same Google account you signed in with.</div>';
       } else {
-        document.getElementById('keywords').innerHTML='<div class="ld">GSC: '+gscErr.message+'</div>';
+        document.getElementById('keywords').innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">GSC error: '+gscErr.message+'<br><br><a href="#" onclick="startOAuth();return false;" style="color:var(--gold)">Try re-signing in</a></div>';
       }
+      document.getElementById('rising').innerHTML='<div class="ld" style="color:var(--dim)">Requires Search Console</div>';
+      document.getElementById('opps').innerHTML='<div class="ld" style="color:var(--dim)">Requires Search Console</div>';
     }
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
