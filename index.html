@@ -142,6 +142,34 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="card"><div class="ct">Weekly AI sessions</div><div class="cw" style="height:160px"><canvas id="wc"></canvas></div></div>
     </div>
   </div>
+  <div class="main" style="padding-top:0">
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">Sales & conversions from AI traffic</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+        <div>
+          <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Top revenue pages</div>
+          <div id="rev-pages"><div class="ld"><span class="sp"></span></div></div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Top converting pages</div>
+          <div id="conv-pages"><div class="ld"><span class="sp"></span></div></div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Sessions by device</div>
+          <div id="device-split"><div class="ld"><span class="sp"></span></div></div>
+        </div>
+      </div>
+
+      <div style="border-top:0.5px solid var(--border);padding-top:16px">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">AI traffic by country</div>
+        <div id="country-table"><div class="ld"><span class="sp"></span></div></div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer">
     <div class="ftl" id="fts">—</div>
     <div class="leg">
@@ -253,6 +281,18 @@ async function refresh(){
       ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
     ]);
     render(bs,bd,bp);
+
+    // Fetch additional sections in parallel
+    const[revPages, convPages, devices, countries] = await Promise.all([
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'totalRevenue'},{name:'sessions'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:8}),
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'keyEvents'},{name:'sessions'},{name:'keyEventRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'keyEventRate'},desc:true}],limit:8}),
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:10})
+    ]);
+    renderRevPages(revPages);
+    renderConvPages(convPages);
+    renderDevices(devices);
+    renderCountries(countries);
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('fts').textContent='GA4 · Property '+PROP+' · '+new Date().toLocaleString('en-GB');
   }catch(e){
@@ -310,6 +350,87 @@ function rWeekly(bd){
 }
 
 
+
+function cleanPath(p){return(p||'/').replace('https://www.nuovoluxury.co.uk','').slice(0,42)||'/';}
+
+function renderRevPages(data){
+  const rows=(data.rows||[]).filter(r=>parseFloat(r.metricValues[0].value||0)>0);
+  const el=document.getElementById('rev-pages');
+  if(!rows.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">No revenue tracked in this period</div>';return;}
+  el.innerHTML=rows.map(r=>{
+    const rev=parseFloat(r.metricValues[0].value||0);
+    const sess=parseInt(r.metricValues[1].value||0);
+    const path=cleanPath(r.dimensionValues[0].value);
+    return`<div style="display:grid;grid-template-columns:1fr 70px 60px;gap:6px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center">
+      <span style="font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${path}">${path}</span>
+      <span style="text-align:right;color:var(--gold);font-family:'DM Mono',monospace">£${rev.toLocaleString('en-GB',{maximumFractionDigits:0})}</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${sess} sess</span>
+    </div>`;
+  }).join('');
+}
+
+function renderConvPages(data){
+  const rows=(data.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>0);
+  const el=document.getElementById('conv-pages');
+  if(!rows.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">No key events in this period</div>';return;}
+  el.innerHTML=rows.map(r=>{
+    const ke=parseInt(r.metricValues[0].value||0);
+    const rate=(parseFloat(r.metricValues[2].value||0)*100).toFixed(1);
+    const path=cleanPath(r.dimensionValues[0].value);
+    return`<div style="display:grid;grid-template-columns:1fr 50px 55px;gap:6px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center">
+      <span style="font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${path}">${path}</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace">${ke} KE</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace;color:var(--chatgpt)">${rate}% CR</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDevices(data){
+  const rows=data.rows||[];
+  const total=rows.reduce((a,r)=>a+parseInt(r.metricValues[0].value||0),0)||1;
+  const el=document.getElementById('device-split');
+  el.innerHTML=rows.map(r=>{
+    const device=r.dimensionValues[0].value;
+    const sess=parseInt(r.metricValues[0].value||0);
+    const rev=parseFloat(r.metricValues[1].value||0);
+    const ke=parseInt(r.metricValues[2].value||0);
+    const pct=Math.round(sess/total*100);
+    const icons={'desktop':'🖥','mobile':'📱','tablet':'📋'};
+    return`<div style="padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:13px;font-weight:500;text-transform:capitalize">${icons[device]||'💻'} ${device}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">${sess.toLocaleString()} sess · ${pct}%</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:20px;height:4px;overflow:hidden;margin-bottom:5px">
+        <div style="height:4px;border-radius:20px;background:var(--gold);width:${pct}%;transition:width 1s ease"></div>
+      </div>
+      <div style="display:flex;gap:12px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">
+        ${rev>0?`<span style="color:var(--gold)">£${rev.toLocaleString('en-GB',{maximumFractionDigits:0})}</span>`:''}
+        ${ke>0?`<span>${ke} key events</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCountries(data){
+  const rows=data.rows||[];
+  const total=rows.reduce((a,r)=>a+parseInt(r.metricValues[0].value||0),0)||1;
+  const el=document.getElementById('country-table');
+  if(!rows.length){el.innerHTML='<div style="font-size:12px;color:var(--muted)">No data</div>';return;}
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">`+rows.map(r=>{
+    const country=r.dimensionValues[0].value;
+    const sess=parseInt(r.metricValues[0].value||0);
+    const rev=parseFloat(r.metricValues[1].value||0);
+    const ke=parseInt(r.metricValues[2].value||0);
+    const pct=Math.round(sess/total*100);
+    return`<div style="display:grid;grid-template-columns:1fr 60px 60px 50px;gap:6px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center">
+      <span style="font-weight:500">${country}</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${sess}</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace;color:var(--gold)">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${pct}%</span>
+    </div>`;
+  }).join('')+'</div>';
+}
 
 function loadDemo(){
   document.getElementById('setup').style.display='none';
