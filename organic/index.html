@@ -10,13 +10,13 @@
 :root{
   --bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
-  --text:#f5f3ec;--muted:#a8a49e;--dim:#6a6660;
+  --text:#f5f3ec;--muted:#b5b1a8;--dim:#7d7972;
   --gold:#d4a843;--green:#10b981;--red:#f87171;
   --google:#4285F4;--bing:#0078d4;--purple:#a78bfa;
   --up:#10b981;--down:#f87171;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px}
+html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:15px}
 body{min-height:100vh}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
@@ -47,7 +47,7 @@ body{min-height:100vh}
 .stat-card.total::before{background:var(--gold)}
 .stat-lbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
 .sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.stat-num{font-size:30px;font-weight:700;line-height:1;font-family:'DM Mono',monospace;margin-bottom:4px}
+.stat-num{font-size:34px;font-weight:700;line-height:1;font-family:'DM Mono',monospace;margin-bottom:4px}
 .stat-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 .delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-family:'DM Mono',monospace;margin-left:6px}
 .delta.up{color:var(--up)}.delta.down{color:var(--down)}
@@ -56,7 +56,7 @@ body{min-height:100vh}
 .kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
 .kpi{background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px}
 .kpi-lbl{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
-.kpi-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace}
+.kpi-val{font-size:20px;font-weight:600;font-family:'DM Mono',monospace}
 .kpi-val.gold{color:var(--gold)}
 .kpi-val.green{color:var(--green)}
 
@@ -69,7 +69,7 @@ body{min-height:100vh}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 
 /* Tables */
-.tbl-row{display:grid;gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.tbl-row{display:grid;gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .tbl-row:last-child{border-bottom:none}
 .tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
 .tbl-row.kw{grid-template-columns:1fr 60px 60px 55px 55px}
@@ -79,8 +79,8 @@ body{min-height:100vh}
 .tbl-row.opps{grid-template-columns:1fr 60px 55px 60px}
 .tbl-row.geo{grid-template-columns:1fr 50px 70px 50px}
 .tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tkw{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.tnum{font-family:'DM Mono',monospace;text-align:right}
+.tkw{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:500}
+.tnum{font-family:'DM Mono',monospace;text-align:right;font-size:13px}
 .tnum.gold{color:var(--gold)}
 .tnum.green{color:var(--green)}
 .tnum.purple{color:var(--purple)}
@@ -104,7 +104,7 @@ body{min-height:100vh}
 .setup-logo span{color:var(--gold)}
 h1{font-size:22px;font-weight:700;margin-bottom:8px}
 .sub{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:1.5rem}
-.btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
+.btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
 .scope-note{font-size:11px;color:var(--muted);background:var(--bg3);border-radius:6px;padding:10px 14px;line-height:1.5;margin-top:8px}
 .scope-note strong{color:var(--gold)}
 
@@ -200,6 +200,12 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
     <div class="card">
       <div class="ct"><span>Top performing keywords</span><span class="ct-tip">From Google Search Console</span></div>
       <div id="keywords"><div class="ld"><span class="sp"></span>Loading Search Console data...</div></div>
+    </div>
+
+    <!-- GSC page performance -->
+    <div class="card">
+      <div class="ct"><span>Top ranking pages</span><span class="ct-tip">Which URLs get the most search clicks</span></div>
+      <div id="gsc-pages"><div class="ld"><span class="sp"></span></div></div>
     </div>
 
     <!-- Rising keywords + opportunities -->
@@ -439,15 +445,17 @@ async function refresh(){
     // GSC queries - separate try because scope might be missing
     try{
       await gscFindSite(); // pre-discover the site URL
-      const [kwData, kwPrev, kwOpps] = await Promise.all([
-        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:25,startRow:0}),
-        gsc({startDate:gscRangePrev.startDate,endDate:gscRangePrev.endDate,dimensions:['query'],rowLimit:50,startRow:0}),
-        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:50,startRow:0})
+      const [kwData, kwPrev, kwOpps, gscPages] = await Promise.all([
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:100,startRow:0}),
+        gsc({startDate:gscRangePrev.startDate,endDate:gscRangePrev.endDate,dimensions:['query'],rowLimit:100,startRow:0}),
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:200,startRow:0}),
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['page'],rowLimit:30,startRow:0})
       ]);
       renderKeywords(kwData);
       renderRising(kwData, kwPrev);
       renderOpportunities(kwOpps);
       updateAvgPosCTR(kwData);
+      renderGSCPages(gscPages);
       buildInsights(kwData, kwPrev, byPage);
     } catch(gscErr){
       console.error('GSC error:',gscErr);
@@ -522,19 +530,57 @@ function posClass(p){
   return 'pos-21';
 }
 
+let allKW=[], kwSort='clicks', kwSortDir=-1, kwSearch='', kwLimit=20;
+
 function renderKeywords(data){
-  const rows=(data.rows||[]).slice(0,20);
+  allKW=(data.rows||[]).map(r=>({
+    keyword:r.keys[0],
+    clicks:r.clicks||0,
+    impressions:r.impressions||0,
+    ctr:r.ctr||0,
+    position:r.position||0
+  }));
+  drawKeywords();
+}
+
+function drawKeywords(){
   const el=document.getElementById('keywords');
-  if(!rows.length){el.innerHTML='<div class="ld">No keyword data — make sure Search Console is verified for this site</div>';return;}
-  el.innerHTML=`<div class="tbl-row tbl-hdr kw"><span>Keyword</span><span>Clicks</span><span>Impr.</span><span>CTR</span><span>Pos.</span></div>`+
-    rows.map(r=>{
-      const kw=r.keys[0];
-      const clicks=r.clicks||0;
-      const impr=r.impressions||0;
-      const ctr=(r.ctr*100).toFixed(1)+'%';
-      const pos=r.position.toFixed(1);
-      return`<div class="tbl-row kw"><span class="tkw" title="${kw}">${kw}</span><span class="tnum green">${clicks}</span><span class="tnum mu">${impr.toLocaleString()}</span><span class="tnum">${ctr}</span><span style="text-align:right"><span class="pos-badge ${posClass(r.position)}">${pos}</span></span></div>`;
-    }).join('');
+  if(!allKW.length){el.innerHTML='<div class="ld">No keyword data</div>';return;}
+
+  const filtered=allKW.filter(r=>!kwSearch||r.keyword.toLowerCase().includes(kwSearch.toLowerCase()));
+  const sorted=[...filtered].sort((a,b)=>kwSortDir*(a[kwSort]>b[kwSort]?1:-1));
+  const visible=sorted.slice(0,kwLimit);
+
+  const sortArrow=(col)=>kwSort===col?(kwSortDir===1?'↑':'↓'):'';
+  const hdr=(col,label)=>`<span style="cursor:pointer;user-select:none;text-align:right" onclick="sortKW('${col}')">${label} ${sortArrow(col)}</span>`;
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <input type="text" placeholder="Search keywords..." value="${kwSearch}" oninput="kwSearch=this.value;drawKeywords()" style="flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:8px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none">
+      <span style="font-size:12px;color:var(--dim);font-family:'DM Mono',monospace;white-space:nowrap">${filtered.length} keywords</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 70px 80px 60px 60px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)">
+      <span style="cursor:pointer;user-select:none" onclick="sortKW('keyword')">Keyword ${sortArrow('keyword')}</span>
+      ${hdr('clicks','Clicks')}
+      ${hdr('impressions','Impr.')}
+      ${hdr('ctr','CTR')}
+      ${hdr('position','Position')}
+    </div>
+    ${visible.map(r=>`
+      <div style="display:grid;grid-template-columns:1fr 70px 80px 60px 60px;gap:8px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <span class="tkw" title="${r.keyword}">${r.keyword}</span>
+        <span class="tnum green" style="font-size:14px;font-weight:500">${r.clicks}</span>
+        <span class="tnum mu">${r.impressions.toLocaleString()}</span>
+        <span class="tnum">${(r.ctr*100).toFixed(1)}%</span>
+        <span style="text-align:right"><span class="pos-badge ${posClass(r.position)}">${r.position.toFixed(1)}</span></span>
+      </div>`).join('')}
+    ${filtered.length>kwLimit?`<div style="text-align:center;padding:16px 0"><button onclick="kwLimit+=20;drawKeywords()" class="bsm" style="padding:8px 20px">Show more (${filtered.length-kwLimit} remaining)</button></div>`:''}
+  `;
+}
+
+function sortKW(col){
+  if(kwSort===col){kwSortDir*=-1;}else{kwSort=col;kwSortDir=col==='keyword'?1:-1;}
+  drawKeywords();
 }
 
 function renderRising(curr, prev){
@@ -579,6 +625,23 @@ function renderOpportunities(data){
       const targetCTR=0.05; // 5% if moved to page 1 avg
       const additionalClicks=Math.round(r.impressions*targetCTR-(r.clicks||0));
       return`<div class="tbl-row opps"><span class="tkw" title="${kw}">${kw}</span><span style="text-align:right"><span class="pos-badge pos-11-20">${r.position.toFixed(1)}</span></span><span class="tnum mu">${r.impressions.toLocaleString()}</span><span class="tnum gold">+${additionalClicks}/mo</span></div>`;
+    }).join('');
+}
+
+function renderGSCPages(data){
+  const rows=(data.rows||[]).sort((a,b)=>(b.clicks||0)-(a.clicks||0)).slice(0,15);
+  const el=document.getElementById('gsc-pages');
+  if(!rows.length){el.innerHTML='<div class="ld">No page data from Search Console</div>';return;}
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 70px 90px 60px 65px;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)"><span>Page</span><span style="text-align:right">Clicks</span><span style="text-align:right">Impressions</span><span style="text-align:right">CTR</span><span style="text-align:right">Avg pos.</span></div>`+
+    rows.map(r=>{
+      const page=(r.keys[0]||'').replace('https://www.nuovoluxury.co.uk','').slice(0,50)||'/';
+      return`<div style="display:grid;grid-template-columns:1fr 70px 90px 60px 65px;gap:8px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <span class="tpath" title="${r.keys[0]}" style="cursor:pointer;font-size:13px" onclick="window.open('${r.keys[0]}','_blank')">${page}</span>
+        <span class="tnum green" style="font-size:14px;font-weight:500">${r.clicks||0}</span>
+        <span class="tnum mu">${(r.impressions||0).toLocaleString()}</span>
+        <span class="tnum">${((r.ctr||0)*100).toFixed(1)}%</span>
+        <span style="text-align:right"><span class="pos-badge ${posClass(r.position||0)}">${(r.position||0).toFixed(1)}</span></span>
+      </div>`;
     }).join('');
 }
 
@@ -729,34 +792,59 @@ function buildInsights(kwData, kwPrev, byPage){
   // Top mover
   const movers=rows
     .filter(r=>prevMap[r.keys[0]])
-    .map(r=>({kw:r.keys[0],delta:prevMap[r.keys[0]].pos-r.position,curr:r.position}))
-    .filter(r=>r.delta>2)
+    .map(r=>({kw:r.keys[0],delta:prevMap[r.keys[0]].pos-r.position,curr:r.position,clicks:r.clicks||0}))
+    .filter(r=>r.delta>1)
     .sort((a,b)=>b.delta-a.delta);
   if(movers.length){
     const top=movers[0];
-    insights.push(`<div class="insight"><div class="insight-icon">↑</div><div class="insight-text"><strong>${top.kw}</strong> climbed ${top.delta.toFixed(1)} positions to #${top.curr.toFixed(1)}. Consider adding more depth to that ranking page to consolidate the gain.</div></div>`);
+    insights.push(`<div class="insight"><div class="insight-icon">↑</div><div class="insight-text"><strong>${top.kw}</strong> climbed ${top.delta.toFixed(1)} positions to #${top.curr.toFixed(1)} (${top.clicks} clicks). Consider adding more depth to that ranking page to consolidate the gain.</div></div>`);
   }
 
   // Biggest page-2 opportunity
-  const page2=rows.filter(r=>r.position>=10&&r.position<=15&&r.impressions>=100).sort((a,b)=>b.impressions-a.impressions);
+  const page2=rows.filter(r=>r.position>=10&&r.position<=20&&(r.impressions||0)>=30).sort((a,b)=>(b.impressions||0)-(a.impressions||0));
   if(page2.length){
     const opp=page2[0];
-    const potential=Math.round(opp.impressions*0.05-(opp.clicks||0));
-    insights.push(`<div class="insight"><div class="insight-icon">→</div><div class="insight-text"><strong>${opp.keys[0]}</strong> is on page 2 (#${opp.position.toFixed(1)}) with ${opp.impressions.toLocaleString()} monthly impressions. Push it to page 1 to gain an estimated <strong>+${potential} clicks/mo</strong>.</div></div>`);
+    const potential=Math.max(0,Math.round((opp.impressions||0)*0.05-(opp.clicks||0)));
+    insights.push(`<div class="insight"><div class="insight-icon">→</div><div class="insight-text"><strong>${opp.keys[0]}</strong> is on page 2 (#${opp.position.toFixed(1)}) with ${(opp.impressions||0).toLocaleString()} impressions. Push it to page 1 for an estimated <strong>+${potential} clicks/mo</strong>.</div></div>`);
+  }
+
+  // High CTR keyword with low position (hidden gem)
+  const gems=rows.filter(r=>(r.ctr||0)>0.03 && r.position>5 && (r.clicks||0)>=2).sort((a,b)=>(b.ctr||0)-(a.ctr||0));
+  if(gems.length){
+    const gem=gems[0];
+    insights.push(`<div class="insight"><div class="insight-icon">★</div><div class="insight-text"><strong>${gem.keys[0]}</strong> has ${((gem.ctr||0)*100).toFixed(1)}% CTR even at position #${gem.position.toFixed(0)} — users really want to click your result for this. Optimise the page to push it higher and clicks will compound significantly.</div></div>`);
+  }
+
+  // Declining keyword
+  const decliners=rows
+    .filter(r=>prevMap[r.keys[0]]&&(r.impressions||0)>=20)
+    .map(r=>({kw:r.keys[0],delta:r.position-(prevMap[r.keys[0]]?.pos||0),curr:r.position,prev:prevMap[r.keys[0]]?.pos||0}))
+    .filter(r=>r.delta>3)
+    .sort((a,b)=>b.delta-a.delta);
+  if(decliners.length){
+    const d=decliners[0];
+    insights.push(`<div class="insight" style="border-color:rgba(248,113,113,0.2);background:linear-gradient(135deg,rgba(248,113,113,0.04) 0%,transparent 100%)"><div class="insight-icon" style="background:rgba(248,113,113,0.1);color:var(--red)">↓</div><div class="insight-text"><strong style="color:var(--red)">${d.kw}</strong> dropped ${d.delta.toFixed(1)} positions from #${d.prev.toFixed(0)} to #${d.curr.toFixed(0)}. Review the page — competitor may have published stronger content, or it may need freshening.</div></div>`);
   }
 
   // High-traffic low-conversion page
-  const pages=(byPage.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>=20);
+  const pages=(byPage.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>=20 && !r.dimensionValues[0].value.includes('(not set)'));
   for(const r of pages){
     const sess=parseInt(r.metricValues[0].value||0);
     const tr=parseInt(r.metricValues[3].value||0);
-    if(sess>=50 && tr===0){
-      insights.push(`<div class="insight"><div class="insight-icon">!</div><div class="insight-text"><strong>${cleanPath(r.dimensionValues[0].value)}</strong> has ${sess.toLocaleString()} sessions but no transactions. Worth checking the page for CRO improvements (clearer CTAs, related products, trust signals).</div></div>`);
+    if(sess>=40 && tr===0){
+      insights.push(`<div class="insight"><div class="insight-icon">!</div><div class="insight-text"><strong>${cleanPath(r.dimensionValues[0].value)}</strong> has ${sess.toLocaleString()} organic sessions but no transactions. Check for CRO improvements — clearer CTAs, product links, or trust signals.</div></div>`);
       break;
     }
   }
 
-  document.getElementById('insights').innerHTML=insights.join('');
+  // Zero-click high-impression keywords
+  const zeroclicks=rows.filter(r=>(r.clicks||0)===0&&(r.impressions||0)>=20).sort((a,b)=>(b.impressions||0)-(a.impressions||0));
+  if(zeroclicks.length>=3){
+    const total=zeroclicks.reduce((a,r)=>a+(r.impressions||0),0);
+    insights.push(`<div class="insight"><div class="insight-icon">0</div><div class="insight-text">You have <strong>${zeroclicks.length} keywords</strong> with ${total.toLocaleString()} total impressions but zero clicks. These are showing in search but not getting clicked — review your meta titles and descriptions for these terms to improve CTR.</div></div>`);
+  }
+
+  document.getElementById('insights').innerHTML=insights.length?insights.join(''):'';
 }
 </script>
 </body>
