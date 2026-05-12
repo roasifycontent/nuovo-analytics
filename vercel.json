@@ -2,6 +2,7 @@
   "version": 2,
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/ai", "destination": "/ai/index.html" },
     { "source": "/paid", "destination": "/paid/index.html" }
   ]
 }

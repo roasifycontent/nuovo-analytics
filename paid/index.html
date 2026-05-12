@@ -131,7 +131,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     <div class="tl">
       <div class="logo">Nuovo Luxury <span>/ Paid Ads</span></div>
       <div class="nav">
-        <a href="/">AI Traffic</a>
+        <a href="/">← Home</a>
+        <a href="/ai">AI Traffic</a>
         <a href="/paid" class="active">Paid Ads</a>
       </div>
       <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
@@ -310,7 +311,7 @@ function startOAuth(){
   const base='https://accounts.google.com/o/oauth2/v2/auth';
   const params=new URLSearchParams({
     client_id:CLIENT_ID,
-    redirect_uri:window.location.origin+window.location.pathname,
+    redirect_uri:'https://project-apa7y.vercel.app/paid',
     response_type:'token',
     scope:'https://www.googleapis.com/auth/analytics.readonly'
   });
