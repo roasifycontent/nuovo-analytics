@@ -152,6 +152,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
       <button class="bsm" onclick="refresh()">↻</button>
+      <button id="gsc-btn" class="bsm" onclick="startOAuth()" style="display:none;border-color:var(--gold);color:var(--gold)">Enable keywords ↗</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
   </div>
@@ -290,7 +291,8 @@ function startOAuth(){
     redirect_uri:'https://project-apa7y.vercel.app/organic',
     response_type:'token',
     scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
-    include_granted_scopes:'true'
+    include_granted_scopes:'true',
+    prompt:'consent'
   });
   window.location.href=base+'?'+params.toString();
 }
@@ -321,6 +323,10 @@ window.addEventListener('load',()=>{
 function launch(){
   document.getElementById('setup').style.display='none';
   document.getElementById('dashboard').style.display='block';
+  const scope=localStorage.getItem('nuovo_scope')||'';
+  if(!scope.includes('webmasters')){
+    document.getElementById('gsc-btn').style.display='block';
+  }
   refresh();
   setInterval(refresh,30*60*1000);
 }
@@ -374,11 +380,11 @@ async function refresh(){
     const [bySource, kpiData, byPage, byCountry, byDevice, byDate, blogPages] = await Promise.all([
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:form_submit'},{name:'conversions:phone_calls'}],dimensionFilter:orgFil}),
-      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:15}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'},{name:'conversions:phone_calls'},{name:'conversions:form_submit'},{name:'engagementRate'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:orgFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
-      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:15})
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'},{name:'conversions:phone_calls'},{name:'conversions:form_submit'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:30})
     ]);
 
     renderHero(bySource);
@@ -533,30 +539,86 @@ function renderOpportunities(data){
 
 function cleanPath(p){return(p||'/').replace('https://www.nuovoluxury.co.uk','').slice(0,46)||'/';}
 
+let allPages=[], pagesSort='sessions', pagesSortDir=-1, pagesSearch='', pagesLimit=15;
+
 function renderTopPages(data){
-  const rows=(data.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>0);
+  allPages=(data.rows||[])
+    .filter(r=>{
+      const path=cleanPath(r.dimensionValues[0].value);
+      return parseInt(r.metricValues[0].value||0)>0 && path!=='(not set)' && !path.includes('?currency=') && !path.includes('(not set)');
+    })
+    .map(r=>({
+      path:cleanPath(r.dimensionValues[0].value),
+      fullPath:r.dimensionValues[0].value,
+      sessions:parseInt(r.metricValues[0].value||0),
+      revenue:parseFloat(r.metricValues[1].value||0),
+      ke:parseInt(r.metricValues[2].value||0),
+      trans:parseInt(r.metricValues[3].value||0),
+      calls:parseInt(r.metricValues[4]?.value||0),
+      forms:parseInt(r.metricValues[5]?.value||0),
+      eng:(parseFloat(r.metricValues[6]?.value||0)*100)
+    }));
+  drawPages();
+}
+
+function drawPages(){
   const el=document.getElementById('top-pages');
-  if(!rows.length){el.innerHTML='<div class="ld">No data</div>';return;}
-  el.innerHTML=`<div class="tbl-row tbl-hdr pages"><span>Page</span><span>Sessions</span><span>Revenue</span><span>Key events</span><span>Trans.</span></div>`+
-    rows.map(r=>{
-      const sess=parseInt(r.metricValues[0].value||0);
-      const rev=parseFloat(r.metricValues[1].value||0);
-      const ke=parseInt(r.metricValues[2].value||0);
-      const tr=parseInt(r.metricValues[3].value||0);
-      return`<div class="tbl-row pages"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${sess.toLocaleString()}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum">${ke||'—'}</span><span class="tnum mu">${tr||'—'}</span></div>`;
-    }).join('');
+  if(!allPages.length){el.innerHTML='<div class="ld">No data</div>';return;}
+
+  const filtered=allPages.filter(r=>!pagesSearch||r.path.toLowerCase().includes(pagesSearch.toLowerCase()));
+  const sorted=[...filtered].sort((a,b)=>pagesSortDir*(a[pagesSort]>b[pagesSort]?1:-1));
+  const visible=sorted.slice(0,pagesLimit);
+
+  const sortArrow=(col)=>pagesSort===col?(pagesSortDir===1?'↑':'↓'):'';
+  const hdr=(col,label,cls='')=>`<span class="tbl-sort-hdr ${cls}" onclick="sortPages('${col}')" style="cursor:pointer;user-select:none;text-align:right">${label} ${sortArrow(col)}</span>`;
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input type="text" placeholder="Filter pages..." value="${pagesSearch}" oninput="pagesSearch=this.value;drawPages()" style="flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none">
+      <span style="font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;white-space:nowrap">${filtered.length} pages</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px 70px 55px 55px;gap:8px;align-items:center;padding:6px 0 8px;border-bottom:0.5px solid var(--border);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)">
+      <span style="cursor:pointer;user-select:none" onclick="sortPages('path')">Page ${sortArrow('path')}</span>
+      ${hdr('sessions','Sessions')}
+      ${hdr('revenue','Revenue')}
+      ${hdr('ke','Key ev.')}
+      ${hdr('trans','Trans.')}
+      ${hdr('calls','Calls')}
+      ${hdr('forms','Forms')}
+      ${hdr('eng','Eng%')}
+    </div>
+    ${visible.map(r=>`
+      <div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px 70px 55px 55px;gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+        <span class="tpath" title="${r.fullPath}" style="cursor:pointer" onclick="window.open('https://www.nuovoluxury.co.uk${r.path}','_blank')">${r.path}</span>
+        <span class="tnum">${r.sessions.toLocaleString()}</span>
+        <span class="tnum gold">${r.revenue>0?'£'+r.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span>
+        <span class="tnum">${r.ke||'—'}</span>
+        <span class="tnum mu">${r.trans||'—'}</span>
+        <span class="tnum" style="color:var(--chatgpt,#10b981)">${r.calls||'—'}</span>
+        <span class="tnum" style="color:var(--purple)">${r.forms||'—'}</span>
+        <span class="tnum mu">${r.eng.toFixed(0)}%</span>
+      </div>`).join('')}
+    ${filtered.length>pagesLimit?`<div style="text-align:center;padding:14px 0"><button onclick="pagesLimit+=15;drawPages()" class="bsm">Show more (${filtered.length-pagesLimit} remaining)</button></div>`:''}
+  `;
+}
+
+function sortPages(col){
+  if(pagesSort===col){pagesSortDir*=-1;}else{pagesSort=col;pagesSortDir=-1;}
+  drawPages();
 }
 
 function renderBlogs(data){
   const rows=(data.rows||[]).filter(r=>parseInt(r.metricValues[0].value||0)>0);
   const el=document.getElementById('blogs');
   if(!rows.length){el.innerHTML='<div class="ld">No blog/guide traffic in this period</div>';return;}
-  el.innerHTML=`<div class="tbl-row tbl-hdr blogs"><span>Guide / Page</span><span>Sessions</span><span>Revenue</span><span>Eng%</span></div>`+
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px 60px;gap:8px;padding:6px 0 8px;border-bottom:0.5px solid var(--border);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)"><span>Guide / page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Revenue</span><span style="text-align:right">Key ev.</span><span style="text-align:right">Calls</span><span style="text-align:right">Eng%</span></div>`+
     rows.map(r=>{
       const sess=parseInt(r.metricValues[0].value||0);
       const rev=parseFloat(r.metricValues[1].value||0);
+      const ke=parseInt(r.metricValues[2].value||0);
       const eng=(parseFloat(r.metricValues[3].value||0)*100).toFixed(0);
-      return`<div class="tbl-row blogs"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${sess.toLocaleString()}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum mu">${eng}%</span></div>`;
+      const calls=parseInt(r.metricValues[4]?.value||0);
+      return`<div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px 60px;gap:8px;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center"><span class="tpath" title="${r.dimensionValues[0].value}" style="cursor:pointer" onclick="window.open('https://www.nuovoluxury.co.uk${cleanPath(r.dimensionValues[0].value)}','_blank')">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${sess.toLocaleString()}</span><span class="tnum gold">${rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="tnum">${ke||'—'}</span><span class="tnum" style="color:var(--green)">${calls||'—'}</span><span class="tnum mu">${eng}%</span></div>`;
     }).join('');
 }
 
