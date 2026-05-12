@@ -33,6 +33,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .tr{display:flex;align-items:center;gap:10px}
 .date-sel{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer}
 .bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s}
+.bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
 .bsm:hover{border-color:var(--gold)}
 .main{padding:28px;max-width:1400px;margin:0 auto}
 .hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
@@ -96,12 +97,19 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
     </div>
     <div class="tr">
-      <select class="date-sel" id="dsel" onchange="refresh()">
-        <option value="7">7 days</option>
-        <option value="28">28 days</option>
-        <option value="90" selected>90 days</option>
-        <option value="180">180 days</option>
-      </select>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="bsm preset-btn active" onclick="setPreset(this,'today')" data-preset="today">Today</button>
+        <button class="bsm preset-btn" onclick="setPreset(this,'yesterday')" data-preset="yesterday">Yesterday</button>
+        <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
+        <button class="bsm preset-btn" onclick="setPreset(this,'28')" data-preset="28">28d</button>
+        <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
+        <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
+        <div style="display:flex;align-items:center;gap:4px;margin-left:4px">
+          <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+          <span style="color:var(--dim);font-size:11px">→</span>
+          <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+        </div>
+      </div>
       <button class="bsm" onclick="refresh()">↻ Refresh</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
@@ -200,13 +208,43 @@ function signOut(){token=null;localStorage.removeItem('nuovo_token');document.ge
 function showErr(m){const e=document.getElementById('err');e.textContent=m;e.style.display='block';}
 function launch(){document.getElementById('setup').style.display='none';document.getElementById('dashboard').style.display='block';refresh();setInterval(refresh,30*60*1000);}
 
+let dateRange = {startDate:'90daysAgo', endDate:'today'};
+
+function setPreset(btn, preset){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const today = new Date();
+  const fmt = d => d.toISOString().slice(0,10);
+  if(preset==='today'){
+    dateRange={startDate:'today',endDate:'today'};
+  } else if(preset==='yesterday'){
+    const y=new Date(today); y.setDate(today.getDate()-1);
+    dateRange={startDate:fmt(y),endDate:fmt(y)};
+  } else {
+    dateRange={startDate:`${preset}daysAgo`,endDate:'today'};
+  }
+  // Clear custom dates
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  refresh();
+}
+
+function setCustom(){
+  const from=document.getElementById('date-from').value;
+  const to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    dateRange={startDate:from,endDate:to};
+    refresh();
+  }
+}
+
 async function refresh(){
   document.getElementById('fst').textContent='Fetching...';
   if(!token){signOut();return;}
-  const days=document.getElementById('dsel').value;
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
   const ai=Object.values(SOURCES).flatMap(s=>s.terms).join('|');
-  const dr=[{startDate:`${days}daysAgo`,endDate:'today'}];
+  const dr=[dateRange];
   const fil={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:ai}}};
   try{
     const[bs,bd,bp]=await Promise.all([
