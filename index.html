@@ -4,107 +4,76 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Traffic — Nuovo Luxury</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 :root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#7a7975;--dim:#3a3935;--chatgpt:#10b981;--claude:#e8a87c;--perplexity:#818cf8;--copilot:#38bdf8;--gold:#d4a843;--red:#f87171}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px}
 body{min-height:100vh}
-
 #setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
-.setup-card{max-width:480px;width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem}
-.setup-logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:2rem}
+.setup-card{max-width:420px;width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;text-align:center}
+.setup-logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:2rem;text-align:left}
 .setup-logo span{color:var(--gold)}
-.setup-card h1{font-size:22px;font-weight:700;margin-bottom:8px}
-.setup-card p{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:2rem}
-
-.btn-google{width:100%;padding:14px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity 0.2s;margin-bottom:12px}
-.btn-google:hover{opacity:0.9}
-.btn-google svg{width:20px;height:20px;flex-shrink:0}
-
-.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--dim);font-size:12px}
-.divider::before,.divider::after{content:'';flex:1;height:0.5px;background:var(--border)}
-
-.field{margin-bottom:1rem}
-.field label{display:block;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.field input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none;transition:border-color 0.2s}
-.field input:focus{border-color:var(--gold)}
-.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
-.field .hint a{color:var(--gold);text-decoration:none}
-
-.btn-go{width:100%;padding:13px;background:var(--gold);color:#0a0a0b;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.05em;cursor:pointer;margin-top:8px;transition:opacity 0.2s}
-.btn-go:hover{opacity:0.85}
-.err{color:var(--red);font-size:12px;margin-top:10px;display:none;font-family:'DM Mono',monospace}
-.demo-link{font-size:11px;color:var(--dim);text-align:center;margin-top:16px;font-family:'DM Mono',monospace}
+h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
+.sub{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:2rem;text-align:left}
+#g_id_signin{display:flex;justify-content:center;margin-bottom:16px}
+.demo-link{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;margin-top:12px}
 .demo-link span{color:var(--gold);cursor:pointer;text-decoration:underline}
-
+.err{color:var(--red);font-size:12px;margin-top:10px;display:none;font-family:'DM Mono',monospace;text-align:left}
 #dashboard{display:none}
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
-.topbar-left{display:flex;align-items:center;gap:20px}
+.tl{display:flex;align-items:center;gap:20px}
 .logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase}
 .logo span{color:var(--gold)}
-.live-dot{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
-.dot-pulse{width:6px;height:6px;border-radius:50%;background:var(--chatgpt);animation:pulse 2s infinite}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--chatgpt);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.date-select{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer}
-.btn-sm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;letter-spacing:0.05em;transition:border-color 0.2s}
-.btn-sm:hover{border-color:var(--gold)}
-
+.tr{display:flex;align-items:center;gap:10px}
+.date-sel{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer}
+.bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s}
+.bsm:hover{border-color:var(--gold)}
 .main{padding:28px;max-width:1400px;margin:0 auto}
 .hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden;transition:border-color 0.2s}
-.stat:hover{border-color:var(--border2)}
+.stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0.7}
-.stat.cg::before{background:var(--chatgpt)}
-.stat.cl::before{background:var(--claude)}
-.stat.px::before{background:var(--perplexity)}
-.stat.cp::before{background:var(--copilot)}
-.stat-lbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.cg::before{background:var(--chatgpt)}.cl::before{background:var(--claude)}.px::before{background:var(--perplexity)}.cp::before{background:var(--copilot)}
+.slbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
 .sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.stat-num{font-size:32px;font-weight:700;line-height:1;font-family:'DM Mono',monospace;margin-bottom:4px}
-.stat-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
-
+.snum{font-size:32px;font-weight:700;line-height:1;font-family:'DM Mono',monospace;margin-bottom:4px}
+.ssub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 .sumrow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .sum{background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 18px}
-.sum-lbl{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.sum-val{font-size:20px;font-weight:600;font-family:'DM Mono',monospace}
-.sum-val.gold{color:var(--gold)}
-
+.suml{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.sumv{font-size:20px;font-weight:600;font-family:'DM Mono',monospace}
+.sumv.gold{color:var(--gold)}
 .charts{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
 .card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px}
-.card-title{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
-.chart-wrap{position:relative;height:200px}
-
-.src-table{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
-.src-row{display:grid;grid-template-columns:140px 1fr 80px 80px 80px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
-.src-row:last-child{border-bottom:none}
-.src-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)}
-.src-name{display:flex;align-items:center;gap:8px;font-weight:600}
-.bar-bg{background:var(--bg3);border-radius:20px;height:4px;overflow:hidden}
-.bar-fill{height:4px;border-radius:20px;transition:width 1s cubic-bezier(.4,0,.2,1)}
-.num{font-family:'DM Mono',monospace;text-align:right}
-.num.gold{color:var(--gold)}
-.num.muted{color:var(--muted)}
-
-.botrow{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-.page-row{display:grid;grid-template-columns:1fr 50px 50px;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
-.page-row:last-child{border-bottom:none}
-.page-path{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-.loading{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
-.spin{width:14px;height:14px;border:1.5px solid var(--dim);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+.ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.cw{position:relative;height:200px}
+.srct{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
+.srcr{display:grid;grid-template-columns:140px 1fr 80px 80px 80px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.srcr:last-child{border-bottom:none}
+.srch{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)}
+.srcn{display:flex;align-items:center;gap:8px;font-weight:600}
+.bbg{background:var(--bg3);border-radius:20px;height:4px;overflow:hidden}
+.bf{height:4px;border-radius:20px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.nm{font-family:'DM Mono',monospace;text-align:right}
+.nm.gold{color:var(--gold)}.nm.mu{color:var(--muted)}
+.botr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.pr{display:grid;grid-template-columns:1fr 50px 50px;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
+.pr:last-child{border-bottom:none}
+.pp{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ld{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
+.sp{width:14px;height:14px;border:1.5px solid var(--dim);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 .footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
-.footer-l{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
-.legend{display:flex;gap:16px}
-.leg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase}
-.leg-dot{width:8px;height:8px;border-radius:50%}
-
-@media(max-width:900px){.hero,.sumrow{grid-template-columns:repeat(2,1fr)}.charts,.botrow{grid-template-columns:1fr}.src-row{grid-template-columns:120px 1fr 70px 70px}.src-row>*:last-child{display:none}}
+.ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+.leg{display:flex;gap:16px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase}
+.ld2{width:8px;height:8px;border-radius:50%}
+@media(max-width:900px){.hero,.sumrow{grid-template-columns:repeat(2,1fr)}.charts,.botr{grid-template-columns:1fr}.srcr{grid-template-columns:120px 1fr 70px 70px}.srcr>*:last-child{display:none}}
 </style>
 </head>
 <body>
@@ -113,262 +82,228 @@ body{min-height:100vh}
   <div class="setup-card">
     <div class="setup-logo">Nuovo Luxury <span>/ AI Traffic</span></div>
     <h1>Connect your GA4</h1>
-    <p>Sign in with the Google account that owns your GA4 property, or enter your property ID and OAuth client credentials.</p>
-
-    <button class="btn-google" onclick="signInWithGoogle()">
-      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      Sign in with Google
-    </button>
-
-    <div class="divider">or use property ID + API key</div>
-
-    <div class="field">
-      <label>GA4 Property ID</label>
-      <input type="text" id="prop-id" value="346978985">
-      <div class="hint">Found in GA4 → Admin → Property Settings</div>
-    </div>
-    <div class="field">
-      <label>Google API Key</label>
-      <input type="text" id="api-key" placeholder="AIzaSy...">
-      <div class="hint">
-        <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Create an API key</a> in Google Cloud Console → restrict it to "Google Analytics Data API" → paste here.<br><br>
-        Then in GA4 → Admin → Property Access Management → add your own Google account email as Viewer (it's already there as owner, so this step is already done).
-      </div>
-    </div>
-    <button class="btn-go" onclick="connectApiKey()">Connect & Launch →</button>
+    <p class="sub">Sign in with the Google account that owns your Nuovo Luxury GA4 property. Your data stays in your browser.</p>
+    <div id="g_id_signin"></div>
     <div class="err" id="err"></div>
-    <div class="demo-link">or <span onclick="loadDemo()">load demo with your real numbers</span></div>
+    <div class="demo-link">or <span onclick="loadDemo()">load demo with your real 90-day numbers</span></div>
   </div>
 </div>
 
 <div id="dashboard">
   <div class="topbar">
-    <div class="topbar-left">
+    <div class="tl">
       <div class="logo">Nuovo Luxury <span>/ AI Traffic</span></div>
-      <div class="live-dot"><span class="dot-pulse"></span><span id="fetch-status">Live</span></div>
+      <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
     </div>
-    <div class="topbar-right">
-      <select class="date-select" id="days-sel" onchange="refresh()">
+    <div class="tr">
+      <select class="date-sel" id="dsel" onchange="refresh()">
         <option value="7">7 days</option>
         <option value="28">28 days</option>
         <option value="90" selected>90 days</option>
         <option value="180">180 days</option>
       </select>
-      <button class="btn-sm" onclick="refresh()">↻ Refresh</button>
-      <button class="btn-sm" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex'">⚙</button>
+      <button class="bsm" onclick="refresh()">↻ Refresh</button>
+      <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
   </div>
 
   <div class="main">
     <div class="hero">
-      <div class="stat cg"><div class="stat-lbl"><span class="sdot" style="background:var(--chatgpt)"></span>ChatGPT</div><div class="stat-num" id="n-cg">—</div><div class="stat-sub">sessions</div></div>
-      <div class="stat cl"><div class="stat-lbl"><span class="sdot" style="background:var(--claude)"></span>Claude</div><div class="stat-num" id="n-cl">—</div><div class="stat-sub">sessions</div></div>
-      <div class="stat px"><div class="stat-lbl"><span class="sdot" style="background:var(--perplexity)"></span>Perplexity</div><div class="stat-num" id="n-px">—</div><div class="stat-sub">sessions</div></div>
-      <div class="stat cp"><div class="stat-lbl"><span class="sdot" style="background:var(--copilot)"></span>Copilot</div><div class="stat-num" id="n-cp">—</div><div class="stat-sub">sessions</div></div>
+      <div class="stat cg"><div class="slbl"><span class="sdot" style="background:var(--chatgpt)"></span>ChatGPT</div><div class="snum" id="ncg">—</div><div class="ssub">sessions</div></div>
+      <div class="stat cl"><div class="slbl"><span class="sdot" style="background:var(--claude)"></span>Claude</div><div class="snum" id="ncl">—</div><div class="ssub">sessions</div></div>
+      <div class="stat px"><div class="slbl"><span class="sdot" style="background:var(--perplexity)"></span>Perplexity</div><div class="snum" id="npx">—</div><div class="ssub">sessions</div></div>
+      <div class="stat cp"><div class="slbl"><span class="sdot" style="background:var(--copilot)"></span>Copilot</div><div class="snum" id="ncp">—</div><div class="ssub">sessions</div></div>
     </div>
     <div class="sumrow">
-      <div class="sum"><div class="sum-lbl">Total AI sessions</div><div class="sum-val" id="s-total">—</div></div>
-      <div class="sum"><div class="sum-lbl">Revenue tracked</div><div class="sum-val gold" id="s-rev">—</div></div>
-      <div class="sum"><div class="sum-lbl">Engagement rate</div><div class="sum-val" id="s-eng">—</div></div>
-      <div class="sum"><div class="sum-lbl">Key event rate</div><div class="sum-val" id="s-conv">—</div></div>
+      <div class="sum"><div class="suml">Total AI sessions</div><div class="sumv" id="stot">—</div></div>
+      <div class="sum"><div class="suml">Revenue tracked</div><div class="sumv gold" id="srev">—</div></div>
+      <div class="sum"><div class="suml">Engagement rate</div><div class="sumv" id="seng">—</div></div>
+      <div class="sum"><div class="suml">Key event rate</div><div class="sumv" id="sconv">—</div></div>
     </div>
     <div class="charts">
-      <div class="card"><div class="card-title">Daily sessions by AI source</div><div class="chart-wrap"><canvas id="trend-chart"></canvas></div></div>
-      <div class="card"><div class="card-title">Source split</div><div class="chart-wrap"><canvas id="pie-chart"></canvas></div></div>
+      <div class="card"><div class="ct">Daily sessions by AI source</div><div class="cw"><canvas id="tc"></canvas></div></div>
+      <div class="card"><div class="ct">Source split</div><div class="cw"><canvas id="pc"></canvas></div></div>
     </div>
-    <div class="src-table">
-      <div class="card-title" style="margin-bottom:12px">Breakdown by source</div>
-      <div class="src-row src-hdr"><span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>Eng%</span></div>
-      <div id="src-body"><div class="loading"><span class="spin"></span>Loading...</div></div>
+    <div class="srct">
+      <div class="ct" style="margin-bottom:12px">Breakdown by source</div>
+      <div class="srcr srch"><span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>Eng%</span></div>
+      <div id="srcb"><div class="ld"><span class="sp"></span>Loading...</div></div>
     </div>
-    <div class="botrow">
-      <div class="card"><div class="card-title">Top landing pages from AI</div><div id="pages-body"><div class="loading"><span class="spin"></span></div></div></div>
-      <div class="card"><div class="card-title">Weekly AI sessions</div><div class="chart-wrap" style="height:160px"><canvas id="weekly-chart"></canvas></div></div>
+    <div class="botr">
+      <div class="card"><div class="ct">Top landing pages from AI</div><div id="pgb"><div class="ld"><span class="sp"></span></div></div></div>
+      <div class="card"><div class="ct">Weekly AI sessions</div><div class="cw" style="height:160px"><canvas id="wc"></canvas></div></div>
     </div>
   </div>
-
   <div class="footer">
-    <div class="footer-l" id="footer-ts">—</div>
-    <div class="legend">
-      <div class="leg"><span class="leg-dot" style="background:var(--chatgpt)"></span>ChatGPT</div>
-      <div class="leg"><span class="leg-dot" style="background:var(--claude)"></span>Claude</div>
-      <div class="leg"><span class="leg-dot" style="background:var(--perplexity)"></span>Perplexity</div>
-      <div class="leg"><span class="leg-dot" style="background:var(--copilot)"></span>Copilot</div>
+    <div class="ftl" id="fts">—</div>
+    <div class="leg">
+      <div class="li"><span class="ld2" style="background:var(--chatgpt)"></span>ChatGPT</div>
+      <div class="li"><span class="ld2" style="background:var(--claude)"></span>Claude</div>
+      <div class="li"><span class="ld2" style="background:var(--perplexity)"></span>Perplexity</div>
+      <div class="li"><span class="ld2" style="background:var(--copilot)"></span>Copilot</div>
     </div>
   </div>
 </div>
 
 <script>
+const PROP='346978985';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot','bing']}};
-let cfg={};
-let charts={};
+let token=null,charts={};
 
-function cat(src){
-  src=(src||'').toLowerCase();
-  for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>src.includes(t)))return k;
-  return null;
+function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
+
+window.addEventListener('load',()=>{
+  const saved=localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();return;}
+  // Init Google Sign-In
+  if(CLIENT_ID==='NEVER_MATCH'){
+    // No client ID yet — show instructions
+    document.getElementById('g_id_signin').innerHTML='<p style="color:var(--muted);font-size:12px;font-family:DM Mono,monospace;text-align:center">Paste your OAuth Client ID to enable Google Sign-In</p>';
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id:CLIENT_ID,
+    callback:handleCredential,
+    auto_select:false
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g_id_signin'),
+    {theme:'filled_black',size:'large',width:320,text:'signin_with'}
+  );
+});
+
+function handleCredential(response){
+  // Exchange ID token for access token via token endpoint
+  const idToken=response.credential;
+  fetch('https://oauth2.googleapis.com/token',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${idToken}`
+  }).then(r=>r.json()).then(data=>{
+    if(data.access_token){token=data.access_token;localStorage.setItem('nuovo_token',token);launch();}
+    else{showErr('Auth error: '+JSON.stringify(data));}
+  }).catch(e=>showErr(e.message));
 }
 
-function signInWithGoogle(){
-  // OAuth flow - redirect to Google
-  const CLIENT_ID='YOUR_OAUTH_CLIENT_ID';
-  const REDIRECT=encodeURIComponent(window.location.href);
-  const SCOPE=encodeURIComponent('https://www.googleapis.com/auth/analytics.readonly');
-  alert('To use Google Sign-In, you need to set up an OAuth 2.0 Client ID in Google Cloud Console and update the CLIENT_ID in the code. For now, use the API key method below — it\'s simpler.');
+// Use implicit OAuth flow instead
+function startOAuth(){
+  if(CLIENT_ID==='NEVER_MATCH'){showErr('No OAuth Client ID configured yet');return;}
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+window.location.pathname,
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    include_granted_scopes:'true',
+    state:'pass-through-value'
+  });
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
 }
 
-async function connectApiKey(){
-  const propId=document.getElementById('prop-id').value.trim();
-  const apiKey=document.getElementById('api-key').value.trim();
-  if(!propId||!apiKey){showErr('Enter both Property ID and API Key');return;}
-  cfg={propId,apiKey,mode:'apikey'};
-  localStorage.setItem('nuovo_cfg',JSON.stringify(cfg));
-  launch();
-}
+// Check for OAuth callback token in URL hash
+window.addEventListener('load',()=>{
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    window.history.replaceState(null,'',window.location.pathname);
+    launch();
+  }
+});
 
-function showErr(msg){const e=document.getElementById('err');e.textContent=msg;e.style.display='block';}
-
-function launch(){
-  document.getElementById('setup').style.display='none';
-  document.getElementById('dashboard').style.display='block';
-  refresh();
-  setInterval(refresh,30*60*1000);
-}
+function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+function showErr(m){const e=document.getElementById('err');e.textContent=m;e.style.display='block';}
+function launch(){document.getElementById('setup').style.display='none';document.getElementById('dashboard').style.display='block';refresh();setInterval(refresh,30*60*1000);}
 
 async function refresh(){
-  document.getElementById('fetch-status').textContent='Fetching...';
-  if(cfg.demo){loadDemoData();return;}
-  const days=document.getElementById('days-sel').value;
-  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${cfg.propId}:runReport?key=${cfg.apiKey}`;
-  const aiRx=Object.values(SOURCES).flatMap(s=>s.terms).join('|');
+  document.getElementById('fst').textContent='Fetching...';
+  if(!token){signOut();return;}
+  const days=document.getElementById('dsel').value;
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const ai=Object.values(SOURCES).flatMap(s=>s.terms).join('|');
   const dr=[{startDate:`${days}daysAgo`,endDate:'today'}];
-  const filter={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:aiRx}}};
-
+  const fil={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:ai}}};
   try{
-    const[bySource,byDate,byPage]=await Promise.all([
-      post(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:filter}),
-      post(url,{dateRanges:dr,dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:filter,orderBys:[{dimension:{dimensionName:'date'}}]}),
-      post(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:filter,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
+    const[bs,bd,bp]=await Promise.all([
+      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil}),
+      ga4(url,{dateRanges:dr,dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:fil,orderBys:[{dimension:{dimensionName:'date'}}]}),
+      ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
     ]);
-    render(bySource,byDate,byPage);
-    document.getElementById('fetch-status').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    document.getElementById('footer-ts').textContent='GA4 Property '+cfg.propId+' · Last refresh: '+new Date().toLocaleString('en-GB');
+    render(bs,bd,bp);
+    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('fts').textContent='GA4 · Property '+PROP+' · '+new Date().toLocaleString('en-GB');
   }catch(e){
-    document.getElementById('fetch-status').textContent='Error: '+e.message;
-    console.error(e);
+    if(e.message.includes('401')||e.message.includes('403')){token=null;localStorage.removeItem('nuovo_token');signOut();}
+    document.getElementById('fst').textContent='Error: '+e.message;
   }
 }
 
-async function post(url,body){
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'API error '+r.status);}
+async function ga4(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'API '+r.status);}
   return r.json();
 }
 
-function render(bySource,byDate,byPage){
-  const t={};
-  for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0};
-  (bySource.rows||[]).forEach(r=>{
-    const k=cat(r.dimensionValues[0].value);
-    if(!k||!t[k])return;
-    t[k].sessions+=parseInt(r.metricValues[0].value||0);
-    t[k].engaged+=parseInt(r.metricValues[1].value||0);
-    t[k].revenue+=parseFloat(r.metricValues[2].value||0);
-    t[k].ke+=parseInt(r.metricValues[3].value||0);
-  });
-  const tot=Object.values(t).reduce((a,b)=>a+b.sessions,0);
-  const rev=Object.values(t).reduce((a,b)=>a+b.revenue,0);
-  const eng=Object.values(t).reduce((a,b)=>a+b.engaged,0);
-  const ke=Object.values(t).reduce((a,b)=>a+b.ke,0);
-
-  document.getElementById('n-cg').textContent=t.chatgpt.sessions.toLocaleString();
-  document.getElementById('n-cl').textContent=t.claude.sessions.toLocaleString();
-  document.getElementById('n-px').textContent=t.perplexity.sessions.toLocaleString();
-  document.getElementById('n-cp').textContent=t.copilot.sessions.toLocaleString();
-  document.getElementById('s-total').textContent=tot.toLocaleString();
-  document.getElementById('s-rev').textContent=rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'£0';
-  document.getElementById('s-eng').textContent=tot>0?(eng/tot*100).toFixed(1)+'%':'—';
-  document.getElementById('s-conv').textContent=tot>0?(ke/tot*100).toFixed(2)+'%':'—';
-
+function render(bs,bd,bp){
+  const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0};
+  (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);});
+  const tot=Object.values(t).reduce((a,b)=>a+b.sessions,0),rev=Object.values(t).reduce((a,b)=>a+b.revenue,0),eng=Object.values(t).reduce((a,b)=>a+b.engaged,0),ke=Object.values(t).reduce((a,b)=>a+b.ke,0);
+  document.getElementById('ncg').textContent=t.chatgpt.sessions.toLocaleString();
+  document.getElementById('ncl').textContent=t.claude.sessions.toLocaleString();
+  document.getElementById('npx').textContent=t.perplexity.sessions.toLocaleString();
+  document.getElementById('ncp').textContent=t.copilot.sessions.toLocaleString();
+  document.getElementById('stot').textContent=tot.toLocaleString();
+  document.getElementById('srev').textContent=rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'£0';
+  document.getElementById('seng').textContent=tot>0?(eng/tot*100).toFixed(1)+'%':'—';
+  document.getElementById('sconv').textContent=tot>0?(ke/tot*100).toFixed(2)+'%':'—';
   const sorted=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions);
-  const maxS=Math.max(...sorted.map(([,v])=>v.sessions),1);
-  document.getElementById('src-body').innerHTML=sorted.length?sorted.map(([k,v])=>{
-    const s=SOURCES[k];const pct=tot>0?Math.round(v.sessions/tot*100):0;const eng=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;
-    return`<div class="src-row"><span class="src-name"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bar-bg" style="flex:1"><div class="bar-fill" style="width:${Math.round(v.sessions/maxS*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${pct}%</span></div></div><span class="num">${v.sessions.toLocaleString()}</span><span class="num gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="num muted">${eng}%</span></div>`;
-  }).join(''):'<div class="loading">No AI referral traffic in this period</div>';
-
-  renderTrend(byDate);renderPie(t);renderPages(byPage);renderWeekly(byDate);
+  const mx=Math.max(...sorted.map(([,v])=>v.sessions),1);
+  document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm mu">${e}%</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
+  rTrend(bd);rPie(t);rPages(bp);rWeekly(bd);
 }
 
-function renderTrend(byDate){
-  const dm={};
-  (byDate.rows||[]).forEach(r=>{
-    const d=r.dimensionValues[0].value,k=cat(r.dimensionValues[1].value),s=parseInt(r.metricValues[0].value||0);
-    if(!k)return;if(!dm[d])dm[d]={};dm[d][k]=(dm[d][k]||0)+s;
-  });
-  const dates=Object.keys(dm).sort();
-  const step=Math.max(1,Math.floor(dates.length/14));
+function rTrend(bd){
+  const dm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,k=cat(r.dimensionValues[1].value),s=parseInt(r.metricValues[0].value||0);if(!k)return;if(!dm[d])dm[d]={};dm[d][k]=(dm[d][k]||0)+s;});
+  const dates=Object.keys(dm).sort(),step=Math.max(1,Math.floor(dates.length/14));
   const labels=dates.map((d,i)=>i%step===0?d.slice(4,6)+'/'+d.slice(6,8):'');
   const ds=Object.entries(SOURCES).map(([k,s])=>({label:s.label,data:dates.map(d=>dm[d]?.[k]||0),borderColor:s.color,backgroundColor:s.color+'20',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3}));
-  if(charts.trend)charts.trend.destroy();
-  charts.trend=new Chart(document.getElementById('trend-chart'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},precision:0}}}}});
+  if(charts.t)charts.t.destroy();
+  charts.t=new Chart(document.getElementById('tc'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},precision:0}}}}});
 }
-
-function renderPie(t){
+function rPie(t){
   const e=Object.entries(t).filter(([,v])=>v.sessions>0);
-  if(charts.pie)charts.pie.destroy();
-  charts.pie=new Chart(document.getElementById('pie-chart'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:'#7a7975',font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
+  if(charts.p)charts.p.destroy();
+  charts.p=new Chart(document.getElementById('pc'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:'#7a7975',font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
 }
-
-function renderPages(byPage){
-  const rows=(byPage.rows||[]).slice(0,8);
-  document.getElementById('pages-body').innerHTML=rows.length?
-    `<div class="page-row" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+
-    rows.map(r=>{const p=r.dimensionValues[0].value.replace('https://www.nuovoluxury.co.uk','').slice(0,38)||'/';return`<div class="page-row"><span class="page-path">${p}</span><span class="num">${r.metricValues[0].value}</span><span class="num muted">${(parseFloat(r.metricValues[1].value||0)*100).toFixed(0)}%</span></div>`;}).join(''):
-    '<div class="loading">No data</div>';
+function rPages(bp){
+  const rows=(bp.rows||[]).slice(0,8);
+  document.getElementById('pgb').innerHTML=rows.length?`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+rows.map(r=>`<div class="pr"><span class="pp">${r.dimensionValues[0].value.replace('https://www.nuovoluxury.co.uk','').slice(0,38)||'/'}</span><span class="nm">${r.metricValues[0].value}</span><span class="nm mu">${(parseFloat(r.metricValues[1].value||0)*100).toFixed(0)}%</span></div>`).join(''):'<div class="ld">No data</div>';
 }
-
-function renderWeekly(byDate){
-  const wm={};
-  (byDate.rows||[]).forEach(r=>{
-    const d=r.dimensionValues[0].value;
-    const dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8)));
-    const ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());
-    const wk=ws.toISOString().slice(0,10);
-    wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);
-  });
+function rWeekly(bd){
+  const wm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8))),ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());const wk=ws.toISOString().slice(0,10);wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);});
   const weeks=Object.keys(wm).sort().slice(-12);
-  if(charts.weekly)charts.weekly.destroy();
-  charts.weekly=new Chart(document.getElementById('weekly-chart'),{type:'bar',data:{labels:weeks.map(d=>{const[,m,day]=d.split('-');return`${day}/${m}`;}),datasets:[{data:weeks.map(w=>wm[w]),backgroundColor:'#d4a843',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},precision:0}}}}});
+  if(charts.w)charts.w.destroy();
+  charts.w=new Chart(document.getElementById('wc'),{type:'bar',data:{labels:weeks.map(d=>{const[,m,dy]=d.split('-');return`${dy}/${m}`;}),datasets:[{data:weeks.map(w=>wm[w]),backgroundColor:'#d4a843',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},precision:0}}}}});
 }
+
+// Sign in button for when no Google Sign-In SDK available
+document.getElementById('g_id_signin').innerHTML='<button onclick="startOAuth()" style="width:320px;padding:12px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Sign in with Google</button>';
 
 function loadDemo(){
-  cfg={demo:true};
   document.getElementById('setup').style.display='none';
   document.getElementById('dashboard').style.display='block';
-  loadDemoData();
-}
-
-function loadDemoData(){
+  document.getElementById('fst').textContent='Demo mode';
+  document.getElementById('fts').textContent='Demo: Feb 11 – May 11, 2026';
   const t={chatgpt:{sessions:244,engaged:124,revenue:1999,ke:4},claude:{sessions:2,engaged:0,revenue:0,ke:0},perplexity:{sessions:0,engaged:0,revenue:0,ke:0},copilot:{sessions:0,engaged:0,revenue:0,ke:0}};
-  document.getElementById('n-cg').textContent='244';document.getElementById('n-cl').textContent='2';document.getElementById('n-px').textContent='0';document.getElementById('n-cp').textContent='0';
-  document.getElementById('s-total').textContent='246';document.getElementById('s-rev').textContent='£1,999';document.getElementById('s-eng').textContent='50.4%';document.getElementById('s-conv').textContent='1.63%';
-  document.getElementById('fetch-status').textContent='Demo — connect GA4 for live data';
-  document.getElementById('footer-ts').textContent='Demo: Feb 11 – May 11, 2026';
-  const sorted=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions);
-  const maxS=244;
-  document.getElementById('src-body').innerHTML=sorted.map(([k,v])=>{const s=SOURCES[k];const pct=Math.round(v.sessions/246*100);const e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="src-row"><span class="src-name"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bar-bg" style="flex:1"><div class="bar-fill" style="width:${Math.round(v.sessions/maxS*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${pct}%</span></div></div><span class="num">${v.sessions}</span><span class="num gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="num muted">${e}%</span></div>`;}).join('');
-  const rows=[{path:'/products/hybrid-infrared-4-person-2m-sauna',s:48,e:72},{path:'/collections/infrared-saunas',s:32,e:61},{path:'/products/chill-tubs-ice-bath-with-temperature-control-system-built-in',s:28,e:68},{path:'/pages/best-saunas-uk-buyers-guide',s:21,e:75},{path:'/collections/gazebo-and-pergolas-uk',s:18,e:55},{path:'/products/aquark-mr-silence-hot-tub-swim-spa',s:14,e:79}];
-  document.getElementById('pages-body').innerHTML=`<div class="page-row" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+rows.map(r=>`<div class="page-row"><span class="page-path">${r.path}</span><span class="num">${r.s}</span><span class="num muted">${r.e}%</span></div>`).join('');
-  const demoByDate={rows:[]};const start=new Date('2026-02-11');
-  for(let i=0;i<90;i++){const d=new Date(start);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10).replace(/-/g,'');const s=Math.floor(Math.random()*4+1);demoByDate.rows.push({dimensionValues:[{value:ds},{value:'chatgpt.com'}],metricValues:[{value:String(s)}]});if(Math.random()<0.02)demoByDate.rows.push({dimensionValues:[{value:ds},{value:'claude.ai'}],metricValues:[{value:'1'}]});}
-  renderTrend(demoByDate);renderPie(t);renderWeekly(demoByDate);
+  document.getElementById('ncg').textContent='244';document.getElementById('ncl').textContent='2';document.getElementById('npx').textContent='0';document.getElementById('ncp').textContent='0';
+  document.getElementById('stot').textContent='246';document.getElementById('srev').textContent='£1,999';document.getElementById('seng').textContent='50.4%';document.getElementById('sconv').textContent='1.63%';
+  const mx=244;
+  document.getElementById('srcb').innerHTML=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions).map(([k,v])=>{const s=SOURCES[k],p=Math.round(v.sessions/246*100),e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="nm mu">${e}%</span></div>`;}).join('');
+  document.getElementById('pgb').innerHTML=`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+[{p:'/products/hybrid-infrared-4-person-2m-sauna',s:48,e:72},{p:'/collections/infrared-saunas',s:32,e:61},{p:'/products/chill-tubs-ice-bath...',s:28,e:68},{p:'/pages/best-saunas-uk-buyers-guide',s:21,e:75},{p:'/collections/gazebo-and-pergolas-uk',s:18,e:55}].map(r=>`<div class="pr"><span class="pp">${r.p}</span><span class="nm">${r.s}</span><span class="nm mu">${r.e}%</span></div>`).join('');
+  const dbd={rows:[]};const st=new Date('2026-02-11');
+  for(let i=0;i<90;i++){const d=new Date(st);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10).replace(/-/g,'');dbd.rows.push({dimensionValues:[{value:ds},{value:'chatgpt.com'}],metricValues:[{value:String(Math.floor(Math.random()*4+1))}]});if(Math.random()<0.02)dbd.rows.push({dimensionValues:[{value:ds},{value:'claude.ai'}],metricValues:[{value:'1'}]});}
+  rTrend(dbd);rPie(t);rWeekly(dbd);
 }
-
-window.addEventListener('load',()=>{
-  const s=localStorage.getItem('nuovo_cfg');
-  if(s){try{cfg=JSON.parse(s);if(cfg.apiKey&&cfg.propId){launch();}}catch(e){}}
-});
 </script>
 </body>
 </html>
