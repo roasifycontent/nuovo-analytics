@@ -54,7 +54,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
 .cw{position:relative;height:200px}
 .srct{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
-.srcr{display:grid;grid-template-columns:130px 1fr 70px 70px 70px 70px 70px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.srcr{display:grid;grid-template-columns:120px 1fr 65px 65px 65px 70px 80px 55px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .srcr:last-child{border-bottom:none}
 .srch{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)}
 .srcn{display:flex;align-items:center;gap:8px;font-weight:600}
@@ -134,7 +134,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     </div>
     <div class="srct">
       <div class="ct" style="margin-bottom:12px">Breakdown by source</div>
-      <div class="srcr srch"><span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>Key events</span><span>Phone calls</span><span>Eng%</span></div>
+      <div class="srcr srch"><span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>Key events</span><span>Phone calls</span><span>Form submits</span><span>Eng%</span></div>
       <div id="srcb"><div class="ld"><span class="sp"></span>Loading...</div></div>
     </div>
     <div class="botr">
@@ -248,7 +248,7 @@ async function refresh(){
   const fil={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:ai}}};
   try{
     const[bs,bd,bp]=await Promise.all([
-      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:phone_calls'}],dimensionFilter:fil}),
+      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:phone_calls'},{name:'conversions:form_submit'}],dimensionFilter:fil}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:fil,orderBys:[{dimension:{dimensionName:'date'}}]}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
     ]);
@@ -268,8 +268,8 @@ async function ga4(url,body){
 }
 
 function render(bs,bd,bp){
-  const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0,calls:0};
-  (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);t[k].calls+=parseInt(r.metricValues[4]?.value||0);});
+  const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0,calls:0,forms:0};
+  (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);t[k].calls+=parseInt(r.metricValues[4]?.value||0);t[k].forms+=parseInt(r.metricValues[5]?.value||0);});
   const tot=Object.values(t).reduce((a,b)=>a+b.sessions,0),rev=Object.values(t).reduce((a,b)=>a+b.revenue,0),eng=Object.values(t).reduce((a,b)=>a+b.engaged,0),ke=Object.values(t).reduce((a,b)=>a+b.ke,0);
   document.getElementById('ncg').textContent=t.chatgpt.sessions.toLocaleString();
   document.getElementById('ncl').textContent=t.claude.sessions.toLocaleString();
@@ -281,7 +281,7 @@ function render(bs,bd,bp){
   document.getElementById('sconv').textContent=tot>0?(ke/tot*100).toFixed(2)+'%':'—';
   const sorted=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions);
   const mx=Math.max(...sorted.map(([,v])=>v.sessions),1);
-  document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm">${v.ke||'—'}</span><span class="nm">${v.calls||'—'}</span><span class="nm mu">${v.sessions>0?(v.engaged/v.sessions*100).toFixed(1)+'%':'—'}</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
+  document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm">${v.ke||'—'}</span><span class="nm">${v.calls||'—'}</span><span class="nm">${v.forms||'—'}</span><span class="nm mu">${v.sessions>0?(v.engaged/v.sessions*100).toFixed(1)+'%':'—'}</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
   rTrend(bd);rPie(t);rPages(bp);rWeekly(bd);
 }
 
