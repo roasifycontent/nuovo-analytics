@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Traffic — Nuovo Luxury</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --bg2: #111113;
+  --bg3: #17171a;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0efe8;
+  --muted: #7a7975;
+  --dim: #3a3935;
+  --chatgpt: #10b981;
+  --claude: #e8a87c;
+  --perplexity: #818cf8;
+  --copilot: #38bdf8;
+  --gemini: #f472b6;
+  --gold: #d4a843;
+  --red: #f87171;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; }
+body { min-height: 100vh; }
+
+/* SETUP SCREEN */
+#setup {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 2rem;
+}
+.setup-card {
+  max-width: 560px; width: 100%;
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 16px; padding: 2.5rem;
+}
+.setup-logo { font-size: 11px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 2rem; }
+.setup-logo span { color: var(--gold); }
+.setup-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.setup-card p { color: var(--muted); font-size: 13px; line-height: 1.6; margin-bottom: 2rem; }
+.field { margin-bottom: 1.25rem; }
+.field label { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.field input, .field textarea {
+  width: 100%; background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'DM Mono', monospace;
+  font-size: 13px; outline: none; transition: border-color 0.2s;
+}
+.field input:focus, .field textarea:focus { border-color: var(--gold); }
+.field textarea { resize: vertical; min-height: 120px; }
+.setup-help { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.setup-help a { color: var(--gold); text-decoration: none; }
+.btn-go {
+  width: 100%; padding: 13px; background: var(--gold); color: #0a0a0b;
+  border: none; border-radius: 8px; font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.05em; cursor: pointer;
+  margin-top: 0.5rem; transition: opacity 0.2s;
+}
+.btn-go:hover { opacity: 0.85; }
+.error-msg { color: var(--red); font-size: 12px; margin-top: 12px; display: none; font-family: 'DM Mono', monospace; }
+
+/* DASHBOARD */
+#dashboard { display: none; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; border-bottom: 0.5px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 10;
+}
+.topbar-left { display: flex; align-items: center; gap: 20px; }
+.logo { font-size: 11px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+.logo span { color: var(--gold); }
+.live-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace;
+}
+.dot-pulse {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--chatgpt);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.date-range {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 6px; padding: 5px 10px;
+}
+.date-range select {
+  background: transparent; border: none; color: var(--muted);
+  font-family: 'DM Mono', monospace; font-size: 11px; outline: none; cursor: pointer;
+}
+.btn-refresh {
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 6px; padding: 5px 12px; color: var(--text); font-family: 'Syne', sans-serif;
+  font-size: 11px; cursor: pointer; letter-spacing: 0.05em; transition: border-color 0.2s;
+}
+.btn-refresh:hover { border-color: var(--gold); }
+.btn-settings {
+  background: transparent; border: 0.5px solid var(--border); border-radius: 6px;
+  padding: 5px 10px; color: var(--muted); font-size: 11px; cursor: pointer; transition: color 0.2s;
+}
+.btn-settings:hover { color: var(--text); }
+
+.main { padding: 28px; max-width: 1400px; margin: 0 auto; }
+
+/* HERO STATS */
+.hero-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 20px 22px; position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  opacity: 0.6;
+}
+.stat-card.chatgpt::before { background: var(--chatgpt); }
+.stat-card.claude::before { background: var(--claude); }
+.stat-card.perplexity::before { background: var(--perplexity); }
+.stat-card.copilot::before { background: var(--copilot); }
+.stat-label {
+  font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 7px;
+}
+.src-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.stat-num { font-size: 32px; font-weight: 700; line-height: 1; margin-bottom: 6px; font-family: 'DM Mono', monospace; }
+.stat-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.stat-delta {
+  font-size: 11px; font-family: 'DM Mono', monospace; margin-top: 4px;
+  display: flex; align-items: center; gap: 4px;
+}
+.delta-up { color: var(--chatgpt); }
+.delta-down { color: var(--red); }
+
+/* SUMMARY ROW */
+.summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.sum-card {
+  background: var(--bg3); border-radius: 8px; padding: 14px 18px;
+  border: 0.5px solid var(--border);
+}
+.sum-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.sum-val { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.sum-val.gold { color: var(--gold); }
+
+/* CHARTS ROW */
+.charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+.chart-card {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 22px 24px;
+}
+.chart-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.chart-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.chart-wrap { position: relative; height: 200px; }
+
+/* SOURCES TABLE */
+.sources-card {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 22px 24px; margin-bottom: 20px;
+}
+.sources-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.sources-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.src-row {
+  display: grid; grid-template-columns: 140px 1fr 90px 90px 90px 90px;
+  align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.src-row:last-child { border-bottom: none; }
+.src-row-hdr { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.src-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.src-name .badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.05em; }
+.badge-top { background: rgba(212,168,67,0.15); color: var(--gold); }
+.bar-track { background: var(--bg3); border-radius: 20px; height: 4px; overflow: hidden; }
+.bar-fill { height: 4px; border-radius: 20px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+.src-stat { font-family: 'DM Mono', monospace; font-size: 13px; text-align: right; }
+.src-stat.rev { color: var(--gold); }
+.src-stat.eng { color: var(--muted); }
+
+/* BOTTOM ROW */
+.bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.bottom-card {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 22px 24px;
+}
+.bottom-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+
+.page-row { display: grid; grid-template-columns: 1fr 60px 60px; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; align-items: center; }
+.page-row:last-child { border-bottom: none; }
+.page-path { font-family: 'DM Mono', monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-num { text-align: right; font-family: 'DM Mono', monospace; }
+
+.loading-state {
+  display: flex; align-items: center; justify-content: center;
+  height: 100px; color: var(--muted); font-size: 12px; font-family: 'DM Mono', monospace;
+  gap: 8px;
+}
+.spin {
+  width: 14px; height: 14px; border: 1.5px solid var(--dim);
+  border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* FOOTER */
+.footer {
+  border-top: 0.5px solid var(--border); padding: 16px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-left { font-size: 11px; color: var(--dim); font-family: 'DM Mono', monospace; }
+.footer-right { display: flex; gap: 16px; align-items: center; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+@media (max-width: 900px) {
+  .hero-stats { grid-template-columns: repeat(2, 1fr); }
+  .summary-row { grid-template-columns: repeat(2, 1fr); }
+  .charts-row { grid-template-columns: 1fr; }
+  .src-row { grid-template-columns: 120px 1fr 70px 70px; }
+  .src-row > *:nth-child(5), .src-row > *:nth-child(6) { display: none; }
+  .bottom-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">Nuovo Luxury <span>/ AI Traffic</span></div>
+    <h1>Connect your GA4</h1>
+    <p>Enter your GA4 property ID and a Google service account key to connect your live data. This is stored locally in your browser — never sent anywhere except Google's API.</p>
+
+    <div class="field">
+      <label>GA4 Property ID</label>
+      <input type="text" id="prop-id" placeholder="123456789" autocomplete="off">
+      <div class="setup-help">Find this in GA4 → Admin → Property Settings. It's the number under "Property ID".</div>
+    </div>
+
+    <div class="field">
+      <label>Service Account Private Key (JSON)</label>
+      <textarea id="svc-key" placeholder='{"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...","client_email":"...@...iam.gserviceaccount.com",...}'></textarea>
+      <div class="setup-help">
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Create a service account</a> in Google Cloud Console → enable Google Analytics Data API → download JSON key → paste here.<br><br>
+        Then in GA4 Admin → Property Access Management → add the service account email as <strong>Viewer</strong>.
+      </div>
+    </div>
+
+    <button class="btn-go" onclick="connect()">Connect & Launch Dashboard →</button>
+    <div class="error-msg" id="err-msg"></div>
+
+    <div style="margin-top:2rem;padding-top:1.5rem;border-top:0.5px solid var(--border)">
+      <div style="font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;">Or: <span onclick="loadDemo()" style="color:var(--gold);cursor:pointer;text-decoration:underline">load demo with your known numbers</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">Nuovo Luxury <span>/ AI Traffic</span></div>
+      <div class="live-dot"><span class="dot-pulse"></span> <span id="last-fetch">Live</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="date-range">
+        <select id="date-range-sel" onchange="refreshData()">
+          <option value="7">Last 7 days</option>
+          <option value="28">Last 28 days</option>
+          <option value="90" selected>Last 90 days</option>
+          <option value="180">Last 180 days</option>
+        </select>
+      </div>
+      <button class="btn-refresh" onclick="refreshData()">↻ Refresh</button>
+      <button class="btn-settings" onclick="showSetup()">⚙ Settings</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- HERO STATS -->
+    <div class="hero-stats">
+      <div class="stat-card chatgpt">
+        <div class="stat-label"><span class="src-dot" style="background:var(--chatgpt)"></span>ChatGPT</div>
+        <div class="stat-num" id="h-chatgpt">—</div>
+        <div class="stat-sub">sessions</div>
+        <div class="stat-delta" id="hd-chatgpt"></div>
+      </div>
+      <div class="stat-card claude">
+        <div class="stat-label"><span class="src-dot" style="background:var(--claude)"></span>Claude</div>
+        <div class="stat-num" id="h-claude">—</div>
+        <div class="stat-sub">sessions</div>
+        <div class="stat-delta" id="hd-claude"></div>
+      </div>
+      <div class="stat-card perplexity">
+        <div class="stat-label"><span class="src-dot" style="background:var(--perplexity)"></span>Perplexity</div>
+        <div class="stat-num" id="h-perplexity">—</div>
+        <div class="stat-sub">sessions</div>
+        <div class="stat-delta" id="hd-perplexity"></div>
+      </div>
+      <div class="stat-card copilot">
+        <div class="stat-label"><span class="src-dot" style="background:var(--copilot)"></span>Copilot</div>
+        <div class="stat-num" id="h-copilot">—</div>
+        <div class="stat-sub">sessions</div>
+        <div class="stat-delta" id="hd-copilot"></div>
+      </div>
+    </div>
+
+    <!-- SUMMARY ROW -->
+    <div class="summary-row">
+      <div class="sum-card">
+        <div class="sum-label">Total AI Sessions</div>
+        <div class="sum-val" id="s-total">—</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">Revenue (tracked)</div>
+        <div class="sum-val gold" id="s-rev">—</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">Avg Engagement Rate</div>
+        <div class="sum-val" id="s-eng">—</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">Key Event Rate</div>
+        <div class="sum-val" id="s-conv">—</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-hdr">
+          <span class="chart-title">Daily sessions by AI source</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="trend-chart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr">
+          <span class="chart-title">Source split</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="pie-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCES TABLE -->
+    <div class="sources-card">
+      <div class="sources-hdr">
+        <span class="sources-title">AI sources breakdown</span>
+      </div>
+      <div class="src-row src-row-hdr">
+        <span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>Eng. rate</span><span>Key events</span>
+      </div>
+      <div id="sources-table"><div class="loading-state"><span class="spin"></span> Fetching data...</div></div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+      <div class="bottom-card">
+        <div class="bottom-title">Top landing pages from AI</div>
+        <div id="pages-table"><div class="loading-state"><span class="spin"></span></div></div>
+      </div>
+      <div class="bottom-card">
+        <div class="bottom-title">Weekly trend — total AI sessions</div>
+        <div class="chart-wrap" style="height:160px">
+          <canvas id="weekly-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left" id="footer-ts">—</div>
+    <div class="footer-right">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--chatgpt)"></span>ChatGPT</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--claude)"></span>Claude</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--perplexity)"></span>Perplexity</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--copilot)"></span>Copilot</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SOURCES = {
+  chatgpt:    { label: 'ChatGPT',    color: '#10b981', terms: ['chatgpt'] },
+  claude:     { label: 'Claude',     color: '#e8a87c', terms: ['claude'] },
+  perplexity: { label: 'Perplexity', color: '#818cf8', terms: ['perplexity'] },
+  copilot:    { label: 'Copilot',    color: '#38bdf8', terms: ['copilot'] },
+  gemini:     { label: 'Gemini',     color: '#f472b6', terms: ['gemini', 'bard'] }
+};
+
+let config = {};
+let charts = {};
+let refreshTimer;
+
+function showError(msg) {
+  const el = document.getElementById('err-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function connect() {
+  const propId = document.getElementById('prop-id').value.trim();
+  const keyJson = document.getElementById('svc-key').value.trim();
+  if (!propId) { showError('Please enter your GA4 Property ID'); return; }
+  if (!keyJson) { showError('Please paste your service account JSON key'); return; }
+
+  let key;
+  try { key = JSON.parse(keyJson); } catch(e) { showError('Invalid JSON — check the format of your key file'); return; }
+  if (!key.private_key || !key.client_email) { showError('Key file must contain private_key and client_email'); return; }
+
+  config = { propId, key };
+  localStorage.setItem('nuovo_ga4_config', JSON.stringify({ propId, keyStr: keyJson }));
+
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  await refreshData();
+  refreshTimer = setInterval(refreshData, 30 * 60 * 1000);
+}
+
+function showSetup() {
+  clearInterval(refreshTimer);
+  document.getElementById('setup').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+}
+
+async function getAccessToken() {
+  const key = config.key;
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const payload = btoa(JSON.stringify({
+    iss: key.client_email,
+    scope: 'https://www.googleapis.com/auth/analytics.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600, iat: now
+  })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+
+  const toSign = header + '.' + payload;
+  const pemKey = key.private_key.replace(/\\n/g, '\n');
+  const binaryDer = pemToBinary(pemKey);
+  const cryptoKey = await crypto.subtle.importKey('pkcs8', binaryDer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(toSign));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const jwt = toSign + '.' + sigB64;
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
+  const data = await resp.json();
+  if (!data.access_token) throw new Error(data.error_description || 'Auth failed');
+  return data.access_token;
+}
+
+function pemToBinary(pem) {
+  const lines = pem.split('\n').filter(l => !l.startsWith('-----'));
+  const b64 = lines.join('');
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function runReport(token, body) {
+  const url = `https://analyticsdata.googleapis.com/v1beta/properties/${config.propId}:runReport`;
+  const resp = await fetch(url, {
+    method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'API error'); }
+  return resp.json();
+}
+
+function getDays() { return parseInt(document.getElementById('date-range-sel').value) || 90; }
+
+async function refreshData() {
+  document.getElementById('last-fetch').textContent = 'Fetching...';
+  try {
+    let token;
+    if (config.key) {
+      token = await getAccessToken();
+    } else { loadDemoData(); return; }
+
+    const days = getDays();
+    const dateRange = [{ startDate: `${days}daysAgo`, endDate: 'today' }];
+    const aiRegex = Object.values(SOURCES).flatMap(s => s.terms).join('|');
+
+    const [bySource, byDate, byPage] = await Promise.all([
+      runReport(token, {
+        dateRanges: dateRange,
+        dimensions: [{ name: 'sessionSource' }],
+        metrics: [
+          { name: 'sessions' }, { name: 'engagedSessions' },
+          { name: 'totalRevenue' }, { name: 'keyEvents' }
+        ],
+        dimensionFilter: {
+          filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'PARTIAL_REGEXP', value: aiRegex } }
+        }
+      }),
+      runReport(token, {
+        dateRanges: dateRange,
+        dimensions: [{ name: 'date' }, { name: 'sessionSource' }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: {
+          filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'PARTIAL_REGEXP', value: aiRegex } }
+        },
+        orderBys: [{ dimension: { dimensionName: 'date' } }]
+      }),
+      runReport(token, {
+        dateRanges: dateRange,
+        dimensions: [{ name: 'landingPagePlusQueryString' }],
+        metrics: [{ name: 'sessions' }, { name: 'engagementRate' }],
+        dimensionFilter: {
+          filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'PARTIAL_REGEXP', value: aiRegex } }
+        },
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10
+      })
+    ]);
+
+    renderData(bySource, byDate, byPage);
+    document.getElementById('last-fetch').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('footer-ts').textContent = 'Last refresh: ' + new Date().toLocaleString('en-GB') + ' · GA4 Property ' + config.propId;
+  } catch(err) {
+    document.getElementById('last-fetch').textContent = 'Error: ' + err.message;
+    console.error(err);
+  }
+}
+
+function categorise(source) {
+  source = (source || '').toLowerCase();
+  for (const [key, val] of Object.entries(SOURCES)) {
+    if (val.terms.some(t => source.includes(t))) return key;
+  }
+  return 'other';
+}
+
+function renderData(bySource, byDate, byPage) {
+  const totals = {};
+  for (const k of Object.keys(SOURCES)) totals[k] = { sessions: 0, engaged: 0, revenue: 0, keyEvents: 0 };
+
+  (bySource.rows || []).forEach(row => {
+    const cat = categorise(row.dimensionValues[0].value);
+    if (!totals[cat]) return;
+    totals[cat].sessions += parseInt(row.metricValues[0].value || 0);
+    totals[cat].engaged  += parseInt(row.metricValues[1].value || 0);
+    totals[cat].revenue  += parseFloat(row.metricValues[2].value || 0);
+    totals[cat].keyEvents+= parseInt(row.metricValues[3].value || 0);
+  });
+
+  const totalSess = Object.values(totals).reduce((a,b) => a + b.sessions, 0);
+  const totalRev  = Object.values(totals).reduce((a,b) => a + b.revenue, 0);
+  const totalEng  = Object.values(totals).reduce((a,b) => a + b.engaged, 0);
+  const totalKE   = Object.values(totals).reduce((a,b) => a + b.keyEvents, 0);
+  const engRate   = totalSess > 0 ? (totalEng / totalSess * 100) : 0;
+  const convRate  = totalSess > 0 ? (totalKE / totalSess * 100) : 0;
+
+  for (const [k, v] of Object.entries(totals)) {
+    const el = document.getElementById('h-' + k);
+    if (el) el.textContent = v.sessions.toLocaleString();
+  }
+
+  document.getElementById('s-total').textContent = totalSess.toLocaleString();
+  document.getElementById('s-rev').textContent = totalRev > 0 ? '£' + totalRev.toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '£0';
+  document.getElementById('s-eng').textContent = engRate.toFixed(1) + '%';
+  document.getElementById('s-conv').textContent = convRate.toFixed(2) + '%';
+
+  renderSourcesTable(totals, totalSess);
+  renderTrendChart(byDate);
+  renderPieChart(totals);
+  renderPagesTable(byPage);
+  renderWeeklyChart(byDate);
+}
+
+function renderSourcesTable(totals, totalSess) {
+  const sorted = Object.entries(totals).filter(([,v]) => v.sessions > 0).sort((a,b) => b[1].sessions - a[1].sessions);
+  const maxS = Math.max(...sorted.map(([,v]) => v.sessions), 1);
+  const el = document.getElementById('sources-table');
+  if (!sorted.length) { el.innerHTML = '<div class="loading-state">No AI referral traffic in this period</div>'; return; }
+  el.innerHTML = sorted.map(([key, v], i) => {
+    const src = SOURCES[key];
+    const pct = totalSess > 0 ? Math.round(v.sessions / totalSess * 100) : 0;
+    const eng = v.sessions > 0 ? (v.engaged / v.sessions * 100).toFixed(1) : '0';
+    return `<div class="src-row">
+      <div class="src-name">
+        <span class="src-dot" style="background:${src.color}"></span>
+        ${src.label}
+        ${i === 0 ? '<span class="badge badge-top">TOP</span>' : ''}
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${Math.round(v.sessions/maxS*100)}%;background:${src.color}"></div></div>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:30px;text-align:right">${pct}%</span>
+        </div>
+      </div>
+      <span class="src-stat">${v.sessions.toLocaleString()}</span>
+      <span class="src-stat rev">${v.revenue > 0 ? '£' + v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}) : '—'}</span>
+      <span class="src-stat eng">${eng}%</span>
+      <span class="src-stat">${v.keyEvents}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTrendChart(byDate) {
+  const dateMap = {};
+  (byDate.rows || []).forEach(row => {
+    const d = row.dimensionValues[0].value;
+    const cat = categorise(row.dimensionValues[1].value);
+    const s = parseInt(row.metricValues[0].value || 0);
+    if (!dateMap[d]) dateMap[d] = {};
+    dateMap[d][cat] = (dateMap[d][cat] || 0) + s;
+  });
+
+  const dates = Object.keys(dateMap).sort();
+  const fmt = d => d.slice(4,6) + '/' + d.slice(6,8);
+  const labels = dates.map(fmt);
+
+  const step = Math.max(1, Math.floor(labels.length / 14));
+  const filteredLabels = labels.map((l, i) => i % step === 0 ? l : '');
+
+  const datasets = Object.entries(SOURCES).map(([key, src]) => ({
+    label: src.label, data: dates.map(d => dateMap[d]?.[key] || 0),
+    borderColor: src.color, backgroundColor: src.color + '20',
+    borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3
+  }));
+
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(document.getElementById('trend-chart'), {
+    type: 'line', data: { labels: filteredLabels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7975', font: { family: 'DM Mono', size: 10 }, maxRotation: 0 } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7975', font: { family: 'DM Mono', size: 10 }, precision: 0 } }
+      }
+    }
+  });
+}
+
+function renderPieChart(totals) {
+  const entries = Object.entries(totals).filter(([,v]) => v.sessions > 0);
+  if (charts.pie) charts.pie.destroy();
+  charts.pie = new Chart(document.getElementById('pie-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(([k]) => SOURCES[k].label),
+      datasets: [{ data: entries.map(([,v]) => v.sessions), backgroundColor: entries.map(([k]) => SOURCES[k].color), borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '70%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#7a7975', font: { family: 'Syne', size: 11 }, boxWidth: 8, boxHeight: 8, padding: 16 } } }
+    }
+  });
+}
+
+function renderPagesTable(byPage) {
+  const el = document.getElementById('pages-table');
+  const rows = (byPage.rows || []).slice(0, 8);
+  if (!rows.length) { el.innerHTML = '<div class="loading-state">No data</div>'; return; }
+  el.innerHTML = `<div class="page-row" style="opacity:0.5;font-size:10px;letter-spacing:0.1em;text-transform:uppercase">
+    <span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span>
+  </div>` + rows.map(r => {
+    const path = r.dimensionValues[0].value.replace('https://www.nuovoluxury.co.uk','').slice(0,40) || '/';
+    const sess = parseInt(r.metricValues[0].value || 0);
+    const eng  = (parseFloat(r.metricValues[1].value || 0) * 100).toFixed(0);
+    return `<div class="page-row"><span class="page-path">${path}</span><span class="page-num">${sess}</span><span class="page-num" style="color:var(--muted)">${eng}%</span></div>`;
+  }).join('');
+}
+
+function renderWeeklyChart(byDate) {
+  const weekMap = {};
+  (byDate.rows || []).forEach(row => {
+    const d = row.dimensionValues[0].value;
+    const year = parseInt(d.slice(0,4)), month = parseInt(d.slice(4,6))-1, day = parseInt(d.slice(6,8));
+    const dt = new Date(year, month, day);
+    const weekStart = new Date(dt); weekStart.setDate(dt.getDate() - dt.getDay());
+    const wk = weekStart.toISOString().slice(0,10);
+    weekMap[wk] = (weekMap[wk] || 0) + parseInt(row.metricValues[0].value || 0);
+  });
+  const weeks = Object.keys(weekMap).sort().slice(-12);
+  const fmt = d => { const [,m,day] = d.split('-'); return `${day}/${m}`; };
+  if (charts.weekly) charts.weekly.destroy();
+  charts.weekly = new Chart(document.getElementById('weekly-chart'), {
+    type: 'bar',
+    data: {
+      labels: weeks.map(fmt),
+      datasets: [{ data: weeks.map(w => weekMap[w]), backgroundColor: '#d4a843', borderRadius: 3 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#7a7975', font: { family: 'DM Mono', size: 10 }, maxRotation: 0 } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7975', font: { family: 'DM Mono', size: 10 }, precision: 0 } }
+      }
+    }
+  });
+}
+
+function loadDemo() {
+  config = { demo: true };
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadDemoData();
+}
+
+function loadDemoData() {
+  const totals = { chatgpt: { sessions: 244, engaged: 124, revenue: 1999, keyEvents: 4 }, claude: { sessions: 2, engaged: 0, revenue: 0, keyEvents: 0 }, perplexity: { sessions: 0, engaged: 0, revenue: 0, keyEvents: 0 }, copilot: { sessions: 0, engaged: 0, revenue: 0, keyEvents: 0 } };
+  const totalSess = 246, totalEng = 124, totalKE = 4;
+  for (const [k, v] of Object.entries(totals)) { const el = document.getElementById('h-'+k); if (el) el.textContent = v.sessions.toLocaleString(); }
+  document.getElementById('s-total').textContent = '246';
+  document.getElementById('s-rev').textContent = '£1,999';
+  document.getElementById('s-eng').textContent = '50.4%';
+  document.getElementById('s-conv').textContent = '1.63%';
+  document.getElementById('last-fetch').textContent = 'Demo mode — connect GA4 for live data';
+  document.getElementById('footer-ts').textContent = 'Demo data: Feb 11 – May 11, 2026 · Connect GA4 for live data';
+  renderSourcesTable(totals, 246);
+  const demoByDate = { rows: [] };
+  const start = new Date('2026-02-11');
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0,10).replace(/-/g,'');
+    const s = Math.floor(Math.random() * 4 + 1);
+    demoByDate.rows.push({ dimensionValues: [{value:ds},{value:'chatgpt.com'}], metricValues: [{value:String(s)}] });
+    if (Math.random() < 0.02) demoByDate.rows.push({ dimensionValues: [{value:ds},{value:'claude.ai'}], metricValues: [{value:'1'}] });
+  }
+  renderTrendChart(demoByDate);
+  renderPieChart(totals);
+  renderWeeklyChart(demoByDate);
+  const demoPages = { rows: [
+    { dimensionValues:[{value:'/products/hybrid-infrared-4-person-2m-sauna'}], metricValues:[{value:'48'},{value:'0.72'}] },
+    { dimensionValues:[{value:'/collections/infrared-saunas'}], metricValues:[{value:'32'},{value:'0.61'}] },
+    { dimensionValues:[{value:'/products/chill-tubs-ice-bath-with-temperature-control-system-built-in'}], metricValues:[{value:'28'},{value:'0.68'}] },
+    { dimensionValues:[{value:'/pages/best-saunas-uk-buyers-guide'}], metricValues:[{value:'21'},{value:'0.75'}] },
+    { dimensionValues:[{value:'/collections/gazebo-and-pergolas-uk'}], metricValues:[{value:'18'},{value:'0.55'}] },
+    { dimensionValues:[{value:'/products/aquark-mr-silence-hot-tub-swim-spa-air-source-inverter-heat-pump'}], metricValues:[{value:'14'},{value:'0.79'}] },
+  ]};
+  renderPagesTable(demoPages);
+}
+
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('nuovo_ga4_config');
+  if (saved) {
+    try {
+      const { propId, keyStr } = JSON.parse(saved);
+      document.getElementById('prop-id').value = propId;
+      document.getElementById('svc-key').value = keyStr;
+    } catch(e) {}
+  }
+});
+</script>
+</body>
+</html>
