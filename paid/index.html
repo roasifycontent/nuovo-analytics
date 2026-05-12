@@ -407,7 +407,7 @@ async function refresh(){
       // By source breakdown
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
-        {name:'conversions:phone_calls'},{name:'conversions:form_submit'},{name:'conversions:begin_checkout'},{name:'conversions:add_to_cart'},
+        {name:'conversions:phone_calls'},{name:'conversions:form_submit'},{name:'keyEvents:begin_checkout'},{name:'keyEvents:add_to_cart'},
         {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'},{name:'returnOnAdSpend'}
       ],dimensionFilter:paidFil}),
       // Daily trend
