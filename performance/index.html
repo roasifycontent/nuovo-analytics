@@ -374,48 +374,45 @@ async function refresh(){
   const dr=[dateRange];
   const aiRegex=AI_TERMS.join('|');
 
+  // Helper: run query, return fallback on failure
+  const safe=async(q,fb={rows:[]})=>{try{return await ga4(q);}catch(e){console.warn('Query failed:',e.message);if(isAuthError(e))throw e;return fb;}};
+
   try{
-    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, totalsData] = await Promise.all([
-      // Channel breakdown — use defaultChannelGroup (event-scoped, compatible with all metrics)
-      ga4({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
+    // All queries run independently — none blocks another
+    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, adSpendTotal, newUsersTotal, dailyAdSpend, todayAdSpend] = await Promise.all([
+      // Channel breakdown
+      safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
       // AI channel
-      ga4({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
+      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
       ],dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:aiRegex}}}}),
       // New vs Returning
-      ga4({dateRanges:dr,dimensions:[{name:'newVsReturning'}],metrics:[
+      safe({dateRanges:dr,dimensions:[{name:'newVsReturning'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'}
       ]}),
-      // Daily trend (14 days) — revenue only, ad spend separate
-      ga4({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
+      // Daily revenue trend (14 days)
+      safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
         {name:'totalRevenue'}
       ],orderBys:[{dimension:{dimensionName:'date'}}]}),
       // Product performance
-      ga4({dateRanges:dr,dimensions:[{name:'itemName'}],metrics:[
+      safe({dateRanges:dr,dimensions:[{name:'itemName'}],metrics:[
         {name:'itemRevenue'},{name:'itemsPurchased'}
       ],orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],limit:10}),
-      // Today snapshot — split: revenue separate from ad cost
-      ga4({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[
-        {name:'totalRevenue'}
-      ]}),
-      // Totals — ad spend + newUsers (no dimensions)
-      ga4({dateRanges:dr,metrics:[
-        {name:'advertiserAdCost'},{name:'newUsers'}
-      ]})
+      // Today revenue
+      safe({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'totalRevenue'}]}),
+      // Total ad spend (own query)
+      safe({dateRanges:dr,metrics:[{name:'advertiserAdCost'}]}),
+      // Total new users (own query)
+      safe({dateRanges:dr,metrics:[{name:'newUsers'}]}),
+      // Daily ad spend trend
+      safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],orderBys:[{dimension:{dimensionName:'date'}}]}),
+      // Today ad spend
+      safe({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'advertiserAdCost'}]})
     ]);
 
-    // Separate ad spend queries (ad metrics often incompatible with other scopes)
-    let dailyAdSpend={rows:[]}, todayAdSpend={rows:[]};
-    try{
-      [dailyAdSpend, todayAdSpend] = await Promise.all([
-        ga4({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],orderBys:[{dimension:{dimensionName:'date'}}]}),
-        ga4({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'advertiserAdCost'}]})
-      ]);
-    }catch(e){console.warn('Ad spend queries failed (no linked Ads account?)',e);}
-
-    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData,dailyAdSpend,todayAdSpend};
+    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,adSpendTotal,newUsersTotal,dailyAdSpend,todayAdSpend};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -432,24 +429,23 @@ function recalcAll(){
 }
 
 function renderAll(){
-  const{byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData,dailyAdSpend,todayAdSpend}=lastData;
-  renderHero(byChannel,newVsRet,totalsData);
-  renderChannelTable(byChannel,aiData,totalsData);
-  renderPnL(todayData,todayAdSpend,dailyTrend,dailyAdSpend);
-  renderProducts(products);
+  const d=lastData;
+  renderHero(d.byChannel,d.newVsRet,d.adSpendTotal,d.newUsersTotal);
+  renderChannelTable(d.byChannel,d.aiData,d.adSpendTotal);
+  renderPnL(d.todayData,d.todayAdSpend,d.dailyTrend,d.dailyAdSpend);
+  renderProducts(d.products);
 }
 
 // --- Hero metrics ---
-function renderHero(byChannel,newVsRet,totalsData){
+function renderHero(byChannel,newVsRet,adSpendTotal,newUsersTotal){
   let totRev=0,totSess=0,totKE=0;
   (byChannel.rows||[]).forEach(r=>{
     totSess+=parseInt(r.metricValues[0].value||0);
     totRev+=parseFloat(r.metricValues[1].value||0);
     totKE+=parseInt(r.metricValues[2].value||0);
   });
-  const totalsRow=(totalsData.rows||[])[0];
-  const gAdSpend=parseFloat(totalsRow?.metricValues[0]?.value||0);
-  const totNewUsers=parseInt(totalsRow?.metricValues[1]?.value||0);
+  const gAdSpend=parseFloat(((adSpendTotal.rows||[])[0]?.metricValues[0]?.value)||0);
+  const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
   const msSpend=getMsTotalSpend();
   const totalSpend=gAdSpend+msSpend;
   const mer=totalSpend>0?totRev/totalSpend:0;
@@ -483,7 +479,7 @@ function renderHero(byChannel,newVsRet,totalsData){
 // --- Channel table ---
 const CH_COLORS={'Paid Search':'#4285F4','Organic Search':'#10b981','Direct':'#d4a843','Organic Social':'#818cf8','Referral':'#e8a87c','Email':'#38bdf8','AI':'#10b981','Display':'#f472b6','Unassigned':'#6b7280','Other':'#9ca3af'};
 
-function renderChannelTable(byChannel,aiData,totalsData){
+function renderChannelTable(byChannel,aiData,adSpendTotal){
   const channels={};
   (byChannel.rows||[]).forEach(r=>{
     const ch=r.dimensionValues[0].value;
@@ -496,7 +492,7 @@ function renderChannelTable(byChannel,aiData,totalsData){
     };
   });
   // Assign total Google ad spend to Paid Search channel
-  const gAdSpend=parseFloat(((totalsData.rows||[])[0]?.metricValues[0]?.value)||0);
+  const gAdSpend=parseFloat(((adSpendTotal.rows||[])[0]?.metricValues[0]?.value)||0);
   if(channels['Paid Search'])channels['Paid Search'].adCost=gAdSpend;
   else if(gAdSpend>0)channels['Paid Search']={sessions:0,revenue:0,ke:0,engaged:0,adCost:gAdSpend};
 
