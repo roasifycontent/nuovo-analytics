@@ -7,7 +7,12 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--google:#4285F4;--bing:#0078d4;--gold:#d4a843;--red:#f87171;--green:#10b981}
+:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--google:#4285F4;--bing:#0078d4;--gold:#d4a843;--red:#f87171;--green:#10b981;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#a8a49e}
+html.light{--bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);--text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;--gold:#b8902e;--red:#dc2626;--green:#059669;--chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560}
+html.light .bsm.active{color:#fff}
+html.light .setup-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+html.light .ch-spend-input{color:var(--text)}
+html.light input[type=date]{color:var(--muted)!important}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px}
 body{min-height:100vh}
@@ -110,6 +115,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .help-text{font-size:11px;color:var(--muted);background:var(--bg3);border-radius:6px;padding:8px 12px;margin-top:10px;line-height:1.5}
 
 @media(max-width:900px){.channel-hero,.row2{grid-template-columns:1fr}.row3{grid-template-columns:1fr}.kpi-strip{grid-template-columns:repeat(3,1fr)}.ch-metrics{grid-template-columns:repeat(2,1fr)}}
+.theme-toggle{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.theme-toggle:hover{border-color:var(--gold)}
 </style>
 </head>
 <body>
@@ -149,6 +156,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <span style="color:var(--dim);font-size:11px">→</span>
       <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
       <button class="bsm" onclick="refresh()">↻</button>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
   </div>
@@ -293,6 +301,21 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 </div>
 
 <script>
+function applyTheme(theme){
+  document.documentElement.classList.toggle('light',theme==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const isLight=document.documentElement.classList.contains('light');
+  const next=isLight?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+  if(typeof refresh==='function'&&token)refresh();
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
+function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 
@@ -625,11 +648,11 @@ function renderTrend(byDate){
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'#a8a49e',font:{family:'Syne',size:11},boxWidth:10,padding:14}}},
+      plugins:{legend:{labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:10,padding:14}}},
       scales:{
-        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},maxRotation:0}},
-        y:{position:'left',grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},precision:0}},
-        y1:{position:'right',grid:{display:false},ticks:{color:'#d4a843',font:{family:'DM Mono',size:10},callback:v=>'£'+v}}
+        x:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0}},
+        y:{position:'left',grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0}},
+        y1:{position:'right',grid:{display:false},ticks:{color:themeColor('--gold'),font:{family:'DM Mono',size:10},callback:v=>'£'+v}}
       }
     }
   });

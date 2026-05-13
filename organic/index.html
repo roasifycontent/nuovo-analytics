@@ -14,7 +14,20 @@
   --gold:#d4a843;--green:#10b981;--red:#f87171;
   --google:#4285F4;--bing:#0078d4;--purple:#a78bfa;
   --up:#10b981;--down:#f87171;
+  --chart-grid:rgba(255,255,255,0.04);--chart-tick:#a8a49e;
 }
+html.light{
+  --bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);
+  --text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;
+  --gold:#b8902e;--red:#dc2626;--green:#059669;--purple:#7c3aed;
+  --up:#059669;--down:#dc2626;
+  --chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560;
+}
+html.light .bsm.active{color:#fff}
+html.light .setup-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+html.light input[type=date]{color:var(--muted)!important}
+html.light input[type=text]{color:var(--text)!important}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:15px}
 body{min-height:100vh}
@@ -117,6 +130,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
 .insight-text strong{color:var(--gold);font-weight:600}
 
 @media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.kpi-strip{grid-template-columns:repeat(3,1fr)}.row2{grid-template-columns:1fr}}
+.theme-toggle{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.theme-toggle:hover{border-color:var(--gold)}
 </style>
 </head>
 <body>
@@ -160,6 +175,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       </div>
       <button class="bsm" onclick="refresh()">↻</button>
       <button id="gsc-btn" class="bsm" onclick="startOAuth()" style="display:none;border-color:var(--gold);color:var(--gold)">Enable keywords ↗</button>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
   </div>
@@ -280,6 +296,21 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
 </div>
 
 <script>
+function applyTheme(theme){
+  document.documentElement.classList.toggle('light',theme==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const isLight=document.documentElement.classList.contains('light');
+  const next=isLight?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+  if(typeof refresh==='function'&&token)refresh();
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
+function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
 const PROP='346978985';
 const SITE_URL='https://www.nuovoluxury.co.uk/';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
@@ -845,11 +876,11 @@ function renderTrend(byDate){
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'#a8a49e',font:{family:'Syne',size:11},boxWidth:10,padding:14}}},
+      plugins:{legend:{labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:10,padding:14}}},
       scales:{
-        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},maxRotation:0}},
-        y:{position:'left',grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a8a49e',font:{family:'DM Mono',size:10},precision:0}},
-        y1:{position:'right',grid:{display:false},ticks:{color:'#10b981',font:{family:'DM Mono',size:10},callback:v=>'£'+v}}
+        x:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0}},
+        y:{position:'left',grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0}},
+        y1:{position:'right',grid:{display:false},ticks:{color:themeColor('--green'),font:{family:'DM Mono',size:10},callback:v=>'£'+v}}
       }
     }
   });

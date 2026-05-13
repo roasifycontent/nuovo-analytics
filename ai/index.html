@@ -8,7 +8,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
-:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--chatgpt:#10b981;--claude:#e8a87c;--perplexity:#818cf8;--copilot:#38bdf8;--gold:#d4a843;--red:#f87171}
+:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--chatgpt:#10b981;--claude:#e8a87c;--perplexity:#818cf8;--copilot:#38bdf8;--gold:#d4a843;--red:#f87171;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
+html.light{--bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);--text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;--gold:#b8902e;--red:#dc2626;--chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560}
+html.light .bsm.active{color:#fff}
+html.light .setup-card,html.light .reauth-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+html.light input[type=date]{color:var(--muted)!important}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px}
 body{min-height:100vh}
@@ -99,6 +103,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .alert-banner .dismiss{margin-left:auto;cursor:pointer;color:var(--dim);font-size:16px;flex-shrink:0}
 .alert-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;display:none}
 .alert-overlay.open{display:block}
+.theme-toggle{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.theme-toggle:hover{border-color:var(--gold)}
 </style>
 </head>
 <body>
@@ -143,6 +149,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <button class="bsm" onclick="refresh()">↻ Refresh</button>
       <button class="bsm" id="compare-btn" onclick="toggleCompare()">vs Prev</button>
       <button class="alert-bell" onclick="toggleAlertPanel()">🔔<span class="badge" id="alert-badge">0</span></button>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
   </div>
@@ -243,6 +250,21 @@ const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claud
 let token=null,charts={};
 
 function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
+
+function applyTheme(theme){
+  document.documentElement.classList.toggle('light',theme==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const isLight=document.documentElement.classList.contains('light');
+  const next=isLight?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+  // Rebuild charts with new grid colors
+  if(typeof refresh==='function'&&token)refresh();
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
 
 window.addEventListener('load',()=>{
   restoreDateRange();
@@ -426,6 +448,8 @@ async function ga4(url,body){
 
 function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message);}
 
+function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
 function render(bs,bd,bp){
   const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0,calls:0,forms:0};
   (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);t[k].calls+=parseInt(r.metricValues[4]?.value||0);t[k].forms+=parseInt(r.metricValues[5]?.value||0);});
@@ -466,12 +490,12 @@ function rTrend(bd){
   const labels=dates.map((d,i)=>i%step===0?d.slice(4,6)+'/'+d.slice(6,8):'');
   const ds=Object.entries(SOURCES).map(([k,s])=>({label:s.label,data:dates.map(d=>dm[d]?.[k]||0),borderColor:s.color,backgroundColor:s.color+'20',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3}));
   if(charts.t)charts.t.destroy();
-  charts.t=new Chart(document.getElementById('tc'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},precision:0}}}}});
+  charts.t=new Chart(document.getElementById('tc'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0}}}}});
 }
 function rPie(t){
   const e=Object.entries(t).filter(([,v])=>v.sessions>0);
   if(charts.p)charts.p.destroy();
-  charts.p=new Chart(document.getElementById('pc'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:'#7a7975',font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
+  charts.p=new Chart(document.getElementById('pc'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
 }
 function rPages(bp){
   const rows=(bp.rows||[]).slice(0,8);
@@ -481,7 +505,7 @@ function rWeekly(bd){
   const wm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8))),ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());const wk=ws.toISOString().slice(0,10);wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);});
   const weeks=Object.keys(wm).sort().slice(-12);
   if(charts.w)charts.w.destroy();
-  charts.w=new Chart(document.getElementById('wc'),{type:'bar',data:{labels:weeks.map(d=>{const[,m,dy]=d.split('-');return`${dy}/${m}`;}),datasets:[{data:weeks.map(w=>wm[w]),backgroundColor:'#d4a843',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7975',font:{family:'DM Mono',size:10},precision:0}}}}});
+  charts.w=new Chart(document.getElementById('wc'),{type:'bar',data:{labels:weeks.map(d=>{const[,m,dy]=d.split('-');return`${dy}/${m}`;}),datasets:[{data:weeks.map(w=>wm[w]),backgroundColor:'#d4a843',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0}}}}});
 }
 
 
