@@ -375,10 +375,10 @@ async function refresh(){
   const aiRegex=AI_TERMS.join('|');
 
   try{
-    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, adSpendData] = await Promise.all([
-      // Channel breakdown (no ad metrics — incompatible with sessionDefaultChannelGroup)
+    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, totalsData] = await Promise.all([
+      // Channel breakdown — only session-compatible metrics
       ga4({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
-        {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'},{name:'newUsers'}
+        {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
       // AI channel
       ga4({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
@@ -388,7 +388,7 @@ async function refresh(){
       ga4({dateRanges:dr,dimensions:[{name:'newVsReturning'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'}
       ]}),
-      // Daily trend (14 days) — date dimension is compatible with ad cost
+      // Daily trend (14 days)
       ga4({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
         {name:'totalRevenue'},{name:'advertiserAdCost'}
       ],orderBys:[{dimension:{dimensionName:'date'}}]}),
@@ -400,13 +400,13 @@ async function refresh(){
       ga4({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[
         {name:'totalRevenue'},{name:'advertiserAdCost'}
       ]}),
-      // Total ad spend (separate query — no session-scoped dimensions)
+      // Totals — ad spend + newUsers (no dimensions, avoids all compatibility issues)
       ga4({dateRanges:dr,metrics:[
-        {name:'advertiserAdCost'}
+        {name:'advertiserAdCost'},{name:'newUsers'}
       ]})
     ]);
 
-    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,adSpendData};
+    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -423,23 +423,24 @@ function recalcAll(){
 }
 
 function renderAll(){
-  const{byChannel,aiData,newVsRet,dailyTrend,products,todayData,adSpendData}=lastData;
-  renderHero(byChannel,newVsRet,adSpendData);
-  renderChannelTable(byChannel,aiData,adSpendData);
+  const{byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData}=lastData;
+  renderHero(byChannel,newVsRet,totalsData);
+  renderChannelTable(byChannel,aiData,totalsData);
   renderPnL(todayData,dailyTrend);
   renderProducts(products);
 }
 
 // --- Hero metrics ---
-function renderHero(byChannel,newVsRet,adSpendData){
-  let totRev=0,totSess=0,totKE=0,totNewUsers=0;
+function renderHero(byChannel,newVsRet,totalsData){
+  let totRev=0,totSess=0,totKE=0;
   (byChannel.rows||[]).forEach(r=>{
     totSess+=parseInt(r.metricValues[0].value||0);
     totRev+=parseFloat(r.metricValues[1].value||0);
     totKE+=parseInt(r.metricValues[2].value||0);
-    totNewUsers+=parseInt(r.metricValues[4].value||0);
   });
-  const gAdSpend=parseFloat(((adSpendData.rows||[])[0]?.metricValues[0]?.value)||0);
+  const totalsRow=(totalsData.rows||[])[0];
+  const gAdSpend=parseFloat(totalsRow?.metricValues[0]?.value||0);
+  const totNewUsers=parseInt(totalsRow?.metricValues[1]?.value||0);
   const msSpend=getMsTotalSpend();
   const totalSpend=gAdSpend+msSpend;
   const mer=totalSpend>0?totRev/totalSpend:0;
@@ -473,7 +474,7 @@ function renderHero(byChannel,newVsRet,adSpendData){
 // --- Channel table ---
 const CH_COLORS={'Paid Search':'#4285F4','Organic Search':'#10b981','Direct':'#d4a843','Organic Social':'#818cf8','Referral':'#e8a87c','Email':'#38bdf8','AI':'#10b981','Display':'#f472b6','Unassigned':'#6b7280','Other':'#9ca3af'};
 
-function renderChannelTable(byChannel,aiData,adSpendData){
+function renderChannelTable(byChannel,aiData,totalsData){
   const channels={};
   (byChannel.rows||[]).forEach(r=>{
     const ch=r.dimensionValues[0].value;
@@ -486,7 +487,7 @@ function renderChannelTable(byChannel,aiData,adSpendData){
     };
   });
   // Assign total Google ad spend to Paid Search channel
-  const gAdSpend=parseFloat(((adSpendData.rows||[])[0]?.metricValues[0]?.value)||0);
+  const gAdSpend=parseFloat(((totalsData.rows||[])[0]?.metricValues[0]?.value)||0);
   if(channels['Paid Search'])channels['Paid Search'].adCost=gAdSpend;
   else if(gAdSpend>0)channels['Paid Search']={sessions:0,revenue:0,ke:0,engaged:0,adCost:gAdSpend};
 
