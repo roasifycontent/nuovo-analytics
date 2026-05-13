@@ -5,6 +5,7 @@
     { "source": "/ai", "destination": "/ai/index.html" },
     { "source": "/paid", "destination": "/paid/index.html" },
     { "source": "/organic", "destination": "/organic/index.html" },
-    { "source": "/pergoenvision", "destination": "/pergoenvision/index.html" }
+    { "source": "/pergoenvision", "destination": "/pergoenvision/index.html" },
+    { "source": "/performance", "destination": "/performance/index.html" }
   ]
 }
