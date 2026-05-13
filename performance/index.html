@@ -376,8 +376,8 @@ async function refresh(){
 
   try{
     const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, totalsData] = await Promise.all([
-      // Channel breakdown — only session-compatible metrics
-      ga4({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
+      // Channel breakdown — use defaultChannelGroup (event-scoped, compatible with all metrics)
+      ga4({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
       // AI channel
@@ -388,25 +388,34 @@ async function refresh(){
       ga4({dateRanges:dr,dimensions:[{name:'newVsReturning'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'}
       ]}),
-      // Daily trend (14 days)
+      // Daily trend (14 days) — revenue only, ad spend separate
       ga4({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
-        {name:'totalRevenue'},{name:'advertiserAdCost'}
+        {name:'totalRevenue'}
       ],orderBys:[{dimension:{dimensionName:'date'}}]}),
       // Product performance
       ga4({dateRanges:dr,dimensions:[{name:'itemName'}],metrics:[
         {name:'itemRevenue'},{name:'itemsPurchased'}
       ],orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],limit:10}),
-      // Today snapshot
+      // Today snapshot — split: revenue separate from ad cost
       ga4({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[
-        {name:'totalRevenue'},{name:'advertiserAdCost'}
+        {name:'totalRevenue'}
       ]}),
-      // Totals — ad spend + newUsers (no dimensions, avoids all compatibility issues)
+      // Totals — ad spend + newUsers (no dimensions)
       ga4({dateRanges:dr,metrics:[
         {name:'advertiserAdCost'},{name:'newUsers'}
       ]})
     ]);
 
-    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData};
+    // Separate ad spend queries (ad metrics often incompatible with other scopes)
+    let dailyAdSpend={rows:[]}, todayAdSpend={rows:[]};
+    try{
+      [dailyAdSpend, todayAdSpend] = await Promise.all([
+        ga4({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],orderBys:[{dimension:{dimensionName:'date'}}]}),
+        ga4({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'advertiserAdCost'}]})
+      ]);
+    }catch(e){console.warn('Ad spend queries failed (no linked Ads account?)',e);}
+
+    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData,dailyAdSpend,todayAdSpend};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -423,10 +432,10 @@ function recalcAll(){
 }
 
 function renderAll(){
-  const{byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData}=lastData;
+  const{byChannel,aiData,newVsRet,dailyTrend,products,todayData,totalsData,dailyAdSpend,todayAdSpend}=lastData;
   renderHero(byChannel,newVsRet,totalsData);
   renderChannelTable(byChannel,aiData,totalsData);
-  renderPnL(todayData,dailyTrend);
+  renderPnL(todayData,todayAdSpend,dailyTrend,dailyAdSpend);
   renderProducts(products);
 }
 
@@ -535,10 +544,11 @@ function renderChannelTable(byChannel,aiData,totalsData){
 }
 
 // --- Daily P&L ---
-function renderPnL(todayData,dailyTrend){
+function renderPnL(todayData,todayAdSpend,dailyTrend,dailyAdSpend){
   const todayRow=(todayData.rows||[])[0];
+  const todaySpendRow=(todayAdSpend.rows||[])[0];
   const tRev=todayRow?parseFloat(todayRow.metricValues[0].value||0):0;
-  const tGSpend=todayRow?parseFloat(todayRow.metricValues[1].value||0):0;
+  const tGSpend=todaySpendRow?parseFloat(todaySpendRow.metricValues[0].value||0):0;
   const tMsSpend=getMsDailySpend();
   const tSpend=tGSpend+tMsSpend;
   const tMer=tSpend>0?tRev/tSpend:0;
@@ -555,12 +565,16 @@ function renderPnL(todayData,dailyTrend){
     <div class="pnl-bar-rev" style="width:${Math.round(tRev/max*100)}%" title="Revenue £${Math.round(tRev)}"></div>
     <div class="pnl-bar-spend" style="width:${Math.round(tSpend/max*100)}%" title="Spend £${Math.round(tSpend)}"></div>`;
 
-  // 14-day MER sparkline
-  const rows=(dailyTrend.rows||[]);
-  const dates=rows.map(r=>r.dimensionValues[0].value);
-  const mers=rows.map(r=>{
+  // 14-day MER sparkline — merge revenue trend with ad spend trend by date
+  const revRows=(dailyTrend.rows||[]);
+  const adRows=(dailyAdSpend.rows||[]);
+  const adByDate={};
+  adRows.forEach(r=>{adByDate[r.dimensionValues[0].value]=parseFloat(r.metricValues[0].value||0);});
+  const dates=revRows.map(r=>r.dimensionValues[0].value);
+  const mers=revRows.map(r=>{
+    const d=r.dimensionValues[0].value;
     const rev=parseFloat(r.metricValues[0].value||0);
-    const spend=parseFloat(r.metricValues[1].value||0)+getMsDailySpend();
+    const spend=(adByDate[d]||0)+getMsDailySpend();
     return spend>0?rev/spend:0;
   });
   const labels=dates.map(d=>d.slice(6,8)+'/'+d.slice(4,6));

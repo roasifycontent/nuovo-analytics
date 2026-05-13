@@ -819,24 +819,22 @@ async function loadPreviews(){
     document.getElementById('ai-top').textContent=topName;
     if(topSrcSess>0) document.getElementById('ai-top-sub').textContent=topSrcSess.toLocaleString()+' sessions';
 
-    // Paid preview (28 days)
-    const paidData = await ga4({
-      dateRanges:[{startDate:'28daysAgo',endDate:'today'}],
-      dimensions:[{name:'sessionSource'}],
-      metrics:[{name:'totalRevenue'},{name:'advertiserAdCost'}],
-      dimensionFilter:{andGroup:{expressions:[
-        {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
-        {filter:{fieldName:'sessionSource',inListFilter:{values:['google','bing']}}}
-      ]}}
-    });
-    let paidRev=0, paidSpend=0;
-    (paidData.rows||[]).forEach(r=>{
-      paidRev+=parseFloat(r.metricValues[0].value||0);
-      paidSpend+=parseFloat(r.metricValues[1]?.value||0);
-    });
-    if(paidSpend>0) document.getElementById('paid-spend').textContent=fmt(paidSpend);
-    if(paidRev>0) document.getElementById('paid-rev').textContent=fmt(paidRev);
-    if(paidSpend>0) document.getElementById('paid-roas').textContent=(paidRev/paidSpend).toFixed(2)+'x';
+    // Paid preview — revenue from CPC traffic, spend from separate query already fetched
+    try{
+      const paidRevData = await ga4({
+        dateRanges:[{startDate:'28daysAgo',endDate:'today'}],
+        metrics:[{name:'totalRevenue'}],
+        dimensionFilter:{andGroup:{expressions:[
+          {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
+          {filter:{fieldName:'sessionSource',inListFilter:{values:['google','bing']}}}
+        ]}}
+      });
+      const paidRev=parseFloat(((paidRevData.rows||[])[0]?.metricValues[0]?.value)||0);
+      const paidSpend=parseFloat(spendRow?.metricValues[0]?.value||0);
+      if(paidSpend>0) document.getElementById('paid-spend').textContent=fmt(paidSpend);
+      if(paidRev>0) document.getElementById('paid-rev').textContent=fmt(paidRev);
+      if(paidSpend>0) document.getElementById('paid-roas').textContent=(paidRev/paidSpend).toFixed(2)+'x';
+    }catch(e){console.warn('paid preview',e);}
 
     document.getElementById('status').textContent='Live';
   }catch(e){
