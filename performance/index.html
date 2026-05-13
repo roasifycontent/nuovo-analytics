@@ -379,17 +379,13 @@ async function refresh(){
 
   try{
     // All queries run independently — none blocks another
-    const [chSessions, chRevenue, chFunnel, aiData, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
-      // Channel sessions (session-scoped dim + session-scoped metrics)
+    const [chData, chFunnel, aiData, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+      // Channel breakdown — single query, sessionDefaultChannelGroup works with these metrics
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
-        {name:'sessions'},{name:'engagedSessions'}
-      ]}),
-      // Channel revenue (event-scoped dim + event-scoped metrics)
-      safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
-        {name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}
+        {name:'sessions'},{name:'totalRevenue'},{name:'engagedSessions'},{name:'transactions'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
-      // Funnel events by channel (eventName × defaultChannelGroup)
-      safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'},{name:'eventName'}],metrics:[
+      // Funnel events by channel
+      safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'eventName'}],metrics:[
         {name:'eventCount'}
       ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_calls','add_to_cart','begin_checkout','purchase']}}}}),
       // AI channel
@@ -422,23 +418,20 @@ async function refresh(){
       ]})
     ]);
 
-    // Merge channel data: sessions from session-scoped, revenue from event-scoped
-    const byChannel={rows:[]};
+    // Build channel map from single query
     const chMap={};
     const FUNNEL_EVENTS=['form_submit','phone_calls','add_to_cart','begin_checkout','purchase'];
     const emptyFunnel=()=>({form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0});
-    // Start with session data
-    (chSessions.rows||[]).forEach(r=>{
+    // metrics: 0=sessions, 1=totalRevenue, 2=engagedSessions, 3=transactions
+    (chData.rows||[]).forEach(r=>{
       const ch=r.dimensionValues[0].value;
-      chMap[ch]={sessions:parseInt(r.metricValues[0].value||0),engaged:parseInt(r.metricValues[1].value||0),revenue:0,ke:0,txns:0,funnel:emptyFunnel()};
-    });
-    // Merge in revenue data
-    (chRevenue.rows||[]).forEach(r=>{
-      const ch=r.dimensionValues[0].value;
-      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:emptyFunnel()};
-      chMap[ch].revenue=parseFloat(r.metricValues[0].value||0);
-      chMap[ch].ke=parseInt(r.metricValues[1].value||0);
-      chMap[ch].txns=parseInt(r.metricValues[2].value||0);
+      chMap[ch]={
+        sessions:parseInt(r.metricValues[0].value||0),
+        revenue:parseFloat(r.metricValues[1].value||0),
+        engaged:parseInt(r.metricValues[2].value||0),
+        txns:parseInt(r.metricValues[3].value||0),
+        ke:0,funnel:emptyFunnel()
+      };
     });
     // Merge in funnel events
     (chFunnel.rows||[]).forEach(r=>{
