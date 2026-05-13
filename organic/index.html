@@ -147,10 +147,15 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
     </div>
     <div class="tr">
+      <button class="bsm preset-btn" onclick="setPreset(this,'today')" data-preset="today">Today</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'yesterday')" data-preset="yesterday">Yesterday</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
       <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
+      <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      <span style="color:var(--dim);font-size:11px">→</span>
+      <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
       <button class="bsm" onclick="refresh()">↻</button>
       <button id="gsc-btn" class="bsm" onclick="startOAuth()" style="display:none;border-color:var(--gold);color:var(--gold)">Enable keywords ↗</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
@@ -340,9 +345,34 @@ function launch(){
 function setPreset(btn,preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  daysBack=parseInt(preset);
-  dateRange={startDate:`${preset}daysAgo`,endDate:'today'};
+  const today=new Date();
+  const fmt=d=>d.toISOString().slice(0,10);
+  if(preset==='today'){
+    daysBack=1;
+    dateRange={startDate:'today',endDate:'today'};
+  } else if(preset==='yesterday'){
+    daysBack=1;
+    const y=new Date(today); y.setDate(today.getDate()-1);
+    dateRange={startDate:fmt(y),endDate:fmt(y)};
+  } else {
+    daysBack=parseInt(preset);
+    dateRange={startDate:`${preset}daysAgo`,endDate:'today'};
+  }
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
   refresh();
+}
+
+function setCustom(){
+  const from=document.getElementById('date-from').value;
+  const to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    const d1=new Date(from), d2=new Date(to);
+    daysBack=Math.round((d2-d1)/(1000*60*60*24))+1;
+    dateRange={startDate:from,endDate:to};
+    refresh();
+  }
 }
 
 async function ga4(body){
@@ -428,12 +458,12 @@ async function refresh(){
     // Parallel - GA4 queries
     const [bySource, kpiData, byPage, byCountry, byDevice, byDate, blogPages] = await Promise.all([
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
-      ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:form_submit'},{name:'conversions:phone_calls'}],dimensionFilter:orgFil}),
-      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'},{name:'conversions:phone_calls'},{name:'conversions:form_submit'},{name:'engagementRate'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50}),
+      ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:form_submit'},{name:'keyEvents:phone_calls'}],dimensionFilter:orgFil}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'},{name:'engagementRate'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:orgFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
-      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'},{name:'conversions:phone_calls'},{name:'conversions:form_submit'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:30})
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:30})
     ]);
 
     renderHero(bySource);

@@ -281,7 +281,7 @@ async function refresh(){
   const fil={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:ai}}};
   try{
     const[bs,bd,bp]=await Promise.all([
-      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:phone_calls'},{name:'conversions:form_submit'}],dimensionFilter:fil}),
+      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:fil}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:fil,orderBys:[{dimension:{dimensionName:'date'}}]}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
     ]);

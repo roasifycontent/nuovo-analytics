@@ -409,17 +409,17 @@ async function refresh(){
       // By source breakdown
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
-        {name:'conversions:phone_calls'},{name:'conversions:form_submit'},{name:'keyEvents:begin_checkout'},{name:'keyEvents:add_to_cart'},
+        {name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'},{name:'keyEvents:begin_checkout'},{name:'keyEvents:add_to_cart'},
         {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'},{name:'returnOnAdSpend'}
       ],dimensionFilter:paidFil}),
       // Daily trend
       ga4({dateRanges:[dateRange],dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:paidFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
       // Top campaigns
-      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'},{name:'sessionCampaignName'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'conversions:form_submit'},{name:'conversions:phone_calls'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:10}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'},{name:'sessionCampaignName'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:form_submit'},{name:'keyEvents:phone_calls'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:10}),
       // Top revenue pages
       ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'totalRevenue'},{name:'sessions'},{name:'transactions'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:8}),
       // Top converting pages
-      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'keyEvents'},{name:'sessions'},{name:'keyEventRate'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'keyEventRate'},desc:true}],limit:8}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'keyEvents'},{name:'sessions'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'keyEvents'},desc:true}],limit:8}),
       // Devices
       ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       // Countries
@@ -634,7 +634,7 @@ function renderConvPages(data){
     rows.map(r=>{
       const ke=parseInt(r.metricValues[0].value||0);
       const sess=parseInt(r.metricValues[1].value||0);
-      const rate=(parseFloat(r.metricValues[2].value||0)*100).toFixed(1);
+      const rate=sess>0?(ke/sess*100).toFixed(1):'0.0';
       return`<div class="tbl-row pages"><span class="tpath" title="${r.dimensionValues[0].value}">${cleanPath(r.dimensionValues[0].value)}</span><span class="tnum">${ke}</span><span class="tnum mu">${sess}</span><span class="tnum green">${rate}%</span></div>`;
     }).join('');
 }
