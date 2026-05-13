@@ -348,9 +348,11 @@ function setPreset(btn,preset){
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
   const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'GA4 '+r.status);}
+  if(!r.ok){const e=await r.json();const err=new Error(e.error?.message||'GA4 '+r.status);err.status=r.status;throw err;}
   return r.json();
 }
+
+function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message);}
 
 const GSC_URLS=[
   'https://www.nuovoluxury.co.uk/',
@@ -473,7 +475,7 @@ async function refresh(){
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('fts').textContent='GA4 Property '+PROP+' · '+new Date().toLocaleString('en-GB');
   }catch(e){
-    if(e.message.includes('401')||e.message.includes('403')){signOut();}
+    if(isAuthError(e)){signOut();return;}
     document.getElementById('fst').textContent='Error: '+e.message;
     console.error(e);
   }
