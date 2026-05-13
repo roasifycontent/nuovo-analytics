@@ -379,10 +379,14 @@ async function refresh(){
 
   try{
     // All queries run independently — none blocks another
-    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
-      // Channel breakdown
+    const [chSessions, chRevenue, aiData, newVsRet, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+      // Channel sessions (session-scoped dim + session-scoped metrics)
+      safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
+        {name:'sessions'},{name:'engagedSessions'}
+      ]}),
+      // Channel revenue (event-scoped dim + event-scoped metrics)
       safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
-        {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
+        {name:'totalRevenue'},{name:'keyEvents'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
       // AI channel
       safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
@@ -418,7 +422,28 @@ async function refresh(){
       ]})
     ]);
 
-    // Sum ad spend from by-source rows (dimensionless query returns nothing for ad metrics)
+    // Merge channel data: sessions from session-scoped, revenue from event-scoped
+    const byChannel={rows:[]};
+    const chMap={};
+    // Start with session data
+    (chSessions.rows||[]).forEach(r=>{
+      const ch=r.dimensionValues[0].value;
+      chMap[ch]={sessions:parseInt(r.metricValues[0].value||0),engaged:parseInt(r.metricValues[1].value||0),revenue:0,ke:0};
+    });
+    // Merge in revenue data
+    (chRevenue.rows||[]).forEach(r=>{
+      const ch=r.dimensionValues[0].value;
+      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0};
+      chMap[ch].revenue=parseFloat(r.metricValues[0].value||0);
+      chMap[ch].ke=parseInt(r.metricValues[1].value||0);
+    });
+    // Convert to rows format for downstream functions
+    byChannel.rows=Object.entries(chMap).sort((a,b)=>b[1].revenue-a[1].revenue).map(([ch,d])=>({
+      dimensionValues:[{value:ch}],
+      metricValues:[{value:String(d.sessions)},{value:String(d.revenue)},{value:String(d.ke)},{value:String(d.engaged)}]
+    }));
+
+    // Sum ad spend from by-source rows
     const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
 
