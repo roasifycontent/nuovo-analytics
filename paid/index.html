@@ -480,7 +480,7 @@ async function refresh(){
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
         {name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'},
-        {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'},{name:'returnOnAdSpend'}
+        {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'}
       ],dimensionFilter:paidFil}),
       // Daily trend
       ga4({dateRanges:[dateRange],dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:paidFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
@@ -535,7 +535,6 @@ function renderSourceMetrics(data, funnelData){
     cache[key].adCost=parseFloat(r.metricValues[7]?.value||0);
     cache[key].adClicks=parseInt(r.metricValues[8]?.value||0);
     cache[key].adImpressions=parseInt(r.metricValues[9]?.value||0);
-    cache[key].roas=parseFloat(r.metricValues[10]?.value||0);
   });
   // Get begin_checkout and add_to_cart totals from funnel data (not available as per-source metrics)
   if(funnelData){
