@@ -252,7 +252,7 @@ let lastData={};
 function startOAuth(){
   const params=new URLSearchParams({
     client_id:CLIENT_ID,
-    redirect_uri:'https://project-apa7y.vercel.app/performance',
+    redirect_uri:window.location.origin+'/performance',
     response_type:'token',
     scope:'https://www.googleapis.com/auth/analytics.readonly',
     include_granted_scopes:'true',

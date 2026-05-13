@@ -355,7 +355,7 @@ function startOAuth(){
   const base='https://accounts.google.com/o/oauth2/v2/auth';
   const params=new URLSearchParams({
     client_id:CLIENT_ID,
-    redirect_uri:'https://project-apa7y.vercel.app/organic',
+    redirect_uri:window.location.origin+'/organic',
     response_type:'token',
     scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
     include_granted_scopes:'true',
