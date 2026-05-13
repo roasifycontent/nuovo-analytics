@@ -23,27 +23,49 @@
   --google:#4285F4;
   --bing:#0078d4;
   --accent-warm:#e8c896;
+  --glow:rgba(212,168,67,0.04);
+  --card-shadow:none;
+}
+html.light{
+  --bg:#f5f3ef;
+  --bg2:#ffffff;
+  --bg3:#eae7e1;
+  --bg-card:#ffffff;
+  --border:rgba(0,0,0,0.06);
+  --border2:rgba(0,0,0,0.10);
+  --border-gold:rgba(184,144,46,0.25);
+  --text:#1a1a1a;
+  --muted:#6b6560;
+  --dim:#9a958e;
+  --gold:#b8902e;
+  --gold-soft:#a07a28;
+  --chatgpt:#059669;
+  --google:#1a73e8;
+  --bing:#0063b1;
+  --accent-warm:#c49a3c;
+  --glow:rgba(184,144,46,0.06);
+  --card-shadow:0 2px 20px rgba(0,0,0,0.06);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;min-height:100vh}
+html,body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;min-height:100vh;transition:background 0.3s,color 0.3s}
 
-/* Background atmosphere — subtle radial */
+/* Background atmosphere */
 body::before{
   content:'';
   position:fixed;
-  top:-50%;
+  top:-40%;
   left:50%;
   transform:translateX(-50%);
-  width:1200px;
-  height:800px;
-  background:radial-gradient(ellipse at center,rgba(212,168,67,0.04) 0%,transparent 60%);
+  width:1400px;
+  height:900px;
+  background:radial-gradient(ellipse at center,var(--glow) 0%,transparent 55%);
   pointer-events:none;
   z-index:0;
 }
 
 .page{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 32px}
 
-/* Top bar — minimal */
+/* Top bar */
 .topbar{
   display:flex;
   align-items:center;
@@ -79,6 +101,22 @@ body::before{
   transition:color 0.3s;
 }
 .util-link:hover{color:var(--gold)}
+.theme-toggle{
+  background:none;
+  border:0.5px solid var(--border2);
+  border-radius:50%;
+  width:34px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:15px;
+  line-height:1;
+  color:var(--muted);
+  transition:border-color 0.3s,transform 0.3s;
+}
+.theme-toggle:hover{border-color:var(--gold);transform:scale(1.08)}
 .user-orb{
   width:32px;
   height:32px;
@@ -97,8 +135,8 @@ body::before{
 /* Hero */
 .hero{
   text-align:left;
-  margin-bottom:64px;
-  padding-bottom:48px;
+  margin-bottom:72px;
+  padding-bottom:56px;
   border-bottom:0.5px solid var(--border);
   position:relative;
 }
@@ -107,7 +145,7 @@ body::before{
   letter-spacing:0.3em;
   color:var(--dim);
   text-transform:uppercase;
-  margin-bottom:24px;
+  margin-bottom:28px;
   display:flex;
   align-items:center;
   gap:12px;
@@ -121,26 +159,29 @@ body::before{
 }
 .hero-title{
   font-family:'Fraunces',serif;
-  font-size:64px;
+  font-size:68px;
   font-weight:300;
   letter-spacing:-0.02em;
   line-height:1.05;
-  margin-bottom:24px;
+  margin-bottom:28px;
 }
 .hero-title em{
   font-style:italic;
   font-weight:400;
-  color:var(--gold);
+  background:linear-gradient(135deg,var(--gold),var(--accent-warm));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
 }
 .hero-sub{
   font-size:15px;
   color:var(--muted);
-  max-width:520px;
-  line-height:1.6;
+  max-width:540px;
+  line-height:1.7;
   letter-spacing:0.01em;
 }
 .hero-meta{
-  margin-top:32px;
+  margin-top:36px;
   display:flex;
   gap:32px;
   font-family:'DM Mono',monospace;
@@ -159,6 +200,59 @@ body::before{
   animation:pulse 2s ease-in-out infinite;
 }
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}
+
+/* Quick stats banner */
+.quick-stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  margin-bottom:72px;
+}
+.qs{
+  background:var(--bg-card);
+  border:0.5px solid var(--border);
+  border-radius:12px;
+  padding:24px 22px;
+  position:relative;
+  overflow:hidden;
+  box-shadow:var(--card-shadow);
+  transition:border-color 0.3s,transform 0.3s;
+}
+.qs:hover{border-color:var(--border-gold);transform:translateY(-1px)}
+.qs::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  opacity:0;
+  transition:opacity 0.3s;
+}
+.qs:hover::before{opacity:0.6}
+.qs-label{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.18em;
+  color:var(--dim);
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.qs-val{
+  font-family:'Fraunces',serif;
+  font-size:28px;
+  font-weight:400;
+  letter-spacing:-0.01em;
+  color:var(--text);
+  line-height:1;
+  margin-bottom:6px;
+}
+.qs-val.gold{background:linear-gradient(135deg,var(--gold),var(--accent-warm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.qs-sub{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  color:var(--dim);
+  letter-spacing:0.05em;
+}
 
 /* Section heading */
 .section-head{
@@ -185,22 +279,23 @@ body::before{
 .dash-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:24px;
-  margin-bottom:64px;
+  gap:20px;
+  margin-bottom:72px;
 }
 .dash-card{
   position:relative;
   background:var(--bg-card);
   border:0.5px solid var(--border2);
-  border-radius:8px;
+  border-radius:12px;
   padding:36px;
   text-decoration:none;
   color:inherit;
   display:flex;
   flex-direction:column;
-  min-height:340px;
+  min-height:320px;
   transition:all 0.4s cubic-bezier(0.16,1,0.3,1);
   overflow:hidden;
+  box-shadow:var(--card-shadow);
 }
 .dash-card::before{
   content:'';
@@ -215,19 +310,29 @@ body::before{
 }
 .dash-card:hover{
   border-color:var(--border-gold);
-  transform:translateY(-2px);
+  transform:translateY(-3px);
+  box-shadow:var(--card-shadow),0 8px 30px rgba(212,168,67,0.06);
 }
 .dash-card:hover::before{opacity:0.8}
 .dash-card:hover .dash-arrow{
   transform:translateX(6px);
   color:var(--gold);
 }
+.dash-card.featured{border-color:var(--border-gold)}
+.dash-card.featured::after{
+  content:'';
+  position:absolute;
+  top:0;right:0;
+  width:120px;height:120px;
+  background:radial-gradient(circle at top right,rgba(212,168,67,0.08),transparent 70%);
+  pointer-events:none;
+}
 
 .dash-head{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
-  margin-bottom:32px;
+  margin-bottom:28px;
 }
 .dash-eyebrow{
   font-family:'DM Mono',monospace;
@@ -255,18 +360,18 @@ body::before{
 
 .dash-title{
   font-family:'Fraunces',serif;
-  font-size:36px;
+  font-size:34px;
   font-weight:300;
   letter-spacing:-0.015em;
   line-height:1.1;
-  margin-bottom:16px;
+  margin-bottom:14px;
 }
 .dash-title em{font-style:italic;color:var(--gold)}
 .dash-desc{
-  font-size:14px;
+  font-size:13.5px;
   color:var(--muted);
-  line-height:1.6;
-  margin-bottom:32px;
+  line-height:1.65;
+  margin-bottom:28px;
   flex:1;
 }
 
@@ -274,7 +379,7 @@ body::before{
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:20px;
-  padding-top:24px;
+  padding-top:22px;
   border-top:0.5px solid var(--border);
 }
 .stat{}
@@ -288,14 +393,14 @@ body::before{
 }
 .stat-val{
   font-family:'Fraunces',serif;
-  font-size:24px;
+  font-size:22px;
   font-weight:400;
   letter-spacing:-0.01em;
   color:var(--text);
   line-height:1;
 }
 .stat-val.gold{color:var(--gold)}
-.stat-val.small{font-size:16px}
+.stat-val.small{font-size:15px}
 .stat-sub{
   font-family:'DM Mono',monospace;
   font-size:10px;
@@ -314,12 +419,14 @@ body::before{
 .coming-card{
   background:transparent;
   border:0.5px dashed var(--border2);
-  border-radius:8px;
+  border-radius:10px;
   padding:24px;
   display:flex;
   flex-direction:column;
   min-height:180px;
+  transition:border-color 0.3s;
 }
+.coming-card:hover{border-color:var(--dim)}
 .coming-eyebrow{
   font-family:'DM Mono',monospace;
   font-size:9px;
@@ -382,6 +489,11 @@ body::before{
   .coming-grid{grid-template-columns:1fr}
   .hero-meta{flex-direction:column;gap:8px}
   .topbar{margin-bottom:48px}
+  .quick-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:540px){
+  .quick-stats{grid-template-columns:1fr}
+  .hero-title{font-size:34px}
 }
 </style>
 </head>
@@ -397,6 +509,7 @@ body::before{
     <nav class="utility">
       <a href="https://www.nuovoluxury.co.uk" target="_blank" class="util-link">Store ↗</a>
       <a href="https://analytics.google.com" target="_blank" class="util-link">GA4 ↗</a>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
       <div class="user-orb" title="roasifycontent">M</div>
     </nav>
   </header>
@@ -417,15 +530,65 @@ body::before{
     </div>
   </section>
 
+  <!-- Quick stats banner -->
+  <section class="quick-stats">
+    <div class="qs">
+      <div class="qs-label">Total Revenue (28d)</div>
+      <div class="qs-val gold" id="qs-rev">—</div>
+      <div class="qs-sub">all channels</div>
+    </div>
+    <div class="qs">
+      <div class="qs-label">Total Sessions (28d)</div>
+      <div class="qs-val" id="qs-sessions">—</div>
+      <div class="qs-sub">site-wide</div>
+    </div>
+    <div class="qs">
+      <div class="qs-label">Blended ROAS</div>
+      <div class="qs-val" id="qs-roas">—</div>
+      <div class="qs-sub">revenue / ad spend</div>
+    </div>
+    <div class="qs">
+      <div class="qs-label">Conv. Rate</div>
+      <div class="qs-val" id="qs-cvr">—</div>
+      <div class="qs-sub">transactions / sessions</div>
+    </div>
+  </section>
+
   <section>
     <div class="section-head">
       <div>
         <div class="section-num">01 / Active dashboards</div>
       </div>
-      <div class="section-num" id="dashboard-count">3 available</div>
+      <div class="section-num" id="dashboard-count">4 available</div>
     </div>
 
     <div class="dash-grid">
+
+      <a href="/performance" class="dash-card featured">
+        <div class="dash-head">
+          <div class="dash-eyebrow">Performance</div>
+          <span class="dash-arrow">→</span>
+        </div>
+        <h2 class="dash-title">The <em>full</em><br>picture.</h2>
+        <p class="dash-desc">Channel attribution, blended MER, daily P&L, product performance and Microsoft Ads spend — your single source of truth for business performance.</p>
+        <div class="dash-stats">
+          <div class="stat">
+            <div class="stat-lbl">MER</div>
+            <div class="stat-val gold" id="perf-mer">—</div>
+            <div class="stat-sub">revenue / total spend</div>
+          </div>
+          <div class="stat">
+            <div class="stat-lbl">Channels</div>
+            <div class="stat-val small">5+</div>
+            <div class="stat-sub">attributed</div>
+          </div>
+          <div class="stat">
+            <div class="stat-lbl">Products</div>
+            <div class="stat-val small">Top 10</div>
+            <div class="stat-sub">by revenue</div>
+          </div>
+        </div>
+      </a>
 
       <a href="/ai" class="dash-card">
         <div class="dash-head">
@@ -437,18 +600,18 @@ body::before{
         <div class="dash-stats">
           <div class="stat">
             <div class="stat-lbl">90d sessions</div>
-            <div class="stat-val" id="ai-sessions">246</div>
+            <div class="stat-val" id="ai-sessions">—</div>
             <div class="stat-sub">AI referrals</div>
           </div>
           <div class="stat">
             <div class="stat-lbl">Revenue</div>
-            <div class="stat-val gold" id="ai-rev">£1,999</div>
+            <div class="stat-val gold" id="ai-rev">—</div>
             <div class="stat-sub">tracked</div>
           </div>
           <div class="stat">
             <div class="stat-lbl">Top source</div>
-            <div class="stat-val small">ChatGPT</div>
-            <div class="stat-sub">245 sessions</div>
+            <div class="stat-val small" id="ai-top">—</div>
+            <div class="stat-sub" id="ai-top-sub">—</div>
           </div>
         </div>
       </a>
@@ -463,12 +626,12 @@ body::before{
         <div class="dash-stats">
           <div class="stat">
             <div class="stat-lbl">28d spend</div>
-            <div class="stat-val" id="paid-spend">£2,603</div>
+            <div class="stat-val" id="paid-spend">—</div>
             <div class="stat-sub">across channels</div>
           </div>
           <div class="stat">
             <div class="stat-lbl">Revenue</div>
-            <div class="stat-val gold" id="paid-rev">£1,999</div>
+            <div class="stat-val gold" id="paid-rev">—</div>
             <div class="stat-sub">tracked</div>
           </div>
           <div class="stat">
@@ -545,13 +708,25 @@ body::before{
 </div>
 
 <script>
+// Theme
+function applyTheme(t){
+  document.documentElement.classList.toggle('light',t==='light');
+  document.getElementById('theme-btn').textContent=t==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const next=document.documentElement.classList.contains('light')?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
+
 // Date in hero
 const now = new Date();
 const opts = {day:'numeric',month:'short',year:'numeric'};
 document.getElementById('date-line').textContent = 'As of ' + now.toLocaleDateString('en-GB',opts);
 document.getElementById('footer-time').textContent = now.toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
 
-// If user is signed in (token in localStorage), pull live preview numbers
+// GA4 helper
 const token = localStorage.getItem('nuovo_token');
 const PROP = '346978985';
 
@@ -562,9 +737,30 @@ async function ga4(body){
   return r.json();
 }
 
+function fmt(v){return '£'+Math.round(v).toLocaleString('en-GB')}
+
 async function loadPreviews(){
   if(!token) return;
   try{
+    // Site-wide 28d stats (for quick stats banner)
+    const siteData = await ga4({
+      dateRanges:[{startDate:'28daysAgo',endDate:'today'}],
+      metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'transactions'},{name:'advertiserAdCost'}]
+    });
+    const siteRow=(siteData.rows||[])[0];
+    if(siteRow){
+      const sess=parseInt(siteRow.metricValues[0].value||0);
+      const rev=parseFloat(siteRow.metricValues[1].value||0);
+      const txns=parseInt(siteRow.metricValues[2].value||0);
+      const spend=parseFloat(siteRow.metricValues[3].value||0);
+      if(sess>0) document.getElementById('qs-sessions').textContent=sess.toLocaleString();
+      if(rev>0) document.getElementById('qs-rev').textContent=fmt(rev);
+      if(spend>0) document.getElementById('qs-roas').textContent=(rev/spend).toFixed(2)+'x';
+      if(sess>0&&txns>0) document.getElementById('qs-cvr').textContent=(txns/sess*100).toFixed(2)+'%';
+      // MER for performance card
+      if(spend>0) document.getElementById('perf-mer').textContent=(rev/spend).toFixed(2)+'x';
+    }
+
     // Organic preview (28 days)
     try{
       const orgData = await ga4({
@@ -576,7 +772,7 @@ async function loadPreviews(){
       if(orgRow){
         document.getElementById('org-sessions').textContent=parseInt(orgRow.metricValues[0].value||0).toLocaleString();
         const orgRev=parseFloat(orgRow.metricValues[1].value||0);
-        if(orgRev>0) document.getElementById('org-rev').textContent='£'+orgRev.toLocaleString('en-GB',{maximumFractionDigits:0});
+        if(orgRev>0) document.getElementById('org-rev').textContent=fmt(orgRev);
       }
       // Avg position from GSC
       const scope=localStorage.getItem('nuovo_scope')||'';
@@ -584,8 +780,8 @@ async function loadPreviews(){
         const today=new Date();
         const end=new Date(today);end.setDate(today.getDate()-3);
         const start=new Date(end);start.setDate(end.getDate()-28);
-        const fmt=d=>d.toISOString().slice(0,10);
-        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmt(start),endDate:fmt(end),dimensions:['query'],rowLimit:50})});
+        const fmtD=d=>d.toISOString().slice(0,10);
+        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmtD(start),endDate:fmtD(end),dimensions:['query'],rowLimit:50})});
         if(gscR.ok){
           const gscD=await gscR.json();
           const r=gscD.rows||[];
@@ -604,13 +800,23 @@ async function loadPreviews(){
       metrics:[{name:'sessions'},{name:'totalRevenue'}],
       dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:aiRx}}}
     });
-    let aiSess=0, aiRev=0;
+    let aiSess=0, aiRev=0, topSrc='—', topSrcSess=0;
     (aiData.rows||[]).forEach(r=>{
-      aiSess+=parseInt(r.metricValues[0].value||0);
+      const s=parseInt(r.metricValues[0].value||0);
+      aiSess+=s;
       aiRev+=parseFloat(r.metricValues[1].value||0);
+      if(s>topSrcSess){topSrcSess=s;topSrc=r.dimensionValues[0].value;}
     });
     if(aiSess>0) document.getElementById('ai-sessions').textContent=aiSess.toLocaleString();
-    if(aiRev>0) document.getElementById('ai-rev').textContent='£'+aiRev.toLocaleString('en-GB',{maximumFractionDigits:0});
+    if(aiRev>0) document.getElementById('ai-rev').textContent=fmt(aiRev);
+    // Clean up top source name
+    let topName=topSrc;
+    if(topSrc.includes('chatgpt'))topName='ChatGPT';
+    else if(topSrc.includes('claude'))topName='Claude';
+    else if(topSrc.includes('perplexity'))topName='Perplexity';
+    else if(topSrc.includes('copilot'))topName='Copilot';
+    document.getElementById('ai-top').textContent=topName;
+    if(topSrcSess>0) document.getElementById('ai-top-sub').textContent=topSrcSess.toLocaleString()+' sessions';
 
     // Paid preview (28 days)
     const paidData = await ga4({
@@ -627,8 +833,8 @@ async function loadPreviews(){
       paidRev+=parseFloat(r.metricValues[0].value||0);
       paidSpend+=parseFloat(r.metricValues[1]?.value||0);
     });
-    if(paidSpend>0) document.getElementById('paid-spend').textContent='£'+paidSpend.toLocaleString('en-GB',{maximumFractionDigits:0});
-    if(paidRev>0) document.getElementById('paid-rev').textContent='£'+paidRev.toLocaleString('en-GB',{maximumFractionDigits:0});
+    if(paidSpend>0) document.getElementById('paid-spend').textContent=fmt(paidSpend);
+    if(paidRev>0) document.getElementById('paid-rev').textContent=fmt(paidRev);
     if(paidSpend>0) document.getElementById('paid-roas').textContent=(paidRev/paidSpend).toFixed(2)+'x';
 
     document.getElementById('status').textContent='Live';
