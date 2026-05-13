@@ -66,7 +66,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .tbl-row{display:grid;gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .tbl-row:last-child{border-bottom:none}
 .tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
-.tbl-row.ch{grid-template-columns:140px 80px 90px 90px 70px 80px 70px 60px}
+.tbl-row.ch{grid-template-columns:140px 65px 80px 80px 65px 55px 55px 50px 50px 65px 65px}
 .tbl-row.prod{grid-template-columns:1fr 90px 70px 80px 80px}
 .tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tnum{font-family:'DM Mono',monospace;text-align:right;font-size:13px}
@@ -105,7 +105,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
 .ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
 
-@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.tbl-row.ch{grid-template-columns:100px 60px 70px 70px 55px 65px}.tbl-row.ch>*:nth-child(n+7){display:none}.tbl-row.prod{grid-template-columns:1fr 70px 55px 65px}.tbl-row.prod>*:nth-child(5){display:none}.pnl-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
+@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.tbl-row.ch{grid-template-columns:100px 55px 70px 70px 55px 50px}.tbl-row.ch>*:nth-child(n+7){display:none}.tbl-row.prod{grid-template-columns:1fr 70px 55px 65px}.tbl-row.prod>*:nth-child(5){display:none}.pnl-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -379,7 +379,7 @@ async function refresh(){
 
   try{
     // All queries run independently — none blocks another
-    const [chSessions, chRevenue, aiData, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+    const [chSessions, chRevenue, chFunnel, aiData, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
       // Channel sessions (session-scoped dim + session-scoped metrics)
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'}
@@ -388,6 +388,10 @@ async function refresh(){
       safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
         {name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
+      // Funnel events by channel (eventName × defaultChannelGroup)
+      safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'},{name:'eventName'}],metrics:[
+        {name:'eventCount'}
+      ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_calls','add_to_cart','begin_checkout','purchase']}}}}),
       // AI channel
       safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
@@ -421,31 +425,35 @@ async function refresh(){
     // Merge channel data: sessions from session-scoped, revenue from event-scoped
     const byChannel={rows:[]};
     const chMap={};
+    const FUNNEL_EVENTS=['form_submit','phone_calls','add_to_cart','begin_checkout','purchase'];
+    const emptyFunnel=()=>({form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0});
     // Start with session data
     (chSessions.rows||[]).forEach(r=>{
       const ch=r.dimensionValues[0].value;
-      chMap[ch]={sessions:parseInt(r.metricValues[0].value||0),engaged:parseInt(r.metricValues[1].value||0),revenue:0,ke:0,txns:0};
+      chMap[ch]={sessions:parseInt(r.metricValues[0].value||0),engaged:parseInt(r.metricValues[1].value||0),revenue:0,ke:0,txns:0,funnel:emptyFunnel()};
     });
     // Merge in revenue data
     (chRevenue.rows||[]).forEach(r=>{
       const ch=r.dimensionValues[0].value;
-      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0,txns:0};
+      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:emptyFunnel()};
       chMap[ch].revenue=parseFloat(r.metricValues[0].value||0);
       chMap[ch].ke=parseInt(r.metricValues[1].value||0);
       chMap[ch].txns=parseInt(r.metricValues[2].value||0);
     });
-    // Convert to rows format for downstream functions
-    // Index: 0=sessions, 1=revenue, 2=keyEvents, 3=engagedSessions, 4=transactions
-    byChannel.rows=Object.entries(chMap).sort((a,b)=>b[1].revenue-a[1].revenue).map(([ch,d])=>({
-      dimensionValues:[{value:ch}],
-      metricValues:[{value:String(d.sessions)},{value:String(d.revenue)},{value:String(d.ke)},{value:String(d.engaged)},{value:String(d.txns)}]
-    }));
-
+    // Merge in funnel events
+    (chFunnel.rows||[]).forEach(r=>{
+      const ch=r.dimensionValues[0].value;
+      const ev=r.dimensionValues[1].value;
+      const count=parseInt(r.metricValues[0].value||0);
+      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:emptyFunnel()};
+      if(!chMap[ch].funnel)chMap[ch].funnel=emptyFunnel();
+      if(FUNNEL_EVENTS.includes(ev))chMap[ch].funnel[ev]+=count;
+    });
     // Sum ad spend from by-source rows
     const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
 
-    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend};
+    lastData={chMap,aiData,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -458,25 +466,25 @@ async function refresh(){
 }
 
 function recalcAll(){
-  if(lastData.byChannel)renderAll();
+  if(lastData.chMap)renderAll();
 }
 
 function renderAll(){
   const d=lastData;
-  renderHero(d.byChannel,d.gAdSpendTotal,d.newUsersTotal);
-  renderChannelTable(d.byChannel,d.aiData,d.gAdSpendTotal);
+  renderHero(d.chMap,d.gAdSpendTotal,d.newUsersTotal);
+  renderChannelTable(d.chMap,d.aiData,d.gAdSpendTotal);
   renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
   renderProducts(d.products);
 }
 
 // --- Hero metrics ---
-function renderHero(byChannel,gAdSpendTotal,newUsersTotal){
+function renderHero(chMap,gAdSpendTotal,newUsersTotal){
   let totRev=0,totSess=0,totKE=0,totTxns=0;
-  (byChannel.rows||[]).forEach(r=>{
-    totSess+=parseInt(r.metricValues[0].value||0);
-    totRev+=parseFloat(r.metricValues[1].value||0);
-    totKE+=parseInt(r.metricValues[2].value||0);
-    totTxns+=parseInt(r.metricValues[4].value||0);
+  Object.values(chMap).forEach(d=>{
+    totSess+=d.sessions;
+    totRev+=d.revenue;
+    totKE+=d.ke;
+    totTxns+=d.txns;
   });
   const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
@@ -501,24 +509,16 @@ function renderHero(byChannel,gAdSpendTotal,newUsersTotal){
 }
 
 // --- Channel table ---
-const CH_COLORS={'Paid Search':'#4285F4','Organic Search':'#10b981','Direct':'#d4a843','Organic Social':'#818cf8','Referral':'#e8a87c','Email':'#38bdf8','AI':'#10b981','Display':'#f472b6','Unassigned':'#6b7280','Other':'#9ca3af'};
+const CH_COLORS={'Paid Search':'#4285F4','Organic Search':'#10b981','Direct':'#d4a843','Organic Social':'#818cf8','Referral':'#e8a87c','Email':'#38bdf8','AI':'#10b981','Display':'#f472b6','Paid Shopping':'#4285F4','Organic Shopping':'#10b981','Unassigned':'#6b7280','Cross-network':'#9ca3af','Other':'#9ca3af'};
 
-function renderChannelTable(byChannel,aiData,gAdSpendTotal){
+function renderChannelTable(chMap,aiData,gAdSpendTotal){
   const channels={};
-  (byChannel.rows||[]).forEach(r=>{
-    const ch=r.dimensionValues[0].value;
-    channels[ch]={
-      sessions:parseInt(r.metricValues[0].value||0),
-      revenue:parseFloat(r.metricValues[1].value||0),
-      ke:parseInt(r.metricValues[2].value||0),
-      engaged:parseInt(r.metricValues[3].value||0),
-      adCost:0
-    };
-  });
+  // Copy chMap so we can add ad spend without mutating
+  Object.entries(chMap).forEach(([ch,d])=>{channels[ch]={...d,adCost:0};});
+
   // Assign total Google ad spend to Paid Search / Paid Shopping
   const gAdSpend=gAdSpendTotal||0;
   if(gAdSpend>0){
-    // Split proportionally if both Paid Search and Paid Shopping exist
     const ps=channels['Paid Search'], psh=channels['Paid Shopping'];
     if(ps&&psh){
       const totalPaidSess=(ps.sessions+psh.sessions)||1;
@@ -526,18 +526,19 @@ function renderChannelTable(byChannel,aiData,gAdSpendTotal){
       psh.adCost=gAdSpend*(psh.sessions/totalPaidSess);
     }else if(ps){ps.adCost=gAdSpend;}
     else if(psh){psh.adCost=gAdSpend;}
-    else{channels['Paid Search']={sessions:0,revenue:0,ke:0,engaged:0,adCost:gAdSpend};}
+    else{channels['Paid Search']={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:{form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0},adCost:gAdSpend};}
   }
 
   // AI channel (aggregate)
   let aiSess=0,aiRev=0,aiKE=0,aiEng=0;
+  const aiFunnel={form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0};
   (aiData.rows||[]).forEach(r=>{
     aiSess+=parseInt(r.metricValues[0].value||0);
     aiRev+=parseFloat(r.metricValues[1].value||0);
     aiKE+=parseInt(r.metricValues[2].value||0);
     aiEng+=parseInt(r.metricValues[3].value||0);
   });
-  if(aiSess>0)channels['AI']={sessions:aiSess,revenue:aiRev,ke:aiKE,engaged:aiEng,adCost:0};
+  if(aiSess>0)channels['AI']={sessions:aiSess,revenue:aiRev,ke:aiKE,engaged:aiEng,txns:0,funnel:aiFunnel,adCost:0};
 
   // Add MS spend to Paid Search
   const msSpend=getMsTotalSpend();
@@ -547,18 +548,18 @@ function renderChannelTable(byChannel,aiData,gAdSpendTotal){
 
   const totRev=Object.values(channels).reduce((a,c)=>a+c.revenue,0)||1;
   const sorted=Object.entries(channels).sort((a,b)=>b[1].revenue-a[1].revenue);
-  const maxRev=sorted.length?sorted[0][1].revenue:1;
 
   const el=document.getElementById('ch-table');
   if(!sorted.length){el.innerHTML='<div class="ld">No data</div>';return;}
 
-  el.innerHTML=`<div class="tbl-row tbl-hdr ch"><span>Channel</span><span style="text-align:right">Sessions</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">% of Rev</span><span style="text-align:right">Key Ev.</span><span style="text-align:right">Eng%</span></div>`+
-    sorted.map(([ch,d],i)=>{
+  const hdr=`<div class="tbl-row tbl-hdr ch"><span>Channel</span><span style="text-align:right">Sessions</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">% Rev</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">ATC</span><span style="text-align:right">Checkout</span><span style="text-align:right">Purchase</span></div>`;
+  el.innerHTML=hdr+sorted.map(([ch,d],i)=>{
       const pctRev=Math.round(d.revenue/totRev*100);
       const roas=d.adCost>0?(d.revenue/d.adCost).toFixed(2)+'x':'—';
-      const eng=d.sessions>0?(d.engaged/d.sessions*100).toFixed(1)+'%':'—';
       const color=CH_COLORS[ch]||'#9ca3af';
       const isTop=i===0;
+      const f=d.funnel||{};
+      const fc=v=>v>0?v:'—';
       return`<div class="tbl-row ch${isTop?' top-row':''}">
         <span class="ch-name"><span class="ch-dot" style="background:${color}"></span>${ch}</span>
         <span class="tnum">${d.sessions.toLocaleString()}</span>
@@ -566,8 +567,11 @@ function renderChannelTable(byChannel,aiData,gAdSpendTotal){
         <span class="tnum${d.adCost>0?' mu':''}">${d.adCost>0?fmtGBP(d.adCost):'—'}</span>
         <span class="tnum${roas!=='—'?(parseFloat(roas)>=2?' green':parseFloat(roas)<1?' red':''):''}">${roas}</span>
         <span class="tnum mu">${pctRev}%</span>
-        <span class="tnum">${d.ke||'—'}</span>
-        <span class="tnum mu">${eng}</span>
+        <span class="tnum">${fc(f.form_submit||0)}</span>
+        <span class="tnum">${fc(f.phone_calls||0)}</span>
+        <span class="tnum">${fc(f.add_to_cart||0)}</span>
+        <span class="tnum">${fc(f.begin_checkout||0)}</span>
+        <span class="tnum">${fc(f.purchase||0)}</span>
       </div>`;
     }).join('');
 }
