@@ -164,10 +164,10 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 
     <!-- Row 2: Secondary metrics -->
     <div class="hero" style="margin-bottom:20px">
-      <div class="stat green-bar"><div class="slbl">New Customers</div><div class="snum" id="h-new">—</div><div class="ssub">new users</div></div>
+      <div class="stat green-bar"><div class="slbl">New Users</div><div class="snum" id="h-new">—</div><div class="ssub">first-time visitors</div></div>
       <div class="stat"><div class="slbl">Conv. Rate</div><div class="snum" id="h-cvr">—</div><div class="ssub">transactions / sessions</div></div>
       <div class="stat"><div class="slbl">Sessions</div><div class="snum" id="h-sess">—</div><div class="ssub">all channels</div></div>
-      <div class="stat"><div class="slbl">Key Events</div><div class="snum" id="h-ke">—</div><div class="ssub">all channels</div></div>
+      <div class="stat"><div class="slbl">Funnel Events</div><div class="snum" id="h-ke">—</div><div class="ssub">forms + calls + ATC + checkout + purchase</div></div>
     </div>
 
     <!-- Channel Attribution Table -->
@@ -472,12 +472,13 @@ function renderAll(){
 
 // --- Hero metrics ---
 function renderHero(chMap,gAdSpendTotal,newUsersTotal){
-  let totRev=0,totSess=0,totKE=0,totTxns=0;
+  let totRev=0,totSess=0,totFunnel=0,totTxns=0;
   Object.values(chMap).forEach(d=>{
     totSess+=d.sessions;
     totRev+=d.revenue;
-    totKE+=d.ke;
     totTxns+=d.txns;
+    const f=d.funnel||{};
+    totFunnel+=(f.form_submit||0)+(f.phone_calls||0)+(f.add_to_cart||0)+(f.begin_checkout||0)+(f.purchase||0);
   });
   const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
@@ -498,7 +499,7 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
   document.getElementById('h-new').textContent=totNewUsers.toLocaleString();
   document.getElementById('h-cvr').textContent=totSess>0?(totTxns/totSess*100).toFixed(2)+'%':'—';
   document.getElementById('h-sess').textContent=totSess.toLocaleString();
-  document.getElementById('h-ke').textContent=totKE.toLocaleString();
+  document.getElementById('h-ke').textContent=totFunnel.toLocaleString();
 }
 
 // --- Channel table ---
