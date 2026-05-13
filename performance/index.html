@@ -165,7 +165,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     <!-- Row 2: Secondary metrics -->
     <div class="hero" style="margin-bottom:20px">
       <div class="stat green-bar"><div class="slbl">New Customers</div><div class="snum" id="h-new">—</div><div class="ssub">new users</div></div>
-      <div class="stat"><div class="slbl">Repeat Buyers</div><div class="snum" id="h-ret">—</div><div class="ssub">% revenue from returning visitors</div></div>
+      <div class="stat"><div class="slbl">Conv. Rate</div><div class="snum" id="h-cvr">—</div><div class="ssub">transactions / sessions</div></div>
       <div class="stat"><div class="slbl">Sessions</div><div class="snum" id="h-sess">—</div><div class="ssub">all channels</div></div>
       <div class="stat"><div class="slbl">Key Events</div><div class="snum" id="h-ke">—</div><div class="ssub">all channels</div></div>
     </div>
@@ -379,23 +379,19 @@ async function refresh(){
 
   try{
     // All queries run independently — none blocks another
-    const [chSessions, chRevenue, aiData, newVsRet, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+    const [chSessions, chRevenue, aiData, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
       // Channel sessions (session-scoped dim + session-scoped metrics)
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'}
       ]}),
       // Channel revenue (event-scoped dim + event-scoped metrics)
       safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
-        {name:'totalRevenue'},{name:'keyEvents'}
+        {name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'}
       ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
       // AI channel
       safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
       ],dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:aiRegex}}}}),
-      // New vs Returning
-      safe({dateRanges:dr,dimensions:[{name:'newVsReturning'}],metrics:[
-        {name:'sessions'},{name:'totalRevenue'}
-      ]}),
       // Daily revenue trend (14 days)
       safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
         {name:'totalRevenue'}
@@ -428,19 +424,21 @@ async function refresh(){
     // Start with session data
     (chSessions.rows||[]).forEach(r=>{
       const ch=r.dimensionValues[0].value;
-      chMap[ch]={sessions:parseInt(r.metricValues[0].value||0),engaged:parseInt(r.metricValues[1].value||0),revenue:0,ke:0};
+      chMap[ch]={sessions:parseInt(r.metricValues[0].value||0),engaged:parseInt(r.metricValues[1].value||0),revenue:0,ke:0,txns:0};
     });
     // Merge in revenue data
     (chRevenue.rows||[]).forEach(r=>{
       const ch=r.dimensionValues[0].value;
-      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0};
+      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0,txns:0};
       chMap[ch].revenue=parseFloat(r.metricValues[0].value||0);
       chMap[ch].ke=parseInt(r.metricValues[1].value||0);
+      chMap[ch].txns=parseInt(r.metricValues[2].value||0);
     });
     // Convert to rows format for downstream functions
+    // Index: 0=sessions, 1=revenue, 2=keyEvents, 3=engagedSessions, 4=transactions
     byChannel.rows=Object.entries(chMap).sort((a,b)=>b[1].revenue-a[1].revenue).map(([ch,d])=>({
       dimensionValues:[{value:ch}],
-      metricValues:[{value:String(d.sessions)},{value:String(d.revenue)},{value:String(d.ke)},{value:String(d.engaged)}]
+      metricValues:[{value:String(d.sessions)},{value:String(d.revenue)},{value:String(d.ke)},{value:String(d.engaged)},{value:String(d.txns)}]
     }));
 
     // Sum ad spend from by-source rows
@@ -465,19 +463,20 @@ function recalcAll(){
 
 function renderAll(){
   const d=lastData;
-  renderHero(d.byChannel,d.newVsRet,d.gAdSpendTotal,d.newUsersTotal);
+  renderHero(d.byChannel,d.gAdSpendTotal,d.newUsersTotal);
   renderChannelTable(d.byChannel,d.aiData,d.gAdSpendTotal);
   renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
   renderProducts(d.products);
 }
 
 // --- Hero metrics ---
-function renderHero(byChannel,newVsRet,gAdSpendTotal,newUsersTotal){
-  let totRev=0,totSess=0,totKE=0;
+function renderHero(byChannel,gAdSpendTotal,newUsersTotal){
+  let totRev=0,totSess=0,totKE=0,totTxns=0;
   (byChannel.rows||[]).forEach(r=>{
     totSess+=parseInt(r.metricValues[0].value||0);
     totRev+=parseFloat(r.metricValues[1].value||0);
     totKE+=parseInt(r.metricValues[2].value||0);
+    totTxns+=parseInt(r.metricValues[4].value||0);
   });
   const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
@@ -496,19 +495,9 @@ function renderHero(byChannel,newVsRet,gAdSpendTotal,newUsersTotal){
 
   document.getElementById('h-cac').textContent=totNewUsers>0?fmtGBP(cac):'—';
   document.getElementById('h-new').textContent=totNewUsers.toLocaleString();
+  document.getElementById('h-cvr').textContent=totSess>0?(totTxns/totSess*100).toFixed(2)+'%':'—';
   document.getElementById('h-sess').textContent=totSess.toLocaleString();
   document.getElementById('h-ke').textContent=totKE.toLocaleString();
-
-  // Returning rev %
-  let retRev=0,totalRevNvR=0;
-  (newVsRet.rows||[]).forEach(r=>{
-    const seg=r.dimensionValues[0].value;
-    const rev=parseFloat(r.metricValues[1].value||0);
-    totalRevNvR+=rev;
-    if(seg==='returning')retRev+=rev;
-  });
-  const retPct=totalRevNvR>0?(retRev/totalRevNvR*100).toFixed(1)+'%':'—';
-  document.getElementById('h-ret').textContent=retPct;
 }
 
 // --- Channel table ---
