@@ -379,7 +379,7 @@ async function refresh(){
 
   try{
     // All queries run independently — none blocks another
-    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, adSpendTotal, newUsersTotal, dailyAdSpend, todayAdSpend] = await Promise.all([
+    const [byChannel, aiData, newVsRet, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
       // Channel breakdown
       safe({dateRanges:dr,dimensions:[{name:'defaultChannelGroup'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
@@ -402,17 +402,27 @@ async function refresh(){
       ],orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],limit:10}),
       // Today revenue
       safe({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'totalRevenue'}]}),
-      // Total ad spend (own query)
-      safe({dateRanges:dr,metrics:[{name:'advertiserAdCost'}]}),
-      // Total new users (own query)
+      // Total new users
       safe({dateRanges:dr,metrics:[{name:'newUsers'}]}),
-      // Daily ad spend trend
-      safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],orderBys:[{dimension:{dimensionName:'date'}}]}),
-      // Today ad spend
-      safe({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'advertiserAdCost'}]})
+      // Ad spend by source (sessionSource dimension makes advertiserAdCost work — proven in paid dashboard)
+      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
+        {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'}
+      ]}),
+      // Daily ad spend (date dimension is compatible)
+      safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
+        {name:'advertiserAdCost'}
+      ],orderBys:[{dimension:{dimensionName:'date'}}]}),
+      // Today ad spend by source
+      safe({dateRanges:[{startDate:'today',endDate:'today'}],dimensions:[{name:'sessionSource'}],metrics:[
+        {name:'advertiserAdCost'}
+      ]})
     ]);
 
-    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,adSpendTotal,newUsersTotal,dailyAdSpend,todayAdSpend};
+    // Sum ad spend from by-source rows (dimensionless query returns nothing for ad metrics)
+    const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
+    const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
+
+    lastData={byChannel,aiData,newVsRet,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -430,21 +440,21 @@ function recalcAll(){
 
 function renderAll(){
   const d=lastData;
-  renderHero(d.byChannel,d.newVsRet,d.adSpendTotal,d.newUsersTotal);
-  renderChannelTable(d.byChannel,d.aiData,d.adSpendTotal);
-  renderPnL(d.todayData,d.todayAdSpend,d.dailyTrend,d.dailyAdSpend);
+  renderHero(d.byChannel,d.newVsRet,d.gAdSpendTotal,d.newUsersTotal);
+  renderChannelTable(d.byChannel,d.aiData,d.gAdSpendTotal);
+  renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
   renderProducts(d.products);
 }
 
 // --- Hero metrics ---
-function renderHero(byChannel,newVsRet,adSpendTotal,newUsersTotal){
+function renderHero(byChannel,newVsRet,gAdSpendTotal,newUsersTotal){
   let totRev=0,totSess=0,totKE=0;
   (byChannel.rows||[]).forEach(r=>{
     totSess+=parseInt(r.metricValues[0].value||0);
     totRev+=parseFloat(r.metricValues[1].value||0);
     totKE+=parseInt(r.metricValues[2].value||0);
   });
-  const gAdSpend=parseFloat(((adSpendTotal.rows||[])[0]?.metricValues[0]?.value)||0);
+  const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
   const msSpend=getMsTotalSpend();
   const totalSpend=gAdSpend+msSpend;
@@ -479,7 +489,7 @@ function renderHero(byChannel,newVsRet,adSpendTotal,newUsersTotal){
 // --- Channel table ---
 const CH_COLORS={'Paid Search':'#4285F4','Organic Search':'#10b981','Direct':'#d4a843','Organic Social':'#818cf8','Referral':'#e8a87c','Email':'#38bdf8','AI':'#10b981','Display':'#f472b6','Unassigned':'#6b7280','Other':'#9ca3af'};
 
-function renderChannelTable(byChannel,aiData,adSpendTotal){
+function renderChannelTable(byChannel,aiData,gAdSpendTotal){
   const channels={};
   (byChannel.rows||[]).forEach(r=>{
     const ch=r.dimensionValues[0].value;
@@ -491,10 +501,19 @@ function renderChannelTable(byChannel,aiData,adSpendTotal){
       adCost:0
     };
   });
-  // Assign total Google ad spend to Paid Search channel
-  const gAdSpend=parseFloat(((adSpendTotal.rows||[])[0]?.metricValues[0]?.value)||0);
-  if(channels['Paid Search'])channels['Paid Search'].adCost=gAdSpend;
-  else if(gAdSpend>0)channels['Paid Search']={sessions:0,revenue:0,ke:0,engaged:0,adCost:gAdSpend};
+  // Assign total Google ad spend to Paid Search / Paid Shopping
+  const gAdSpend=gAdSpendTotal||0;
+  if(gAdSpend>0){
+    // Split proportionally if both Paid Search and Paid Shopping exist
+    const ps=channels['Paid Search'], psh=channels['Paid Shopping'];
+    if(ps&&psh){
+      const totalPaidSess=(ps.sessions+psh.sessions)||1;
+      ps.adCost=gAdSpend*(ps.sessions/totalPaidSess);
+      psh.adCost=gAdSpend*(psh.sessions/totalPaidSess);
+    }else if(ps){ps.adCost=gAdSpend;}
+    else if(psh){psh.adCost=gAdSpend;}
+    else{channels['Paid Search']={sessions:0,revenue:0,ke:0,engaged:0,adCost:gAdSpend};}
+  }
 
   // AI channel (aggregate)
   let aiSess=0,aiRev=0,aiKE=0,aiEng=0;
@@ -540,11 +559,10 @@ function renderChannelTable(byChannel,aiData,adSpendTotal){
 }
 
 // --- Daily P&L ---
-function renderPnL(todayData,todayAdSpend,dailyTrend,dailyAdSpend){
+function renderPnL(todayData,todayGAdSpend,dailyTrend,dailyAdSpend){
   const todayRow=(todayData.rows||[])[0];
-  const todaySpendRow=(todayAdSpend.rows||[])[0];
   const tRev=todayRow?parseFloat(todayRow.metricValues[0].value||0):0;
-  const tGSpend=todaySpendRow?parseFloat(todaySpendRow.metricValues[0].value||0):0;
+  const tGSpend=todayGAdSpend||0;
   const tMsSpend=getMsDailySpend();
   const tSpend=tGSpend+tMsSpend;
   const tMer=tSpend>0?tRev/tSpend:0;

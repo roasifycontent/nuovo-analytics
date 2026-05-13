@@ -742,18 +742,18 @@ function fmt(v){return '£'+Math.round(v).toLocaleString('en-GB')}
 async function loadPreviews(){
   if(!token) return;
   try{
-    // Site-wide 28d stats (split into compatible queries)
+    // Site-wide 28d stats — ad spend needs sessionSource dimension to return data
     const [siteData, adSpendData] = await Promise.all([
       ga4({dateRanges:[{startDate:'28daysAgo',endDate:'today'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'transactions'}]}),
-      ga4({dateRanges:[{startDate:'28daysAgo',endDate:'today'}],metrics:[{name:'advertiserAdCost'}]})
+      ga4({dateRanges:[{startDate:'28daysAgo',endDate:'today'}],dimensions:[{name:'sessionSource'}],metrics:[{name:'advertiserAdCost'}]}).catch(()=>({rows:[]}))
     ]);
     const siteRow=(siteData.rows||[])[0];
-    const spendRow=(adSpendData.rows||[])[0];
+    // Sum ad spend across all sources
+    const spend=(adSpendData.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     if(siteRow){
       const sess=parseInt(siteRow.metricValues[0].value||0);
       const rev=parseFloat(siteRow.metricValues[1].value||0);
       const txns=parseInt(siteRow.metricValues[2].value||0);
-      const spend=parseFloat(spendRow?.metricValues[0]?.value||0);
       if(sess>0) document.getElementById('qs-sessions').textContent=sess.toLocaleString();
       if(rev>0) document.getElementById('qs-rev').textContent=fmt(rev);
       if(spend>0) document.getElementById('qs-roas').textContent=(rev/spend).toFixed(2)+'x';
