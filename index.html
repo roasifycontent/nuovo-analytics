@@ -91,7 +91,13 @@ body::before{
   padding-left:14px;
   border-left:0.5px solid var(--border2);
 }
-.utility{display:flex;align-items:center;gap:16px}
+.utility{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.date-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dbtn{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s;letter-spacing:0.05em}
+.dbtn:hover{border-color:var(--gold)}
+.dbtn.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.date-input{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;width:115px}
+html.light .date-input{color:var(--muted)!important}
 .util-link{
   font-size:11px;
   color:var(--muted);
@@ -507,10 +513,19 @@ body::before{
       <div class="brand-tag">Analytics</div>
     </div>
     <nav class="utility">
+      <div class="date-bar">
+        <button class="dbtn" data-preset="today" onclick="setPreset(this,'today')">Today</button>
+        <button class="dbtn" data-preset="yesterday" onclick="setPreset(this,'yesterday')">Yesterday</button>
+        <button class="dbtn" data-preset="7" onclick="setPreset(this,'7')">7d</button>
+        <button class="dbtn active" data-preset="28" onclick="setPreset(this,'28')">28d</button>
+        <button class="dbtn" data-preset="90" onclick="setPreset(this,'90')">90d</button>
+        <button class="dbtn" data-preset="180" onclick="setPreset(this,'180')">180d</button>
+        <input type="date" class="date-input" id="date-from" placeholder="dd/mm/yyyy" onchange="setCustom()">
+        <span style="color:var(--dim);font-size:11px">—</span>
+        <input type="date" class="date-input" id="date-to" placeholder="dd/mm/yyyy" onchange="setCustom()">
+      </div>
       <a href="https://www.nuovoluxury.co.uk" target="_blank" class="util-link">Store ↗</a>
-      <a href="https://analytics.google.com" target="_blank" class="util-link">GA4 ↗</a>
       <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-      <div class="user-orb" title="roasifycontent">M</div>
     </nav>
   </header>
 
@@ -533,12 +548,12 @@ body::before{
   <!-- Quick stats banner -->
   <section class="quick-stats">
     <div class="qs">
-      <div class="qs-label">Total Revenue (28d)</div>
+      <div class="qs-label">Total Revenue</div>
       <div class="qs-val gold" id="qs-rev">—</div>
       <div class="qs-sub">all channels</div>
     </div>
     <div class="qs">
-      <div class="qs-label">Total Sessions (28d)</div>
+      <div class="qs-label">Total Sessions</div>
       <div class="qs-val" id="qs-sessions">—</div>
       <div class="qs-sub">site-wide</div>
     </div>
@@ -599,7 +614,7 @@ body::before{
         <p class="dash-desc">Track sessions, revenue and conversions from ChatGPT, Claude, Perplexity and Copilot — the channel that didn't exist three years ago.</p>
         <div class="dash-stats">
           <div class="stat">
-            <div class="stat-lbl">90d sessions</div>
+            <div class="stat-lbl">Sessions</div>
             <div class="stat-val" id="ai-sessions">—</div>
             <div class="stat-sub">AI referrals</div>
           </div>
@@ -625,7 +640,7 @@ body::before{
         <p class="dash-desc">Google Ads and Microsoft Ads performance side by side — ROAS, CPA, cost per form, cost per call, and the full conversion funnel.</p>
         <div class="dash-stats">
           <div class="stat">
-            <div class="stat-lbl">28d spend</div>
+            <div class="stat-lbl">Ad Spend</div>
             <div class="stat-val" id="paid-spend">—</div>
             <div class="stat-sub">across channels</div>
           </div>
@@ -651,7 +666,7 @@ body::before{
         <p class="dash-desc">Keyword rankings from Search Console, organic revenue from GA4, rising queries, page-2 opportunities and content performance — all in one view.</p>
         <div class="dash-stats">
           <div class="stat">
-            <div class="stat-lbl">28d sessions</div>
+            <div class="stat-lbl">Sessions</div>
             <div class="stat-val" id="org-sessions">—</div>
             <div class="stat-sub">organic search</div>
           </div>
@@ -720,15 +735,14 @@ function toggleTheme(){
 }
 (function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
 
-// Date in hero
-const now = new Date();
-const opts = {day:'numeric',month:'short',year:'numeric'};
-document.getElementById('date-line').textContent = 'As of ' + now.toLocaleDateString('en-GB',opts);
-document.getElementById('footer-time').textContent = now.toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
+// Footer time
+const now=new Date();
+document.getElementById('footer-time').textContent=now.toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
 
-// GA4 helper
-const token = localStorage.getItem('nuovo_token');
-const PROP = '346978985';
+// GA4
+const token=localStorage.getItem('nuovo_token');
+const PROP='346978985';
+let dateRange={startDate:'28daysAgo',endDate:'today'};
 
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
@@ -736,105 +750,116 @@ async function ga4(body){
   if(!r.ok) throw new Error('API '+r.status);
   return r.json();
 }
-
+const safe=async(q)=>{try{return await ga4(q);}catch(e){console.warn('Query failed:',e.message);return{rows:[]};}};
 function fmt(v){return '£'+Math.round(v).toLocaleString('en-GB')}
+
+// Date range
+function saveDateRange(preset){
+  localStorage.setItem('nuovo_date_range_home',JSON.stringify({dateRange,preset:preset||null}));
+}
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_date_range_home');
+  if(!saved)return;
+  try{
+    const s=JSON.parse(saved);
+    dateRange=s.dateRange;
+    if(s.preset){
+      document.querySelectorAll('.dbtn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-preset')===s.preset);
+      });
+    }
+  }catch(e){}
+}
+function setPreset(btn,preset){
+  document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const today=new Date(),fmtD=d=>d.toISOString().slice(0,10);
+  if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
+  else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:fmtD(y),endDate:fmtD(y)};}
+  else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  saveDateRange(preset);
+  loadPreviews();
+}
+function setCustom(){
+  const from=document.getElementById('date-from').value,to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('active'));
+    dateRange={startDate:from,endDate:to};
+    saveDateRange(null);
+    loadPreviews();
+  }
+}
 
 async function loadPreviews(){
   if(!token) return;
+  const dr=[dateRange];
+  document.getElementById('status').textContent='Fetching...';
+  document.getElementById('date-line').textContent='As of '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
   try{
-    // Site-wide 28d stats — ad spend needs sessionSource dimension to return data
-    const [siteData, adSpendData] = await Promise.all([
-      ga4({dateRanges:[{startDate:'28daysAgo',endDate:'today'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'transactions'}]}),
-      ga4({dateRanges:[{startDate:'28daysAgo',endDate:'today'}],dimensions:[{name:'sessionSource'}],metrics:[{name:'advertiserAdCost'}]}).catch(()=>({rows:[]}))
+    // All queries use selected date range
+    const [siteData, adSpendData, orgData, aiData, paidRevData] = await Promise.all([
+      safe({dateRanges:dr,metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'transactions'}]}),
+      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'advertiserAdCost'}]}),
+      safe({dateRanges:dr,metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}}}),
+      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:'chatgpt|claude|perplexity|copilot\\.microsoft|copilot\\.bing'}}}}),
+      safe({dateRanges:dr,metrics:[{name:'totalRevenue'}],dimensionFilter:{andGroup:{expressions:[{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},{filter:{fieldName:'sessionSource',inListFilter:{values:['google','bing']}}}]}}})
     ]);
+
+    // Quick stats
     const siteRow=(siteData.rows||[])[0];
-    // Sum ad spend across all sources
     const spend=(adSpendData.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     if(siteRow){
       const sess=parseInt(siteRow.metricValues[0].value||0);
       const rev=parseFloat(siteRow.metricValues[1].value||0);
       const txns=parseInt(siteRow.metricValues[2].value||0);
-      if(sess>0) document.getElementById('qs-sessions').textContent=sess.toLocaleString();
-      if(rev>0) document.getElementById('qs-rev').textContent=fmt(rev);
-      if(spend>0) document.getElementById('qs-roas').textContent=(rev/spend).toFixed(2)+'x';
-      if(sess>0&&txns>0) document.getElementById('qs-cvr').textContent=(txns/sess*100).toFixed(2)+'%';
-      // MER for performance card
+      document.getElementById('qs-sessions').textContent=sess>0?sess.toLocaleString():'—';
+      document.getElementById('qs-rev').textContent=rev>0?fmt(rev):'—';
+      document.getElementById('qs-roas').textContent=spend>0?(rev/spend).toFixed(2)+'x':'—';
+      document.getElementById('qs-cvr').textContent=sess>0&&txns>0?(txns/sess*100).toFixed(2)+'%':'—';
       if(spend>0) document.getElementById('perf-mer').textContent=(rev/spend).toFixed(2)+'x';
     }
 
-    // Organic preview (28 days)
+    // Organic card
+    const orgRow=(orgData.rows||[])[0];
+    document.getElementById('org-sessions').textContent=orgRow?parseInt(orgRow.metricValues[0].value||0).toLocaleString():'—';
+    const orgRev=orgRow?parseFloat(orgRow.metricValues[1].value||0):0;
+    document.getElementById('org-rev').textContent=orgRev>0?fmt(orgRev):'—';
+    // GSC avg position
     try{
-      const orgData = await ga4({
-        dateRanges:[{startDate:'28daysAgo',endDate:'today'}],
-        metrics:[{name:'sessions'},{name:'totalRevenue'}],
-        dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}}
-      });
-      const orgRow=(orgData.rows||[])[0];
-      if(orgRow){
-        document.getElementById('org-sessions').textContent=parseInt(orgRow.metricValues[0].value||0).toLocaleString();
-        const orgRev=parseFloat(orgRow.metricValues[1].value||0);
-        if(orgRev>0) document.getElementById('org-rev').textContent=fmt(orgRev);
-      }
-      // Avg position from GSC
       const scope=localStorage.getItem('nuovo_scope')||'';
       if(scope.includes('webmasters')){
-        const today=new Date();
-        const end=new Date(today);end.setDate(today.getDate()-3);
-        const start=new Date(end);start.setDate(end.getDate()-28);
+        const t=new Date(),end=new Date(t);end.setDate(t.getDate()-3);const start=new Date(end);start.setDate(end.getDate()-28);
         const fmtD=d=>d.toISOString().slice(0,10);
         const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmtD(start),endDate:fmtD(end),dimensions:['query'],rowLimit:50})});
-        if(gscR.ok){
-          const gscD=await gscR.json();
-          const r=gscD.rows||[];
-          let imp=0,pos=0;
-          r.forEach(x=>{imp+=x.impressions||0;pos+=(x.position||0)*(x.impressions||0);});
-          if(imp>0) document.getElementById('org-pos').textContent='#'+(pos/imp).toFixed(1);
-        }
+        if(gscR.ok){const gscD=await gscR.json();const r=gscD.rows||[];let imp=0,pos=0;r.forEach(x=>{imp+=x.impressions||0;pos+=(x.position||0)*(x.impressions||0);});if(imp>0)document.getElementById('org-pos').textContent='#'+(pos/imp).toFixed(1);}
       }
-    }catch(e){console.warn('org preview',e);}
+    }catch(e){}
 
-    // AI traffic preview (90 days)
-    const aiRx='chatgpt|claude|perplexity|copilot\\.microsoft|copilot\\.bing';
-    const aiData = await ga4({
-      dateRanges:[{startDate:'90daysAgo',endDate:'today'}],
-      dimensions:[{name:'sessionSource'}],
-      metrics:[{name:'sessions'},{name:'totalRevenue'}],
-      dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:aiRx}}}
-    });
-    let aiSess=0, aiRev=0, topSrc='—', topSrcSess=0;
+    // AI card
+    let aiSess=0,aiRev=0,topSrc='—',topSrcSess=0;
     (aiData.rows||[]).forEach(r=>{
       const s=parseInt(r.metricValues[0].value||0);
-      aiSess+=s;
-      aiRev+=parseFloat(r.metricValues[1].value||0);
+      aiSess+=s;aiRev+=parseFloat(r.metricValues[1].value||0);
       if(s>topSrcSess){topSrcSess=s;topSrc=r.dimensionValues[0].value;}
     });
-    if(aiSess>0) document.getElementById('ai-sessions').textContent=aiSess.toLocaleString();
-    if(aiRev>0) document.getElementById('ai-rev').textContent=fmt(aiRev);
-    // Clean up top source name
+    document.getElementById('ai-sessions').textContent=aiSess>0?aiSess.toLocaleString():'—';
+    document.getElementById('ai-rev').textContent=aiRev>0?fmt(aiRev):'—';
     let topName=topSrc;
     if(topSrc.includes('chatgpt'))topName='ChatGPT';
     else if(topSrc.includes('claude'))topName='Claude';
     else if(topSrc.includes('perplexity'))topName='Perplexity';
     else if(topSrc.includes('copilot'))topName='Copilot';
     document.getElementById('ai-top').textContent=topName;
-    if(topSrcSess>0) document.getElementById('ai-top-sub').textContent=topSrcSess.toLocaleString()+' sessions';
+    document.getElementById('ai-top-sub').textContent=topSrcSess>0?topSrcSess.toLocaleString()+' sessions':'—';
 
-    // Paid preview — revenue from CPC traffic, spend from separate query already fetched
-    try{
-      const paidRevData = await ga4({
-        dateRanges:[{startDate:'28daysAgo',endDate:'today'}],
-        metrics:[{name:'totalRevenue'}],
-        dimensionFilter:{andGroup:{expressions:[
-          {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
-          {filter:{fieldName:'sessionSource',inListFilter:{values:['google','bing']}}}
-        ]}}
-      });
-      const paidRev=parseFloat(((paidRevData.rows||[])[0]?.metricValues[0]?.value)||0);
-      const paidSpend=parseFloat(spendRow?.metricValues[0]?.value||0);
-      if(paidSpend>0) document.getElementById('paid-spend').textContent=fmt(paidSpend);
-      if(paidRev>0) document.getElementById('paid-rev').textContent=fmt(paidRev);
-      if(paidSpend>0) document.getElementById('paid-roas').textContent=(paidRev/paidSpend).toFixed(2)+'x';
-    }catch(e){console.warn('paid preview',e);}
+    // Paid card
+    const paidRev=parseFloat(((paidRevData.rows||[])[0]?.metricValues[0]?.value)||0);
+    document.getElementById('paid-spend').textContent=spend>0?fmt(spend):'—';
+    document.getElementById('paid-rev').textContent=paidRev>0?fmt(paidRev):'—';
+    document.getElementById('paid-roas').textContent=spend>0?(paidRev/spend).toFixed(2)+'x':'—';
 
     document.getElementById('status').textContent='Live';
   }catch(e){
@@ -843,6 +868,8 @@ async function loadPreviews(){
   }
 }
 
+// Init
+restoreDateRange();
 loadPreviews();
 </script>
 </body>
