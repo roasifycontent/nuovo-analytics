@@ -153,9 +153,11 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
-      <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
-      <span style="color:var(--dim);font-size:11px">→</span>
-      <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      <div style="display:flex;align-items:center;gap:4px">
+        <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+        <span style="color:var(--dim);font-size:11px">→</span>
+        <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      </div>
       <button class="bsm" onclick="refresh()">↻</button>
       <button id="gsc-btn" class="bsm" onclick="startOAuth()" style="display:none;border-color:var(--gold);color:var(--gold)">Enable keywords ↗</button>
       <button class="bsm" onclick="signOut()">Sign out</button>
@@ -339,11 +341,11 @@ function signOut(){
 }
 
 window.addEventListener('load',()=>{
+  restoreDateRange();
   const saved=localStorage.getItem('nuovo_token');
   const scope=localStorage.getItem('nuovo_scope')||'';
   if(saved){
     token=saved;
-    restoreDateRange();
     launch();
   }
 });
@@ -359,6 +361,25 @@ function launch(){
   setInterval(refresh,30*60*1000);
 }
 
+function saveDateRange(preset){
+  localStorage.setItem('nuovo_date_range_organic',JSON.stringify({dateRange,daysBack,preset:preset||null}));
+}
+
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_date_range_organic');
+  if(!saved)return;
+  try{
+    const s=JSON.parse(saved);
+    dateRange=s.dateRange;
+    daysBack=s.daysBack||28;
+    if(s.preset){
+      document.querySelectorAll('.preset-btn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-preset')===s.preset);
+      });
+    }
+  }catch(e){}
+}
+
 function setPreset(btn,preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -369,7 +390,7 @@ function setPreset(btn,preset){
     dateRange={startDate:'today',endDate:'today'};
   } else if(preset==='yesterday'){
     daysBack=1;
-    const y=new Date(today); y.setDate(today.getDate()-1);
+    const y=new Date(today);y.setDate(today.getDate()-1);
     dateRange={startDate:fmt(y),endDate:fmt(y)};
   } else {
     daysBack=parseInt(preset);
@@ -386,8 +407,8 @@ function setCustom(){
   const to=document.getElementById('date-to').value;
   if(from&&to&&from<=to){
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
-    const d1=new Date(from), d2=new Date(to);
-    daysBack=Math.round((d2-d1)/(1000*60*60*24))+1;
+    const s=new Date(from),e=new Date(to);
+    daysBack=Math.round((e-s)/86400000)+1;
     dateRange={startDate:from,endDate:to};
     saveDateRange(null);
     refresh();

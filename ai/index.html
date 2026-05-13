@@ -83,6 +83,22 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .reauth-card p{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:1.5rem}
 .reauth-card .btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
 .reauth-card .btn-google:hover{background:#f0f0f0}
+.delta{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-family:'DM Mono',monospace;margin-left:6px;opacity:0;transition:opacity 0.3s}
+.delta.show{opacity:1}
+.delta.up{color:#10b981}.delta.down{color:var(--red)}.delta.flat{color:var(--dim)}
+.alert-bell{position:relative;background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.alert-bell:hover{border-color:var(--gold)}
+.alert-bell .badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-family:'DM Mono',monospace;border-radius:50%;width:16px;height:16px;display:none;align-items:center;justify-content:center}
+.alert-panel{position:fixed;top:0;right:-340px;width:320px;height:100vh;background:var(--bg2);border-left:0.5px solid var(--border2);z-index:100;padding:24px;transition:right 0.3s ease;overflow-y:auto}
+.alert-panel.open{right:0}
+.alert-panel h3{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.alert-panel label{font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:6px;margin-top:16px}
+.alert-panel input[type=number]{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none}
+.alert-panel input:focus{border-color:var(--gold)}
+.alert-banner{background:linear-gradient(135deg,rgba(248,113,113,0.08) 0%,transparent 100%);border:0.5px solid rgba(248,113,113,0.25);border-radius:8px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:12px;line-height:1.4}
+.alert-banner .dismiss{margin-left:auto;cursor:pointer;color:var(--dim);font-size:16px;flex-shrink:0}
+.alert-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;display:none}
+.alert-overlay.open{display:block}
 </style>
 </head>
 <body>
@@ -106,6 +122,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
         <a href="/" style="font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase">← Home</a>
         <a href="/ai" style="font-size:11px;color:var(--text);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase;background:var(--bg2);border:0.5px solid var(--border2)">AI Traffic</a>
         <a href="/paid" style="font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase">Paid Ads</a>
+        <a href="/organic" style="font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase">Organic</a>
       </div>
       <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
     </div>
@@ -124,22 +141,24 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
         </div>
       </div>
       <button class="bsm" onclick="refresh()">↻ Refresh</button>
+      <button class="bsm" id="compare-btn" onclick="toggleCompare()">vs Prev</button>
+      <button class="alert-bell" onclick="toggleAlertPanel()">🔔<span class="badge" id="alert-badge">0</span></button>
       <button class="bsm" onclick="signOut()">Sign out</button>
     </div>
   </div>
 
   <div class="main">
     <div class="hero">
-      <div class="stat cg"><div class="slbl"><span class="sdot" style="background:var(--chatgpt)"></span>ChatGPT</div><div class="snum" id="ncg">—</div><div class="ssub">sessions</div></div>
-      <div class="stat cl"><div class="slbl"><span class="sdot" style="background:var(--claude)"></span>Claude</div><div class="snum" id="ncl">—</div><div class="ssub">sessions</div></div>
-      <div class="stat px"><div class="slbl"><span class="sdot" style="background:var(--perplexity)"></span>Perplexity</div><div class="snum" id="npx">—</div><div class="ssub">sessions</div></div>
-      <div class="stat cp"><div class="slbl"><span class="sdot" style="background:var(--copilot)"></span>Copilot</div><div class="snum" id="ncp">—</div><div class="ssub">sessions</div></div>
+      <div class="stat cg"><div class="slbl"><span class="sdot" style="background:var(--chatgpt)"></span>ChatGPT</div><div class="snum" id="ncg">—</div><div class="ssub">sessions<span class="delta" id="dcg"></span></div></div>
+      <div class="stat cl"><div class="slbl"><span class="sdot" style="background:var(--claude)"></span>Claude</div><div class="snum" id="ncl">—</div><div class="ssub">sessions<span class="delta" id="dcl"></span></div></div>
+      <div class="stat px"><div class="slbl"><span class="sdot" style="background:var(--perplexity)"></span>Perplexity</div><div class="snum" id="npx">—</div><div class="ssub">sessions<span class="delta" id="dpx"></span></div></div>
+      <div class="stat cp"><div class="slbl"><span class="sdot" style="background:var(--copilot)"></span>Copilot</div><div class="snum" id="ncp">—</div><div class="ssub">sessions<span class="delta" id="dcp"></span></div></div>
     </div>
     <div class="sumrow">
-      <div class="sum"><div class="suml">Total AI sessions</div><div class="sumv" id="stot">—</div></div>
-      <div class="sum"><div class="suml">Revenue tracked</div><div class="sumv gold" id="srev">—</div></div>
-      <div class="sum"><div class="suml">Engagement rate</div><div class="sumv" id="seng">—</div></div>
-      <div class="sum"><div class="suml">Key event rate</div><div class="sumv" id="sconv">—</div></div>
+      <div class="sum"><div class="suml">Total AI sessions</div><div class="sumv" id="stot">—</div><span class="delta" id="dtot"></span></div>
+      <div class="sum"><div class="suml">Revenue tracked</div><div class="sumv gold" id="srev">—</div><span class="delta" id="drev"></span></div>
+      <div class="sum"><div class="suml">Engagement rate</div><div class="sumv" id="seng">—</div><span class="delta" id="deng"></span></div>
+      <div class="sum"><div class="suml">Key event rate</div><div class="sumv" id="sconv">—</div><span class="delta" id="dconv"></span></div>
     </div>
     <div class="charts">
       <div class="card"><div class="ct">Daily sessions by AI source</div><div class="cw"><canvas id="tc"></canvas></div></div>
@@ -183,6 +202,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     </div>
   </div>
 
+  <div id="alert-banners" style="padding:0 28px"></div>
+
   <div class="footer">
     <div class="ftl" id="fts">—</div>
     <div class="leg">
@@ -205,6 +226,16 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
   </div>
 </div>
 
+<div class="alert-overlay" id="alert-overlay" onclick="toggleAlertPanel()"></div>
+<div class="alert-panel" id="alert-panel">
+  <h3>Alert thresholds <span style="cursor:pointer;font-size:18px;color:var(--dim)" onclick="toggleAlertPanel()">✕</span></h3>
+  <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px">Set minimum thresholds. Warnings appear when metrics fall below these values.</p>
+  <label>Min daily AI sessions</label>
+  <input type="number" id="alert-min-sessions" value="3" min="0" onchange="saveAlerts()">
+  <label>Min weekly revenue (£)</label>
+  <input type="number" id="alert-min-revenue" value="0" min="0" step="1" onchange="saveAlerts()">
+</div>
+
 <script>
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
@@ -214,8 +245,9 @@ let token=null,charts={};
 function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
 
 window.addEventListener('load',()=>{
+  restoreDateRange();
   const saved=localStorage.getItem('nuovo_token');
-  if(saved){token=saved;restoreDateRange();launch();return;}
+  if(saved){token=saved;launch();return;}
 });
 
 function handleCredential(response){
@@ -291,27 +323,24 @@ window.addEventListener('load',()=>{
 
 function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
 function showErr(m){const e=document.getElementById('err');e.textContent=m;e.style.display='block';}
-function launch(){document.getElementById('setup').style.display='none';document.getElementById('dashboard').style.display='block';refresh();setInterval(refresh,30*60*1000);}
+function launch(){document.getElementById('setup').style.display='none';document.getElementById('dashboard').style.display='block';loadAlerts();refresh();setInterval(refresh,30*60*1000);}
 
 let dateRange = {startDate:'90daysAgo', endDate:'today'};
 
 function saveDateRange(preset){
-  localStorage.setItem('nuovo_date_range',JSON.stringify({preset:preset||null,dateRange}));
+  localStorage.setItem('nuovo_date_range_ai',JSON.stringify({dateRange,preset:preset||null}));
 }
 
 function restoreDateRange(){
-  const saved=localStorage.getItem('nuovo_date_range');
-  if(!saved) return;
+  const saved=localStorage.getItem('nuovo_date_range_ai');
+  if(!saved)return;
   try{
     const s=JSON.parse(saved);
-    if(s.dateRange) dateRange=s.dateRange;
-    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    dateRange=s.dateRange;
     if(s.preset){
-      const btn=document.querySelector(`.preset-btn[data-preset="${s.preset}"]`);
-      if(btn) btn.classList.add('active');
-    } else if(s.dateRange.startDate && s.dateRange.endDate && !s.dateRange.startDate.includes('daysAgo') && s.dateRange.startDate!=='today'){
-      document.getElementById('date-from').value=s.dateRange.startDate;
-      document.getElementById('date-to').value=s.dateRange.endDate;
+      document.querySelectorAll('.preset-btn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-preset')===s.preset);
+      });
     }
   }catch(e){}
 }
@@ -354,11 +383,18 @@ async function refresh(){
   const dr=[dateRange];
   const fil={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:ai}}};
   try{
-    const[bs,bd,bp]=await Promise.all([
+    const queries=[
       ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:fil}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:fil,orderBys:[{dimension:{dimensionName:'date'}}]}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
-    ]);
+    ];
+    if(compareMode){
+      const prevDr=[getPrevPeriod(dateRange)];
+      queries.push(ga4(url,{dateRanges:prevDr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:fil}));
+    }
+    const results=await Promise.all(queries);
+    const[bs,bd,bp]=results;
+    prevData=compareMode?results[3]:null;
     render(bs,bd,bp);
 
     // Fetch additional sections in parallel
@@ -372,6 +408,8 @@ async function refresh(){
     renderConvPages(convPages);
     renderDevices(devices);
     renderCountries(countries);
+    const daysInRange=getDaysInRange(dateRange);
+    evaluateAlerts(parseInt(document.getElementById('stot').textContent.replace(/,/g,''))||0, parseFloat(document.getElementById('srev').textContent.replace(/[£,]/g,''))||0, daysInRange);
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('fts').textContent='GA4 · Property '+PROP+' · '+new Date().toLocaleString('en-GB');
   }catch(e){
@@ -400,6 +438,22 @@ function render(bs,bd,bp){
   document.getElementById('srev').textContent=rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'£0';
   document.getElementById('seng').textContent=tot>0?(eng/tot*100).toFixed(1)+'%':'—';
   document.getElementById('sconv').textContent=tot>0?(ke/tot*100).toFixed(2)+'%':'—';
+  // Comparison deltas
+  if(compareMode&&prevData){
+    const pt={};for(const k of Object.keys(SOURCES))pt[k]={sessions:0,engaged:0,revenue:0,ke:0};
+    (prevData.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!pt[k])return;pt[k].sessions+=parseInt(r.metricValues[0].value||0);pt[k].engaged+=parseInt(r.metricValues[1].value||0);pt[k].revenue+=parseFloat(r.metricValues[2].value||0);pt[k].ke+=parseInt(r.metricValues[3].value||0);});
+    const ptot=Object.values(pt).reduce((a,b)=>a+b.sessions,0),prev=Object.values(pt).reduce((a,b)=>a+b.revenue,0),peng=Object.values(pt).reduce((a,b)=>a+b.engaged,0),pke=Object.values(pt).reduce((a,b)=>a+b.ke,0);
+    setDelta('dcg',t.chatgpt.sessions,pt.chatgpt.sessions);
+    setDelta('dcl',t.claude.sessions,pt.claude.sessions);
+    setDelta('dpx',t.perplexity.sessions,pt.perplexity.sessions);
+    setDelta('dcp',t.copilot.sessions,pt.copilot.sessions);
+    setDelta('dtot',tot,ptot);
+    setDelta('drev',rev,prev);
+    const engRate=tot>0?eng/tot:0,prevEngRate=ptot>0?peng/ptot:0;
+    setDelta('deng',engRate,prevEngRate);
+    const keRate=tot>0?ke/tot:0,prevKeRate=ptot>0?pke/ptot:0;
+    setDelta('dconv',keRate,prevKeRate);
+  }
   const sorted=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions);
   const mx=Math.max(...sorted.map(([,v])=>v.sessions),1);
   document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm">${v.ke||'—'}</span><span class="nm">${v.calls||'—'}</span><span class="nm">${v.forms||'—'}</span><span class="nm mu">${v.sessions>0?(v.engaged/v.sessions*100).toFixed(1)+'%':'—'}</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
@@ -512,6 +566,105 @@ function renderCountries(data){
       <span style="text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${pct}%</span>
     </div>`;
   }).join('')+'</div>';
+}
+
+// --- Comparison mode ---
+let compareMode=false, prevData=null;
+
+function toggleCompare(){
+  compareMode=!compareMode;
+  document.getElementById('compare-btn').classList.toggle('active',compareMode);
+  if(!compareMode){
+    prevData=null;
+    document.querySelectorAll('.delta').forEach(d=>{d.classList.remove('show');d.textContent='';});
+  }
+  refresh();
+}
+
+function getPrevPeriod(dr){
+  const fmt=d=>d.toISOString().slice(0,10);
+  const today=new Date();
+  let start,end;
+  if(dr.startDate==='today'){
+    const y=new Date(today);y.setDate(today.getDate()-1);
+    return{startDate:fmt(y),endDate:fmt(y)};
+  }
+  if(dr.endDate==='today'&&dr.startDate.endsWith('daysAgo')){
+    const days=parseInt(dr.startDate);
+    end=new Date(today);end.setDate(today.getDate()-days);
+    start=new Date(end);start.setDate(end.getDate()-days);
+    return{startDate:fmt(start),endDate:fmt(end)};
+  }
+  const s=new Date(dr.startDate),e=new Date(dr.endDate);
+  const span=Math.round((e-s)/(86400000))+1;
+  end=new Date(s);end.setDate(s.getDate()-1);
+  start=new Date(end);start.setDate(end.getDate()-span+1);
+  return{startDate:fmt(start),endDate:fmt(end)};
+}
+
+function setDelta(id,curr,prev){
+  const el=document.getElementById(id);
+  if(!el||!compareMode)return;
+  if(prev===0&&curr===0){el.className='delta show flat';el.textContent='—';return;}
+  if(prev===0){el.className='delta show up';el.textContent='↑ new';return;}
+  const pct=((curr-prev)/prev*100).toFixed(1);
+  const num=parseFloat(pct);
+  if(num>0){el.className='delta show up';el.textContent='↑ +'+pct+'%';}
+  else if(num<0){el.className='delta show down';el.textContent='↓ '+pct+'%';}
+  else{el.className='delta show flat';el.textContent='— 0%';}
+}
+
+// --- Alert system ---
+let alertConfig={minSessions:3,minRevenue:0};
+let dismissedAlerts=new Set();
+
+function loadAlerts(){
+  const saved=localStorage.getItem('nuovo_alerts');
+  if(saved){alertConfig=JSON.parse(saved);}
+  document.getElementById('alert-min-sessions').value=alertConfig.minSessions;
+  document.getElementById('alert-min-revenue').value=alertConfig.minRevenue;
+}
+
+function saveAlerts(){
+  alertConfig.minSessions=parseInt(document.getElementById('alert-min-sessions').value)||0;
+  alertConfig.minRevenue=parseInt(document.getElementById('alert-min-revenue').value)||0;
+  localStorage.setItem('nuovo_alerts',JSON.stringify(alertConfig));
+}
+
+function toggleAlertPanel(){
+  const panel=document.getElementById('alert-panel');
+  const overlay=document.getElementById('alert-overlay');
+  const open=panel.classList.toggle('open');
+  overlay.classList.toggle('open',open);
+}
+
+function evaluateAlerts(totSessions, totalRevenue, daysInRange){
+  dismissedAlerts.clear();
+  const banners=[];
+  const dailySessions=daysInRange>0?totSessions/daysInRange:totSessions;
+  if(alertConfig.minSessions>0&&dailySessions<alertConfig.minSessions){
+    banners.push({id:'low-sessions',icon:'⚠️',text:`Daily AI sessions avg <strong>${dailySessions.toFixed(1)}</strong> — below your threshold of <strong>${alertConfig.minSessions}</strong>`});
+  }
+  const weeklyCutoff=7;
+  if(alertConfig.minRevenue>0&&daysInRange>=weeklyCutoff){
+    const weeklyRev=totalRevenue/(daysInRange/7);
+    if(weeklyRev<alertConfig.minRevenue){
+      banners.push({id:'low-revenue',icon:'💷',text:`Weekly AI revenue avg <strong>£${weeklyRev.toFixed(0)}</strong> — below your threshold of <strong>£${alertConfig.minRevenue}</strong>`});
+    }
+  }
+  const container=document.getElementById('alert-banners');
+  container.innerHTML=banners.map(b=>`<div class="alert-banner" id="ab-${b.id}">${b.icon} <span>${b.text}</span><span class="dismiss" onclick="this.parentElement.remove()">✕</span></div>`).join('');
+  const badge=document.getElementById('alert-badge');
+  if(banners.length>0){badge.style.display='flex';badge.textContent=banners.length;}
+  else{badge.style.display='none';}
+}
+
+function getDaysInRange(dr){
+  const today=new Date();
+  if(dr.startDate==='today')return 1;
+  if(dr.startDate.endsWith('daysAgo'))return parseInt(dr.startDate);
+  const s=new Date(dr.startDate),e=new Date(dr.endDate);
+  return Math.round((e-s)/86400000)+1;
 }
 
 function loadDemo(){

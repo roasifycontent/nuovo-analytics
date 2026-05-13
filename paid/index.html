@@ -144,6 +144,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
       <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
       <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
       <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
       <span style="color:var(--dim);font-size:11px">→</span>
       <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
@@ -350,6 +351,7 @@ window.addEventListener('load',()=>{
   document.getElementById('date-to').value=fmt(today);
   const d28=new Date(today); d28.setDate(today.getDate()-28);
   document.getElementById('date-from').value=fmt(d28);
+  restoreDateRange();
   loadSpend();
   const saved=localStorage.getItem('nuovo_token');
   if(saved){token=saved;restoreDateRange();launch();}
@@ -360,6 +362,26 @@ function launch(){
   document.getElementById('dashboard').style.display='block';
   refresh();
   setInterval(refresh,30*60*1000);
+}
+
+function saveDateRange(preset){
+  localStorage.setItem('nuovo_date_range_paid',JSON.stringify({dateRange,preset:preset||null}));
+}
+
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_date_range_paid');
+  if(!saved)return;
+  try{
+    const s=JSON.parse(saved);
+    dateRange=s.dateRange;
+    if(s.preset){
+      document.querySelectorAll('.preset-btn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-preset')===s.preset);
+      });
+      const label=s.preset==='today'||s.preset==='yesterday'?s.preset:'last '+s.preset+' days';
+      document.getElementById('funnel-period').textContent=label;
+    }
+  }catch(e){}
 }
 
 function setPreset(btn,preset){
