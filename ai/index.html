@@ -215,8 +215,7 @@ function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES)
 
 window.addEventListener('load',()=>{
   const saved=localStorage.getItem('nuovo_token');
-  if(saved){token=saved;launch();return;}
-
+  if(saved){token=saved;restoreDateRange();launch();return;}
 });
 
 function handleCredential(response){
@@ -296,6 +295,27 @@ function launch(){document.getElementById('setup').style.display='none';document
 
 let dateRange = {startDate:'90daysAgo', endDate:'today'};
 
+function saveDateRange(preset){
+  localStorage.setItem('nuovo_date_range',JSON.stringify({preset:preset||null,dateRange}));
+}
+
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_date_range');
+  if(!saved) return;
+  try{
+    const s=JSON.parse(saved);
+    if(s.dateRange) dateRange=s.dateRange;
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    if(s.preset){
+      const btn=document.querySelector(`.preset-btn[data-preset="${s.preset}"]`);
+      if(btn) btn.classList.add('active');
+    } else if(s.dateRange.startDate && s.dateRange.endDate && !s.dateRange.startDate.includes('daysAgo') && s.dateRange.startDate!=='today'){
+      document.getElementById('date-from').value=s.dateRange.startDate;
+      document.getElementById('date-to').value=s.dateRange.endDate;
+    }
+  }catch(e){}
+}
+
 function setPreset(btn, preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -309,9 +329,9 @@ function setPreset(btn, preset){
   } else {
     dateRange={startDate:`${preset}daysAgo`,endDate:'today'};
   }
-  // Clear custom dates
   document.getElementById('date-from').value='';
   document.getElementById('date-to').value='';
+  saveDateRange(preset);
   refresh();
 }
 
@@ -321,6 +341,7 @@ function setCustom(){
   if(from&&to&&from<=to){
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
     dateRange={startDate:from,endDate:to};
+    saveDateRange(null);
     refresh();
   }
 }

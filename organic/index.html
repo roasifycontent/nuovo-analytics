@@ -285,6 +285,28 @@ const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleuserco
 let token=null, charts={}, dateRange={startDate:'28daysAgo',endDate:'today'};
 let daysBack=28;
 
+function saveDateRange(preset){
+  localStorage.setItem('nuovo_date_range',JSON.stringify({preset:preset||null,dateRange,daysBack}));
+}
+
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_date_range');
+  if(!saved) return;
+  try{
+    const s=JSON.parse(saved);
+    if(s.dateRange) dateRange=s.dateRange;
+    if(s.daysBack) daysBack=s.daysBack;
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    if(s.preset){
+      const btn=document.querySelector(`.preset-btn[data-preset="${s.preset}"]`);
+      if(btn) btn.classList.add('active');
+    } else if(s.dateRange.startDate && s.dateRange.endDate && !s.dateRange.startDate.includes('daysAgo') && s.dateRange.startDate!=='today'){
+      document.getElementById('date-from').value=s.dateRange.startDate;
+      document.getElementById('date-to').value=s.dateRange.endDate;
+    }
+  }catch(e){}
+}
+
 (function(){
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
@@ -321,13 +343,8 @@ window.addEventListener('load',()=>{
   const scope=localStorage.getItem('nuovo_scope')||'';
   if(saved){
     token=saved;
-    // If the token doesn't include webmasters scope, prompt re-auth
-    if(!scope.includes('webmasters')){
-      // Token exists but no GSC scope - launch dashboard and show prompt to re-auth
-      launch();
-    } else {
-      launch();
-    }
+    restoreDateRange();
+    launch();
   }
 });
 
@@ -360,6 +377,7 @@ function setPreset(btn,preset){
   }
   document.getElementById('date-from').value='';
   document.getElementById('date-to').value='';
+  saveDateRange(preset);
   refresh();
 }
 
@@ -371,6 +389,7 @@ function setCustom(){
     const d1=new Date(from), d2=new Date(to);
     daysBack=Math.round((d2-d1)/(1000*60*60*24))+1;
     dateRange={startDate:from,endDate:to};
+    saveDateRange(null);
     refresh();
   }
 }
