@@ -479,7 +479,7 @@ async function refresh(){
       // By source breakdown
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
-        {name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'},{name:'keyEvents:begin_checkout'},{name:'keyEvents:add_to_cart'},
+        {name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'},
         {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'},{name:'returnOnAdSpend'}
       ],dimensionFilter:paidFil}),
       // Daily trend
@@ -498,7 +498,7 @@ async function refresh(){
       ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','phone_calls']}}}]}}})
     ]);
 
-    renderSourceMetrics(bySource);
+    renderSourceMetrics(bySource, funnelData);
     renderKPIs(bySource, funnelData);
     renderFunnel(funnelData, bySource);
     renderTrend(byDate);
@@ -518,7 +518,7 @@ async function refresh(){
   }
 }
 
-function renderSourceMetrics(data){
+function renderSourceMetrics(data, funnelData){
   cache.google={sessions:0,engaged:0,revenue:0,transactions:0,keyEvents:0,calls:0,forms:0,begin:0,addCart:0,adCost:0,adClicks:0,adImpressions:0,roas:0};
   cache.bing={sessions:0,engaged:0,revenue:0,transactions:0,keyEvents:0,calls:0,forms:0,begin:0,addCart:0,adCost:0,adClicks:0,adImpressions:0,roas:0};
   (data.rows||[]).forEach(r=>{
@@ -532,13 +532,23 @@ function renderSourceMetrics(data){
     cache[key].keyEvents=parseInt(r.metricValues[4].value||0);
     cache[key].calls=parseInt(r.metricValues[5]?.value||0);
     cache[key].forms=parseInt(r.metricValues[6]?.value||0);
-    cache[key].begin=parseInt(r.metricValues[7]?.value||0);
-    cache[key].addCart=parseInt(r.metricValues[8]?.value||0);
-    cache[key].adCost=parseFloat(r.metricValues[9]?.value||0);
-    cache[key].adClicks=parseInt(r.metricValues[10]?.value||0);
-    cache[key].adImpressions=parseInt(r.metricValues[11]?.value||0);
-    cache[key].roas=parseFloat(r.metricValues[12]?.value||0);
+    cache[key].adCost=parseFloat(r.metricValues[7]?.value||0);
+    cache[key].adClicks=parseInt(r.metricValues[8]?.value||0);
+    cache[key].adImpressions=parseInt(r.metricValues[9]?.value||0);
+    cache[key].roas=parseFloat(r.metricValues[10]?.value||0);
   });
+  // Get begin_checkout and add_to_cart totals from funnel data (not available as per-source metrics)
+  if(funnelData){
+    const funnelEvents={};
+    (funnelData.rows||[]).forEach(r=>{funnelEvents[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value||0);});
+    // Split evenly between sources as approximation (funnel doesn't break down by source)
+    const totalSess=cache.google.sessions+cache.bing.sessions;
+    const gRatio=totalSess>0?cache.google.sessions/totalSess:0.5;
+    cache.google.begin=Math.round((funnelEvents.begin_checkout||0)*gRatio);
+    cache.bing.begin=(funnelEvents.begin_checkout||0)-cache.google.begin;
+    cache.google.addCart=Math.round((funnelEvents.add_to_cart||0)*gRatio);
+    cache.bing.addCart=(funnelEvents.add_to_cart||0)-cache.google.addCart;
+  }
   // Auto-populate spend input from GA4 if not manually set
   if(cache.google.adCost>0){
     document.getElementById('spend-google').value=cache.google.adCost.toFixed(2);
