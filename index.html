@@ -740,13 +740,39 @@ const now=new Date();
 document.getElementById('footer-time').textContent=now.toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
 
 // GA4
-const token=localStorage.getItem('nuovo_token');
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const PROP='346978985';
+let token=localStorage.getItem('nuovo_token');
 let dateRange={startDate:'28daysAgo',endDate:'today'};
 
+// OAuth — capture token from hash redirect
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
+
+function startOAuth(){
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+'/',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
+    include_granted_scopes:'true',
+    state:'sign-in'
+  });
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
+}
+
+let tokenExpired=false;
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
   const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status===401||r.status===403){tokenExpired=true;throw new Error('Token expired');}
   if(!r.ok) throw new Error('API '+r.status);
   return r.json();
 }
@@ -793,7 +819,11 @@ function setCustom(){
 }
 
 async function loadPreviews(){
-  if(!token) return;
+  if(!token){
+    document.getElementById('status').innerHTML='<a href="#" onclick="startOAuth();return false" style="color:var(--gold);text-decoration:underline;cursor:pointer">Sign in with Google</a>';
+    return;
+  }
+  tokenExpired=false;
   const dr=[dateRange];
   document.getElementById('status').textContent='Fetching...';
   document.getElementById('date-line').textContent='As of '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
@@ -862,8 +892,15 @@ async function loadPreviews(){
     document.getElementById('paid-roas').textContent=spend>0?(paidRev/spend).toFixed(2)+'x':'—';
 
     document.getElementById('status').textContent='Live';
+    if(tokenExpired){
+      document.getElementById('status').innerHTML='Session expired — <a href="#" onclick="startOAuth();return false" style="color:var(--gold);text-decoration:underline;cursor:pointer">Re-authenticate</a>';
+    }
   }catch(e){
-    document.getElementById('status').textContent='Sign in for live data';
+    if(tokenExpired){
+      document.getElementById('status').innerHTML='Session expired — <a href="#" onclick="startOAuth();return false" style="color:var(--gold);text-decoration:underline;cursor:pointer">Re-authenticate</a>';
+    } else {
+      document.getElementById('status').textContent='Error loading data';
+    }
     console.error(e);
   }
 }
