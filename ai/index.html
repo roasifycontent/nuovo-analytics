@@ -372,7 +372,7 @@ function setPreset(btn, preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   const today = new Date();
-  const fmt = d => d.toISOString().slice(0,10);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if(preset==='today'){
     dateRange={startDate:'today',endDate:'today'};
   } else if(preset==='yesterday'){
@@ -503,7 +503,7 @@ function rPages(bp){
   document.getElementById('pgb').innerHTML=rows.length?`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+rows.map(r=>`<div class="pr"><span class="pp">${r.dimensionValues[0].value.replace('https://www.nuovoluxury.co.uk','').slice(0,38)||'/'}</span><span class="nm">${r.metricValues[0].value}</span><span class="nm mu">${(parseFloat(r.metricValues[1].value||0)*100).toFixed(0)}%</span></div>`).join(''):'<div class="ld">No data</div>';
 }
 function rWeekly(bd){
-  const wm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8))),ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());const wk=ws.toISOString().slice(0,10);wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);});
+  const wm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8))),ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());const wk=`${ws.getFullYear()}-${String(ws.getMonth()+1).padStart(2,'0')}-${String(ws.getDate()).padStart(2,'0')}`;wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);});
   const weeks=Object.keys(wm).sort().slice(-12);
   if(charts.w)charts.w.destroy();
   charts.w=new Chart(document.getElementById('wc'),{type:'bar',data:{labels:weeks.map(d=>{const[,m,dy]=d.split('-');return`${dy}/${m}`;}),datasets:[{data:weeks.map(w=>wm[w]),backgroundColor:'#d4a843',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0}},y:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0}}}}});
@@ -607,7 +607,7 @@ function toggleCompare(){
 }
 
 function getPrevPeriod(dr){
-  const fmt=d=>d.toISOString().slice(0,10);
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const today=new Date();
   let start,end;
   if(dr.startDate==='today'){
@@ -704,7 +704,7 @@ function loadDemo(){
   document.getElementById('srcb').innerHTML=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions).map(([k,v])=>{const s=SOURCES[k],p=Math.round(v.sessions/246*100),e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="nm mu">${e}%</span></div>`;}).join('');
   document.getElementById('pgb').innerHTML=`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+[{p:'/products/hybrid-infrared-4-person-2m-sauna',s:48,e:72},{p:'/collections/infrared-saunas',s:32,e:61},{p:'/products/chill-tubs-ice-bath...',s:28,e:68},{p:'/pages/best-saunas-uk-buyers-guide',s:21,e:75},{p:'/collections/gazebo-and-pergolas-uk',s:18,e:55}].map(r=>`<div class="pr"><span class="pp">${r.p}</span><span class="nm">${r.s}</span><span class="nm mu">${r.e}%</span></div>`).join('');
   const dbd={rows:[]};const st=new Date('2026-02-11');
-  for(let i=0;i<90;i++){const d=new Date(st);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10).replace(/-/g,'');dbd.rows.push({dimensionValues:[{value:ds},{value:'chatgpt.com'}],metricValues:[{value:String(Math.floor(Math.random()*4+1))}]});if(Math.random()<0.02)dbd.rows.push({dimensionValues:[{value:ds},{value:'claude.ai'}],metricValues:[{value:'1'}]});}
+  for(let i=0;i<90;i++){const d=new Date(st);d.setDate(d.getDate()+i);const ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;dbd.rows.push({dimensionValues:[{value:ds},{value:'chatgpt.com'}],metricValues:[{value:String(Math.floor(Math.random()*4+1))}]});if(Math.random()<0.02)dbd.rows.push({dimensionValues:[{value:ds},{value:'claude.ai'}],metricValues:[{value:'1'}]});}
   rTrend(dbd);rPie(t);rWeekly(dbd);
 }
 </script>

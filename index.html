@@ -773,7 +773,7 @@ function restoreDateRange(){
 function setPreset(btn,preset){
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const today=new Date(),fmtD=d=>d.toISOString().slice(0,10);
+  const today=new Date(),fmtD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
   else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:fmtD(y),endDate:fmtD(y)};}
   else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
@@ -832,8 +832,8 @@ async function loadPreviews(){
       const scope=localStorage.getItem('nuovo_scope')||'';
       if(scope.includes('webmasters')){
         const t=new Date(),end=new Date(t);end.setDate(t.getDate()-3);const start=new Date(end);start.setDate(end.getDate()-28);
-        const fmtD=d=>d.toISOString().slice(0,10);
-        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmtD(start),endDate:fmtD(end),dimensions:['query'],rowLimit:50})});
+        const fmtD2=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmtD2(start),endDate:fmtD2(end),dimensions:['query'],rowLimit:50})});
         if(gscR.ok){const gscD=await gscR.json();const r=gscD.rows||[];let imp=0,pos=0;r.forEach(x=>{imp+=x.impressions||0;pos+=(x.position||0)*(x.impressions||0);});if(imp>0)document.getElementById('org-pos').textContent='#'+(pos/imp).toFixed(1);}
       }
     }catch(e){}

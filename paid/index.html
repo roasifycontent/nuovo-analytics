@@ -371,7 +371,7 @@ function restoreDateRange(){
 
 window.addEventListener('load',()=>{
   const today=new Date();
-  const fmt=d=>d.toISOString().slice(0,10);
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   document.getElementById('date-to').value=fmt(today);
   const d28=new Date(today); d28.setDate(today.getDate()-28);
   document.getElementById('date-from').value=fmt(d28);
@@ -412,7 +412,7 @@ function setPreset(btn,preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   const today=new Date();
-  const fmt=d=>d.toISOString().slice(0,10);
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
   else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:fmt(y),endDate:fmt(y)};}
   else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}

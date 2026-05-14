@@ -283,7 +283,7 @@ function restoreDateRange(){
 function setPreset(btn,preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const today=new Date(),fmt=d=>d.toISOString().slice(0,10);
+  const today=new Date(),fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
   else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:fmt(y),endDate:fmt(y)};}
   else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
