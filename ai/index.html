@@ -67,7 +67,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .nm{font-family:'DM Mono',monospace;text-align:right}
 .nm.gold{color:var(--gold)}.nm.mu{color:var(--muted)}
 .botr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-.pr{display:grid;grid-template-columns:1fr 50px 50px;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
+.pr{display:grid;grid-template-columns:1fr 50px 42px 42px 42px 42px 42px 42px;gap:6px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
 .pr:last-child{border-bottom:none}
 .pp{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ld{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
@@ -422,12 +422,14 @@ async function refresh(){
     render(bs,bd,bp);
 
     // Fetch additional sections in parallel
-    const[revPages, convPages, devices, countries] = await Promise.all([
+    const[revPages, convPages, devices, countries, pageEvents] = await Promise.all([
       ga4(url,{dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'totalRevenue'},{name:'sessions'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'totalRevenue'},desc:true}],limit:8}),
       ga4(url,{dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'keyEvents'},{name:'sessions'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'keyEvents'},desc:true}],limit:8}),
       ga4(url,{dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
-      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:10})
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:10}),
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'pagePath'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[fil,{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_call','add_to_cart','begin_checkout','purchase']}}}]}},limit:500}).catch(()=>({rows:[]}))
     ]);
+    rPages(window._pendingBp, pageEvents);
     renderRevPages(revPages);
     renderConvPages(convPages);
     renderDevices(devices);
@@ -483,7 +485,9 @@ function render(bs,bd,bp){
   const sorted=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions);
   const mx=Math.max(...sorted.map(([,v])=>v.sessions),1);
   document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm">${v.ke||'—'}</span><span class="nm">${v.calls||'—'}</span><span class="nm">${v.forms||'—'}</span><span class="nm mu">${v.sessions>0?(v.engaged/v.sessions*100).toFixed(1)+'%':'—'}</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
-  rTrend(bd);rPie(t);rPages(bp);rWeekly(bd);
+  rTrend(bd);rPie(t);rWeekly(bd);
+  // rPages called after pageEvents loaded
+  window._pendingBp=bp;
 }
 
 function rTrend(bd){
@@ -499,9 +503,32 @@ function rPie(t){
   if(charts.p)charts.p.destroy();
   charts.p=new Chart(document.getElementById('pc'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
 }
-function rPages(bp){
+function rPages(bp, pe){
   const rows=(bp.rows||[]).slice(0,8);
-  document.getElementById('pgb').innerHTML=rows.length?`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+rows.map(r=>`<div class="pr"><span class="pp">${r.dimensionValues[0].value.replace('https://www.nuovoluxury.co.uk','').slice(0,38)||'/'}</span><span class="nm">${r.metricValues[0].value}</span><span class="nm mu">${(parseFloat(r.metricValues[1].value||0)*100).toFixed(0)}%</span></div>`).join(''):'<div class="ld">No data</div>';
+  // Build page→event map from pageEvents data
+  const pem={};
+  (pe&&pe.rows||[]).forEach(r=>{
+    const path=(r.dimensionValues[0].value||'').replace('https://www.nuovoluxury.co.uk','');
+    const evt=r.dimensionValues[1].value;
+    const cnt=parseInt(r.metricValues[0].value||0);
+    if(!pem[path])pem[path]={form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0};
+    if(pem[path][evt]!==undefined)pem[path][evt]+=cnt;
+  });
+  // Match landing pages to event paths (landing page may have query strings)
+  function getEvts(landingPage){
+    const clean=landingPage.replace('https://www.nuovoluxury.co.uk','').split('?')[0];
+    if(pem[clean])return pem[clean];
+    // Try partial match
+    for(const p of Object.keys(pem)){if(p.startsWith(clean)||clean.startsWith(p))return pem[p];}
+    return{form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0};
+  }
+  const d=v=>v>0?v:'—';
+  document.getElementById('pgb').innerHTML=rows.length?`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sess.</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">ATC</span><span style="text-align:right">Chkout</span><span style="text-align:right">Purch.</span><span style="text-align:right">Eng%</span></div>`+rows.map(r=>{
+    const pg=r.dimensionValues[0].value;
+    const e=getEvts(pg);
+    const path=pg.replace('https://www.nuovoluxury.co.uk','').slice(0,32)||'/';
+    return`<div class="pr"><span class="pp" title="${pg.replace('https://www.nuovoluxury.co.uk','')}">${path}</span><span class="nm">${r.metricValues[0].value}</span><span class="nm">${d(e.form_submit)}</span><span class="nm">${d(e.phone_call)}</span><span class="nm">${d(e.add_to_cart)}</span><span class="nm">${d(e.begin_checkout)}</span><span class="nm">${d(e.purchase)}</span><span class="nm mu">${(parseFloat(r.metricValues[1].value||0)*100).toFixed(0)}%</span></div>`;
+  }).join(''):'<div class="ld">No data</div>';
 }
 function rWeekly(bd){
   const wm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8))),ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());const wk=`${ws.getFullYear()}-${String(ws.getMonth()+1).padStart(2,'0')}-${String(ws.getDate()).padStart(2,'0')}`;wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);});
@@ -703,7 +730,7 @@ function loadDemo(){
   document.getElementById('stot').textContent='246';document.getElementById('srev').textContent='£1,999';document.getElementById('seng').textContent='50.4%';document.getElementById('sconv').textContent='1.63%';
   const mx=244;
   document.getElementById('srcb').innerHTML=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions).map(([k,v])=>{const s=SOURCES[k],p=Math.round(v.sessions/246*100),e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="nm mu">${e}%</span></div>`;}).join('');
-  document.getElementById('pgb').innerHTML=`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sessions</span><span style="text-align:right">Eng%</span></div>`+[{p:'/products/hybrid-infrared-4-person-2m-sauna',s:48,e:72},{p:'/collections/infrared-saunas',s:32,e:61},{p:'/products/chill-tubs-ice-bath...',s:28,e:68},{p:'/pages/best-saunas-uk-buyers-guide',s:21,e:75},{p:'/collections/gazebo-and-pergolas-uk',s:18,e:55}].map(r=>`<div class="pr"><span class="pp">${r.p}</span><span class="nm">${r.s}</span><span class="nm mu">${r.e}%</span></div>`).join('');
+  document.getElementById('pgb').innerHTML=`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sess.</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">ATC</span><span style="text-align:right">Chkout</span><span style="text-align:right">Purch.</span><span style="text-align:right">Eng%</span></div>`+[{p:'/products/hybrid-infrared-4-person-2m-sauna',s:48,e:72,f:1,c:0,a:3,ch:1,pu:0},{p:'/collections/infrared-saunas',s:32,e:61,f:0,c:1,a:2,ch:0,pu:0},{p:'/products/chill-tubs-ice-bath...',s:28,e:68,f:0,c:0,a:1,ch:1,pu:1},{p:'/pages/best-saunas-uk-buyers-guide',s:21,e:75,f:2,c:0,a:0,ch:0,pu:0},{p:'/collections/gazebo-and-pergolas-uk',s:18,e:55,f:0,c:0,a:1,ch:0,pu:0}].map(r=>{const d=v=>v>0?v:'—';return`<div class="pr"><span class="pp">${r.p}</span><span class="nm">${r.s}</span><span class="nm">${d(r.f)}</span><span class="nm">${d(r.c)}</span><span class="nm">${d(r.a)}</span><span class="nm">${d(r.ch)}</span><span class="nm">${d(r.pu)}</span><span class="nm mu">${r.e}%</span></div>`;}).join('');
   const dbd={rows:[]};const st=new Date('2026-02-11');
   for(let i=0;i<90;i++){const d=new Date(st);d.setDate(d.getDate()+i);const ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;dbd.rows.push({dimensionValues:[{value:ds},{value:'chatgpt.com'}],metricValues:[{value:String(Math.floor(Math.random()*4+1))}]});if(Math.random()<0.02)dbd.rows.push({dimensionValues:[{value:ds},{value:'claude.ai'}],metricValues:[{value:'1'}]});}
   rTrend(dbd);rPie(t);rWeekly(dbd);
