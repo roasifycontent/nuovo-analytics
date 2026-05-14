@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Products — Nuovo Luxury</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>N</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--gold:#d4a843;--red:#f87171;--green:#10b981;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
+html.light{--bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);--text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;--gold:#b8902e;--red:#dc2626;--green:#059669;--chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560}
+html.light .bsm.active{color:#fff}
+html.light .setup-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+html.light .reauth-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+html.light input[type=date]{color:var(--muted)!important}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+.tl{display:flex;align-items:center;gap:20px}
+.logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.logo span{color:var(--gold)}
+.nav{display:flex;gap:4px;margin-left:8px}
+.nav a{font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase;transition:color 0.2s}
+.nav a:hover{color:var(--text)}
+.nav a.active{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2)}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.tr{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s}
+.bsm:hover{border-color:var(--gold)}
+.bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.theme-toggle{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.theme-toggle:hover{border-color:var(--gold)}
+.main{padding:28px;max-width:1400px;margin:0 auto}
+/* Setup */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.setup-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;max-width:380px;width:100%;text-align:center}
+.setup-logo{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:2rem}
+.setup-logo span{color:var(--gold)}
+.setup-card h1{font-size:22px;font-weight:700;margin-bottom:8px}
+.setup-card .sub{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:1.5rem}
+.err{color:var(--red);font-size:12px;margin-top:8px}
+/* Reauth overlay */
+.reauth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;display:none}
+.reauth-overlay.show{display:flex}
+.reauth-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;max-width:380px;width:100%;text-align:center}
+.reauth-card h2{font-size:18px;font-weight:700;margin-bottom:8px}
+.reauth-card p{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:1.5rem}
+.reauth-card .btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+.reauth-card .btn-google:hover{background:#f0f0f0}
+#dashboard{display:none}
+/* Hero stats */
+.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat:nth-child(1)::before{background:var(--gold)}
+.stat:nth-child(2)::before{background:var(--green)}
+.stat:nth-child(3)::before{background:var(--text)}
+.stat:nth-child(4)::before{background:var(--gold)}
+.stat-lbl{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace}
+.stat-val{font-size:22px;font-weight:700;letter-spacing:-0.02em;font-family:'DM Mono',monospace;font-feature-settings:'tnum'}
+.stat-sub{font-size:11px;color:var(--dim);margin-top:6px;font-family:'DM Mono',monospace}
+/* Section titles */
+.section-title{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.section-title::after{content:'';flex:1;height:0.5px;background:var(--border)}
+/* Product table */
+.tbl-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+.tbl-header{display:grid;grid-template-columns:minmax(180px,2fr) repeat(11,1fr);padding:12px 20px;border-bottom:0.5px solid var(--border);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);font-family:'DM Mono',monospace;position:sticky;top:53px;background:var(--bg2);z-index:5;cursor:pointer;user-select:none}
+.tbl-header span:hover{color:var(--text)}
+.tbl-header span.sort-active{color:var(--gold)}
+.tbl-header span.sort-active::after{content:' \25B2';font-size:8px}
+.tbl-header span.sort-active.desc::after{content:' \25BC'}
+.tbl-row{display:grid;grid-template-columns:minmax(180px,2fr) repeat(11,1fr);padding:11px 20px;border-bottom:0.5px solid var(--border);font-size:13px;font-family:'DM Mono',monospace;font-feature-settings:'tnum';transition:background 0.15s;cursor:pointer;align-items:center}
+.tbl-row:last-child{border-bottom:none}
+.tbl-row:hover{background:var(--bg3)}
+.tbl-row.top-row{border-left:3px solid var(--gold)}
+.tbl-row .pname{font-family:'Syne',sans-serif;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tbl-row .nm{text-align:right;color:var(--muted);font-size:12px}
+.tbl-row .nm.rev{color:var(--text);font-weight:500}
+.tbl-row .nm .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:4px;vertical-align:middle}
+.tbl-row .nm .dot.green{background:var(--green)}
+.tbl-row .nm .dot.red{background:var(--red)}
+/* Expanded channel breakdown */
+.expand-row{display:none;padding:0 20px 16px;background:var(--bg3);border-bottom:0.5px solid var(--border)}
+.expand-row.open{display:block}
+.expand-inner{padding:16px;border-radius:8px}
+.expand-title{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-family:'DM Mono',monospace}
+.ch-grid{display:grid;grid-template-columns:140px repeat(4,1fr);gap:0;font-size:12px;font-family:'DM Mono',monospace}
+.ch-grid .ch-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding:6px 0;border-bottom:0.5px solid var(--border)}
+.ch-grid .ch-cell{padding:8px 0;border-bottom:0.5px solid var(--border);color:var(--muted)}
+.ch-grid .ch-cell:first-child{color:var(--text);font-family:'Syne',sans-serif}
+.ch-grid .ch-cell.num{text-align:right;font-feature-settings:'tnum'}
+/* Show all */
+.show-all-wrap{text-align:center;padding:16px}
+.show-all-btn{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:8px 24px;color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.2s}
+.show-all-btn:hover{border-color:var(--gold);color:var(--text)}
+/* Cards */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:24px}
+.ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;font-family:'DM Mono',monospace}
+.cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+/* Rising product row */
+.rise-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.rise-row:last-child{border-bottom:none}
+.rise-name{font-family:'Syne',sans-serif;font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:16px}
+.rise-rev{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-right:16px;font-feature-settings:'tnum'}
+.rise-pct{font-family:'DM Mono',monospace;font-size:12px;font-weight:500;min-width:60px;text-align:right;font-feature-settings:'tnum'}
+.rise-pct.up{color:var(--green)}
+.rise-pct.down{color:var(--red)}
+/* Leak row */
+.leak-row{display:grid;grid-template-columns:2fr repeat(3,1fr) 2fr;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:12px;font-family:'DM Mono',monospace;align-items:center}
+.leak-row:last-child{border-bottom:none}
+.leak-name{font-family:'Syne',sans-serif;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leak-val{text-align:right;color:var(--muted);font-feature-settings:'tnum'}
+.leak-action{color:var(--gold);font-family:'Syne',sans-serif;font-size:11px;text-align:right}
+/* Footer */
+.footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+/* Loading */
+.ld{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:40px;justify-content:center}
+.sp{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">Nuovo Luxury <span>/ Products</span></div>
+    <h1>Connect your GA4</h1>
+    <p class="sub">Sign in with the Google account that owns your Nuovo Luxury GA4 property. Your data stays in your browser.</p>
+    <button onclick="startOAuth()" style="width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Sign in with Google</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div class="reauth-overlay" id="reauth-modal">
+  <div class="reauth-card">
+    <h2>Session expired</h2>
+    <p>Your Google session has timed out. Reconnect to continue — your current view will be preserved.</p>
+    <button class="btn-google" onclick="reconnect()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Reconnect with Google
+    </button>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="tl">
+      <div class="logo">Nuovo Luxury <span>/ Products</span></div>
+      <div class="nav">
+        <a href="/">← Home</a>
+        <a href="/ai">AI Traffic</a>
+        <a href="/paid">Paid Ads</a>
+        <a href="/organic">Organic</a>
+        <a href="/performance">Performance</a>
+        <a href="/product" class="active">Products</a>
+      </div>
+      <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
+    </div>
+    <div class="tr">
+      <button class="bsm preset-btn" onclick="setPreset(this,'today')" data-preset="today">Today</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'yesterday')" data-preset="yesterday">Yesterday</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
+      <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
+      <div style="display:flex;align-items:center;gap:4px;margin-left:4px">
+        <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+        <span style="color:var(--dim);font-size:11px">→</span>
+        <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      </div>
+      <button class="bsm" onclick="refresh()" title="Refresh">↻</button>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+      <button class="bsm" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Hero stats -->
+    <div class="hero">
+      <div class="stat">
+        <div class="stat-lbl">Active products</div>
+        <div class="stat-val" id="h-active">—</div>
+        <div class="stat-sub">with sessions</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Total product revenue</div>
+        <div class="stat-val" id="h-rev">—</div>
+        <div class="stat-sub">all products</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Top product</div>
+        <div class="stat-val" id="h-top" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+        <div class="stat-sub" id="h-top-rev">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Total key events</div>
+        <div class="stat-val" id="h-events">—</div>
+        <div class="stat-sub">calls + forms + purchases</div>
+      </div>
+    </div>
+
+    <!-- Product table -->
+    <div class="section-title">Product performance</div>
+    <div class="tbl-wrap" id="tbl-wrap">
+      <div class="tbl-header" id="tbl-header">
+        <span data-col="name" data-type="string">Product</span>
+        <span data-col="sessions" data-type="num" style="text-align:right">Sessions</span>
+        <span data-col="atc" data-type="num" style="text-align:right">ATC</span>
+        <span data-col="atcRate" data-type="num" style="text-align:right">ATC %</span>
+        <span data-col="checkout" data-type="num" style="text-align:right">Checkout</span>
+        <span data-col="checkoutRate" data-type="num" style="text-align:right">Chk %</span>
+        <span data-col="calls" data-type="num" style="text-align:right">Calls</span>
+        <span data-col="forms" data-type="num" style="text-align:right">Forms</span>
+        <span data-col="purchases" data-type="num" style="text-align:right">Purch.</span>
+        <span data-col="cvr" data-type="num" style="text-align:right">CVR</span>
+        <span data-col="revenue" data-type="num" style="text-align:right" class="sort-active desc">Revenue</span>
+        <span data-col="aov" data-type="num" style="text-align:right">AOV</span>
+      </div>
+      <div id="tbl-body">
+        <div class="ld"><span class="sp"></span>Loading...</div>
+      </div>
+      <div class="show-all-wrap" id="show-all-wrap" style="display:none">
+        <button class="show-all-btn" id="show-all-btn" onclick="toggleShowAll()">Show all products</button>
+      </div>
+    </div>
+
+    <!-- Bottom sections -->
+    <div class="cards-grid">
+      <!-- Rising products -->
+      <div class="card">
+        <div class="ct">Products on the rise — last 7d vs previous 7d</div>
+        <div id="rising-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
+      </div>
+      <!-- Leak detection -->
+      <div class="card">
+        <div class="ct">Leak detection — high interest, low conversion</div>
+        <div id="leak-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="ftl" id="fts">—</div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase">Product performance</div>
+  </div>
+</div>
+
+<script>
+// --- Theme ---
+function applyTheme(theme){
+  document.documentElement.classList.toggle('light',theme==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const isLight=document.documentElement.classList.contains('light');
+  const next=isLight?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+  if(typeof refresh==='function'&&token)refresh();
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
+
+// --- Constants ---
+const PROP='346978985';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
+let token=null;
+let dateRange={startDate:'28daysAgo',endDate:'today'};
+let allProducts=[];
+let showAll=false;
+let sortCol='revenue',sortDesc=true;
+const channelCache={};
+
+// --- OAuth ---
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  const state=hash.get('state');
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    window.history.replaceState(null,'',window.location.pathname);
+    if(state==='reauth'){
+      const saved=localStorage.getItem('nuovo_reauth_dateRange');
+      if(saved){try{dateRange=JSON.parse(saved);}catch(e){}}
+      localStorage.removeItem('nuovo_reauth_dateRange');
+    }
+  }
+})();
+
+function startOAuth(mode){
+  if(mode==='reauth'){
+    localStorage.setItem('nuovo_reauth_dateRange',JSON.stringify(dateRange));
+  }
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+'/product',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    include_granted_scopes:'true',
+    state:mode||'sign-in'
+  });
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
+}
+
+function reconnect(){startOAuth('reauth');}
+function showReauth(){document.getElementById('reauth-modal').classList.add('show');}
+function hideReauth(){document.getElementById('reauth-modal').classList.remove('show');}
+function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+
+function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message);}
+
+function launch(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  refresh();
+  setInterval(refresh,30*60*1000);
+}
+
+// --- GA4 API ---
+async function ga4(body){
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));const err=new Error(e.error?.message||'API '+r.status);err.status=r.status;throw err;}
+  return r.json();
+}
+const safe=async(q)=>{try{return await ga4(q);}catch(e){if(isAuthError(e)){showReauth();throw e;}console.warn('Query failed:',e.message);return{rows:[]};}};
+
+// --- Formatting ---
+function fmtGBP(v){if(v>=100)return'£'+Math.round(v).toLocaleString('en-GB');return'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtPct(v){return(v*100).toFixed(1)+'%';}
+function fmtInt(v){return v>0?v.toLocaleString('en-GB'):'—';}
+const fmtDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+// --- Date range ---
+function saveDateRange(preset){
+  localStorage.setItem('nuovo_product_date_range',JSON.stringify({dateRange,preset:preset||null}));
+}
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_product_date_range');
+  if(!saved)return;
+  try{
+    const s=JSON.parse(saved);
+    dateRange=s.dateRange;
+    if(s.preset){
+      document.querySelectorAll('.preset-btn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-preset')===s.preset);
+      });
+    }
+  }catch(e){}
+}
+function setPreset(btn,preset){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const today=new Date(),fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
+  else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:fmt(y),endDate:fmt(y)};}
+  else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  saveDateRange(preset);
+  refresh();
+}
+function setCustom(){
+  const from=document.getElementById('date-from').value,to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    dateRange={startDate:from,endDate:to};
+    saveDateRange(null);
+    refresh();
+  }
+}
+
+// --- Slug derivation ---
+function toSlug(name){
+  return name.toLowerCase().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+
+// --- Main refresh ---
+async function refresh(){
+  const dr=[dateRange];
+  document.getElementById('fst').textContent='Fetching...';
+  Object.keys(channelCache).forEach(k=>delete channelCache[k]);
+
+  try{
+    // Query 1: Main product table
+    const [productData, keyEventsData] = await Promise.all([
+      safe({
+        dateRanges:dr,
+        dimensions:[{name:'itemName'}],
+        metrics:[
+          {name:'itemsViewed'},
+          {name:'itemsAddedToCart'},
+          {name:'itemsCheckedOut'},
+          {name:'itemsPurchased'},
+          {name:'itemRevenue'}
+        ],
+        orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],
+        limit:50
+      }),
+      // Query 2: Key events by page (for phone/form attribution)
+      safe({
+        dateRanges:dr,
+        dimensions:[{name:'pagePath'},{name:'eventName'}],
+        metrics:[{name:'eventCount'}],
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_call','generate_lead','form_submit','contact_form_submit']}}},
+        limit:500
+      })
+    ]);
+
+    // Build product map
+    const products=[];
+    const slugMap={};
+    (productData.rows||[]).forEach(r=>{
+      const name=r.dimensionValues[0].value;
+      if(!name||name==='(not set)')return;
+      const sessions=parseInt(r.metricValues[0].value||0);
+      const atc=parseInt(r.metricValues[1].value||0);
+      const checkout=parseInt(r.metricValues[2].value||0);
+      const purchases=parseInt(r.metricValues[3].value||0);
+      const revenue=parseFloat(r.metricValues[4].value||0);
+      const slug=toSlug(name);
+      const p={
+        name,slug,sessions,atc,checkout,purchases,revenue,
+        atcRate:sessions>0?atc/sessions:0,
+        checkoutRate:sessions>0?checkout/sessions:0,
+        cvr:sessions>0?purchases/sessions:0,
+        aov:purchases>0?revenue/purchases:0,
+        calls:0,forms:0
+      };
+      products.push(p);
+      slugMap[slug]=p;
+    });
+
+    // Attribute key events to products by URL path
+    (keyEventsData.rows||[]).forEach(r=>{
+      const path=(r.dimensionValues[0].value||'').toLowerCase();
+      const evt=r.dimensionValues[1].value;
+      const count=parseInt(r.metricValues[0].value||0);
+      // Find matching product slug in path
+      for(const slug of Object.keys(slugMap)){
+        if(slug.length>3&&path.includes(slug)){
+          if(evt==='phone_call'){
+            slugMap[slug].calls+=count;
+          } else {
+            slugMap[slug].forms+=count;
+          }
+          break;
+        }
+      }
+    });
+
+    allProducts=products;
+    renderHero(products);
+    renderTable();
+    renderLeaks(products);
+
+    // Week-over-week rising products (separate queries)
+    loadRising();
+
+    document.getElementById('fst').textContent='Live';
+    document.getElementById('fts').textContent='Updated '+new Date().toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
+  }catch(e){
+    if(!isAuthError(e)){
+      document.getElementById('fst').textContent='⚠ Data unavailable — click Refresh to retry';
+    }
+    console.error(e);
+  }
+}
+
+// --- Hero ---
+function renderHero(products){
+  const active=products.filter(p=>p.sessions>0).length;
+  const totalRev=products.reduce((a,p)=>a+p.revenue,0);
+  const top=products[0];
+  const totalEvents=products.reduce((a,p)=>a+p.calls+p.forms+p.purchases,0);
+
+  document.getElementById('h-active').textContent=active>0?active:'—';
+  document.getElementById('h-rev').textContent=totalRev>0?fmtGBP(totalRev):'—';
+  if(top&&top.revenue>0){
+    document.getElementById('h-top').textContent=top.name.length>30?top.name.slice(0,30)+'…':top.name;
+    document.getElementById('h-top').title=top.name;
+    document.getElementById('h-top-rev').textContent=fmtGBP(top.revenue);
+  }else{
+    document.getElementById('h-top').textContent='—';
+    document.getElementById('h-top-rev').textContent='—';
+  }
+  document.getElementById('h-events').textContent=totalEvents>0?totalEvents.toLocaleString('en-GB'):'—';
+}
+
+// --- Sort ---
+function sortProducts(list){
+  const col=sortCol,desc=sortDesc;
+  return [...list].sort((a,b)=>{
+    let va=a[col],vb=b[col];
+    if(col==='name'){
+      va=(va||'').toLowerCase();vb=(vb||'').toLowerCase();
+      return desc?vb.localeCompare(va):va.localeCompare(vb);
+    }
+    return desc?(vb-va):(va-vb);
+  });
+}
+
+// --- Table rendering ---
+function renderTable(){
+  const sorted=sortProducts(allProducts);
+  const limit=showAll?sorted.length:25;
+  const visible=sorted.slice(0,limit);
+  const body=document.getElementById('tbl-body');
+  let html='';
+
+  visible.forEach((p,i)=>{
+    const isTop=i<3&&p.revenue>0;
+    const cvrDot=p.cvr>0.02?' <span class="dot green"></span>':'';
+    const leakDot=(p.atcRate>0.05&&p.cvr<0.005)?' <span class="dot red"></span>':'';
+
+    html+=`<div class="tbl-row${isTop?' top-row':''}" data-idx="${i}" onclick="toggleExpand(this,'${p.name.replace(/'/g,"\\'")}')">
+      <span class="pname" title="${p.name}">${p.name.length>40?p.name.slice(0,40)+'…':p.name}</span>
+      <span class="nm">${fmtInt(p.sessions)}</span>
+      <span class="nm">${fmtInt(p.atc)}</span>
+      <span class="nm">${p.sessions>0?fmtPct(p.atcRate):'—'}</span>
+      <span class="nm">${fmtInt(p.checkout)}</span>
+      <span class="nm">${p.sessions>0?fmtPct(p.checkoutRate):'—'}</span>
+      <span class="nm">${p.calls>0?p.calls:'—'}</span>
+      <span class="nm">${p.forms>0?p.forms:'—'}</span>
+      <span class="nm">${fmtInt(p.purchases)}</span>
+      <span class="nm">${p.sessions>0?fmtPct(p.cvr):'—'}${cvrDot}${leakDot}</span>
+      <span class="nm rev">${p.revenue>0?fmtGBP(p.revenue):'—'}</span>
+      <span class="nm">${p.purchases>0?fmtGBP(p.aov):'—'}</span>
+    </div>
+    <div class="expand-row" id="expand-${i}">
+      <div class="expand-inner">
+        <div class="expand-title">Channel breakdown for ${p.name.length>35?p.name.slice(0,35)+'…':p.name}</div>
+        <div id="expand-content-${i}"><div class="ld"><span class="sp"></span>Loading channels...</div></div>
+      </div>
+    </div>`;
+  });
+
+  body.innerHTML=html;
+
+  // Show all button
+  const wrap=document.getElementById('show-all-wrap');
+  if(sorted.length>25){
+    wrap.style.display='block';
+    document.getElementById('show-all-btn').textContent=showAll?'Show top 25':'Show all '+sorted.length+' products';
+  }else{
+    wrap.style.display='none';
+  }
+
+  // Update sort headers
+  document.querySelectorAll('#tbl-header span').forEach(s=>{
+    const col=s.getAttribute('data-col');
+    s.classList.toggle('sort-active',col===sortCol);
+    s.classList.toggle('desc',col===sortCol&&sortDesc);
+  });
+}
+
+function toggleShowAll(){
+  showAll=!showAll;
+  renderTable();
+}
+
+// Sort header click
+document.getElementById('tbl-header').addEventListener('click',function(e){
+  const span=e.target.closest('span[data-col]');
+  if(!span)return;
+  const col=span.getAttribute('data-col');
+  if(col===sortCol){sortDesc=!sortDesc;}
+  else{sortCol=col;sortDesc=col!=='name';}
+  renderTable();
+});
+
+// --- Channel breakdown (expand row) ---
+async function toggleExpand(row,productName){
+  const idx=row.getAttribute('data-idx');
+  const el=document.getElementById('expand-'+idx);
+  if(el.classList.contains('open')){
+    el.classList.remove('open');
+    return;
+  }
+  // Close others
+  document.querySelectorAll('.expand-row.open').forEach(r=>r.classList.remove('open'));
+  el.classList.add('open');
+
+  // Check cache
+  if(channelCache[productName]){
+    renderChannelBreakdown(idx,channelCache[productName]);
+    return;
+  }
+
+  try{
+    const data=await safe({
+      dateRanges:[dateRange],
+      dimensions:[{name:'sessionDefaultChannelGroup'}],
+      metrics:[
+        {name:'sessions'},
+        {name:'itemsPurchased'},
+        {name:'itemRevenue'}
+      ],
+      dimensionFilter:{filter:{fieldName:'itemName',stringFilter:{matchType:'EXACT',value:productName}}}
+    });
+    const channels=[];
+    (data.rows||[]).forEach(r=>{
+      const ch=r.dimensionValues[0].value;
+      const sess=parseInt(r.metricValues[0].value||0);
+      const purch=parseInt(r.metricValues[1].value||0);
+      const rev=parseFloat(r.metricValues[2].value||0);
+      channels.push({ch,sess,purch,rev,cvr:sess>0?purch/sess:0});
+    });
+    channels.sort((a,b)=>b.rev-a.rev);
+    channelCache[productName]=channels;
+    renderChannelBreakdown(idx,channels);
+  }catch(e){
+    if(!isAuthError(e)){
+      document.getElementById('expand-content-'+idx).innerHTML='<div style="color:var(--dim);font-size:12px">Could not load channel data</div>';
+    }
+  }
+}
+
+function renderChannelBreakdown(idx,channels){
+  if(!channels.length){
+    document.getElementById('expand-content-'+idx).innerHTML='<div style="color:var(--dim);font-size:12px">No channel data available</div>';
+    return;
+  }
+  let html='<div class="ch-grid">';
+  html+='<div class="ch-hdr">Channel</div><div class="ch-hdr" style="text-align:right">Sessions</div><div class="ch-hdr" style="text-align:right">Purchases</div><div class="ch-hdr" style="text-align:right">Revenue</div><div class="ch-hdr" style="text-align:right">CVR</div>';
+  channels.forEach(c=>{
+    html+=`<div class="ch-cell">${c.ch}</div>`;
+    html+=`<div class="ch-cell num">${fmtInt(c.sess)}</div>`;
+    html+=`<div class="ch-cell num">${fmtInt(c.purch)}</div>`;
+    html+=`<div class="ch-cell num">${c.rev>0?fmtGBP(c.rev):'—'}</div>`;
+    html+=`<div class="ch-cell num">${c.sess>0?fmtPct(c.cvr):'—'}</div>`;
+  });
+  html+='</div>';
+  document.getElementById('expand-content-'+idx).innerHTML=html;
+}
+
+// --- Rising products ---
+async function loadRising(){
+  const today=new Date();
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const end=fmt(today);
+  const d7=new Date(today);d7.setDate(today.getDate()-7);
+  const start7=fmt(d7);
+  const d14=new Date(today);d14.setDate(today.getDate()-14);
+  const start14=fmt(d14);
+
+  try{
+    const [curr,prev]=await Promise.all([
+      safe({
+        dateRanges:[{startDate:start7,endDate:end}],
+        dimensions:[{name:'itemName'}],
+        metrics:[{name:'itemRevenue'}],
+        orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],
+        limit:50
+      }),
+      safe({
+        dateRanges:[{startDate:start14,endDate:start7}],
+        dimensions:[{name:'itemName'}],
+        metrics:[{name:'itemRevenue'}],
+        limit:50
+      })
+    ]);
+
+    const currMap={};
+    (curr.rows||[]).forEach(r=>{
+      const n=r.dimensionValues[0].value;
+      currMap[n]=parseFloat(r.metricValues[0].value||0);
+    });
+    const prevMap={};
+    (prev.rows||[]).forEach(r=>{
+      const n=r.dimensionValues[0].value;
+      prevMap[n]=parseFloat(r.metricValues[0].value||0);
+    });
+
+    const rising=[];
+    for(const name of Object.keys(currMap)){
+      if(!name||name==='(not set)')continue;
+      const c=currMap[name]||0;
+      const p=prevMap[name]||0;
+      if(c>0){
+        const pct=p>0?((c-p)/p):c>0?1:0;
+        rising.push({name,rev:c,pct});
+      }
+    }
+    rising.sort((a,b)=>b.pct-a.pct);
+    const top5=rising.slice(0,5);
+
+    if(!top5.length){
+      document.getElementById('rising-body').innerHTML='<div style="color:var(--dim);font-size:12px">No rising products in this period</div>';
+      return;
+    }
+
+    let html='';
+    top5.forEach(r=>{
+      const pctStr=r.pct>=0?'+'+Math.round(r.pct*100)+'%':Math.round(r.pct*100)+'%';
+      const cls=r.pct>=0?'up':'down';
+      html+=`<div class="rise-row">
+        <span class="rise-name" title="${r.name}">${r.name.length>35?r.name.slice(0,35)+'…':r.name}</span>
+        <span class="rise-rev">${fmtGBP(r.rev)}</span>
+        <span class="rise-pct ${cls}">${pctStr}</span>
+      </div>`;
+    });
+    document.getElementById('rising-body').innerHTML=html;
+  }catch(e){
+    if(!isAuthError(e)){
+      document.getElementById('rising-body').innerHTML='<div style="color:var(--dim);font-size:12px">Could not load rising data</div>';
+    }
+  }
+}
+
+// --- Leak detection ---
+function renderLeaks(products){
+  const leaks=products.filter(p=>p.sessions>50&&p.atcRate>0.03&&p.cvr<0.01);
+  if(!leaks.length){
+    document.getElementById('leak-body').innerHTML='<div style="color:var(--dim);font-size:12px">No checkout leaks detected — all products converting well</div>';
+    return;
+  }
+
+  // Header
+  let html='<div class="leak-row" style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)"><span>Product</span><span class="leak-val">Sessions</span><span class="leak-val">ATC %</span><span class="leak-val">CVR</span><span class="leak-action" style="color:var(--dim)">Suggested action</span></div>';
+
+  leaks.sort((a,b)=>b.sessions-a.sessions).slice(0,5).forEach(p=>{
+    // Determine suggestion based on where the funnel drops
+    let action='Check checkout flow';
+    if(p.checkout>0&&p.purchases===0){action='Check payment / shipping';}
+    else if(p.atc>0&&p.checkout===0){action='Check stock availability';}
+    else if(p.atcRate>0.08){action='Check pricing / shipping cost';}
+
+    html+=`<div class="leak-row">
+      <span class="leak-name" title="${p.name}">${p.name.length>30?p.name.slice(0,30)+'…':p.name}</span>
+      <span class="leak-val">${p.sessions.toLocaleString('en-GB')}</span>
+      <span class="leak-val">${fmtPct(p.atcRate)}</span>
+      <span class="leak-val" style="color:var(--red)">${fmtPct(p.cvr)}</span>
+      <span class="leak-action">${action}</span>
+    </div>`;
+  });
+  document.getElementById('leak-body').innerHTML=html;
+}
+
+// --- Init ---
+window.addEventListener('load',()=>{
+  restoreDateRange();
+  const saved=localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();}
+});
+</script>
+</body>
+</html>
