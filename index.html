@@ -794,8 +794,15 @@ function startOAuth(){
   window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
 }
 
+const EXCLUDE_COUNTRY={filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam',negation:true}}};
+function injectCountryFilter(body){
+  if(!body.dimensionFilter)body.dimensionFilter=EXCLUDE_COUNTRY;
+  else body.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,body.dimensionFilter]}};
+  return body;
+}
 let tokenExpired=false;
 async function ga4(body){
+  injectCountryFilter(body);
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
   const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(r.status===401||r.status===403){tokenExpired=true;throw new Error('Token expired');}

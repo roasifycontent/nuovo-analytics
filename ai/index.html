@@ -444,7 +444,14 @@ async function refresh(){
   }
 }
 
+const EXCLUDE_COUNTRY={filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam',negation:true}}};
+function injectCountryFilter(body){
+  if(!body.dimensionFilter)body.dimensionFilter=EXCLUDE_COUNTRY;
+  else body.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,body.dimensionFilter]}};
+  return body;
+}
 async function ga4(url,body){
+  injectCountryFilter(body);
   const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){const e=await r.json();const err=new Error(e.error?.message||'API '+r.status);err.status=r.status;throw err;}
   return r.json();
