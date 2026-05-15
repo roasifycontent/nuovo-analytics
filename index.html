@@ -794,7 +794,7 @@ function startOAuth(){
   window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
 }
 
-const EXCLUDE_COUNTRY={filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam',negation:true}}};
+const EXCLUDE_COUNTRY={notExpression:{filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam'}}}};
 function injectCountryFilter(body){
   if(!body.dimensionFilter)body.dimensionFilter=EXCLUDE_COUNTRY;
   else body.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,body.dimensionFilter]}};
