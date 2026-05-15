@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SEO Changes — Nuovo Luxury</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>N</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f5f3ec;--muted:#b5b1a8;--dim:#7d7972;
+  --gold:#d4a843;--green:#10b981;--red:#f87171;
+  --google:#4285F4;--bing:#0078d4;--purple:#a78bfa;
+  --up:#10b981;--down:#f87171;
+  --chart-grid:rgba(255,255,255,0.04);--chart-tick:#a8a49e;
+}
+html.light{
+  --bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);
+  --text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;
+  --gold:#b8902e;--red:#dc2626;--green:#059669;--purple:#7c3aed;
+  --up:#059669;--down:#dc2626;
+  --chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560;
+}
+html.light .bsm.active{color:#fff}
+html.light .setup-card,html.light .reauth-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:15px}
+body{min-height:100vh}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+.tl{display:flex;align-items:center;gap:20px}
+.logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.logo span{color:var(--gold)}
+.nav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+.nav a{font-size:11px;color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase;transition:color 0.2s;white-space:nowrap}
+.nav a:hover{color:var(--text)}
+.nav a.active{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2)}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.tr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s}
+.bsm:hover{border-color:var(--gold)}
+.bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.theme-toggle{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.theme-toggle:hover{border-color:var(--gold)}
+
+.main{padding:28px;max-width:1400px;margin:0 auto}
+
+/* Summary card */
+.summary{background:linear-gradient(135deg,rgba(212,168,67,0.08) 0%,var(--bg2) 100%);border:0.5px solid var(--border2);border-radius:16px;padding:32px 36px;margin-bottom:28px;position:relative;overflow:hidden}
+.summary::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,var(--gold) 50%,transparent 100%);opacity:0.6}
+.summary-eyebrow{font-size:10px;letter-spacing:0.25em;color:var(--gold);text-transform:uppercase;margin-bottom:18px;font-family:'DM Mono',monospace;display:flex;align-items:center;gap:10px}
+.summary-eyebrow::before{content:'';width:24px;height:0.5px;background:var(--gold)}
+.summary-title{font-family:'Fraunces',serif;font-size:24px;font-weight:300;letter-spacing:-0.01em;color:var(--text);margin-bottom:24px;line-height:1.2}
+.summary-title em{font-style:italic;color:var(--gold)}
+.summary-line{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border);font-size:14px;line-height:1.55;color:var(--text)}
+.summary-line:last-child{border-bottom:none}
+.summary-line strong{color:var(--gold);font-weight:600}
+.summary-line.warn strong{color:var(--red)}
+.summary-line.up strong{color:var(--green)}
+.summary-icon{font-size:18px;flex-shrink:0;width:28px;text-align:center}
+.summary-loading{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+
+/* Card */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
+.ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ct-sub{font-size:11px;color:var(--dim);text-transform:none;letter-spacing:0;font-family:'DM Mono',monospace}
+.ct-filters{display:flex;gap:4px}
+.filter-btn{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:4px 10px;color:var(--muted);font-family:'Syne',sans-serif;font-size:10px;cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.2s}
+.filter-btn:hover{color:var(--text);border-color:var(--gold)}
+.filter-btn.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+
+/* Tables */
+.tbl-row{display:grid;gap:8px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.tbl-row:last-child{border-bottom:none}
+.tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
+.tbl-row.kw{grid-template-columns:minmax(180px,2fr) 70px 70px 80px 70px 70px 90px}
+.tbl-row.pg{grid-template-columns:minmax(220px,2.5fr) 70px 70px 70px 60px 60px 60px 60px 60px}
+.tbl-row.nk{grid-template-columns:minmax(220px,3fr) 70px 90px 70px}
+.tbl-row.lk{grid-template-columns:minmax(220px,3fr) 70px 90px 70px}
+.tkw{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500}
+.tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.tpath a{color:var(--muted);text-decoration:none}
+.tpath a:hover{color:var(--gold);text-decoration:underline}
+.tnum{font-family:'DM Mono',monospace;text-align:right;font-size:13px;font-feature-settings:'tnum'}
+.tnum.gold{color:var(--gold)}
+.tnum.green{color:var(--green)}
+.tnum.red{color:var(--red)}
+.tnum.purple{color:var(--purple)}
+.tnum.mu{color:var(--muted)}
+.tnum.dim{color:var(--dim)}
+.tnum.row-warn{color:var(--red);font-weight:600}
+.tnum.row-good{color:var(--green);font-weight:600}
+.pos-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;text-align:center;min-width:42px}
+.pos-1-3{background:rgba(16,185,129,0.15);color:var(--green)}
+.pos-4-10{background:rgba(212,168,67,0.15);color:var(--gold)}
+.pos-11-20{background:rgba(167,139,250,0.15);color:var(--purple)}
+.pos-21{background:rgba(248,113,113,0.1);color:var(--red)}
+.change-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;justify-content:flex-end}
+.change-pill.up{background:rgba(16,185,129,0.12);color:var(--green)}
+.change-pill.down{background:rgba(248,113,113,0.12);color:var(--red)}
+.change-pill.flat{color:var(--dim)}
+.row-highlight{background:rgba(212,168,67,0.04);border-left:2px solid var(--gold);margin-left:-2px;padding-left:8px}
+.row-warn-bg{background:rgba(248,113,113,0.03)}
+
+.show-more{text-align:center;padding:14px;margin-top:8px}
+.show-more-btn{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:8px 24px;color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.2s}
+.show-more-btn:hover{border-color:var(--gold);color:var(--text)}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.row2{grid-template-columns:1fr}}
+
+/* Loading */
+.ld{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
+.sp{width:14px;height:14px;border:1.5px solid var(--dim);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:24px;text-align:center;color:var(--dim);font-size:13px;font-family:'DM Mono',monospace}
+
+/* Setup */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.setup-card{max-width:480px;width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem}
+.setup-logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:2rem}
+.setup-logo span{color:var(--gold)}
+h1{font-size:22px;font-weight:700;margin-bottom:8px}
+.sub{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:1.5rem}
+.btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
+.scope-note{font-size:11px;color:var(--muted);background:var(--bg3);border-radius:6px;padding:10px 14px;line-height:1.5;margin-top:8px}
+.scope-note strong{color:var(--gold)}
+
+/* Reauth */
+.reauth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;display:none}
+.reauth-overlay.show{display:flex}
+.reauth-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;max-width:380px;width:100%;text-align:center}
+.reauth-card h2{font-size:18px;font-weight:700;margin-bottom:8px}
+.reauth-card p{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:1.5rem}
+.reauth-card .btn-google{width:100%}
+.reauth-card .btn-google:hover{background:#f0f0f0}
+
+#dashboard{display:none}
+
+.footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">Nuovo Luxury <span>/ SEO Changes</span></div>
+    <h1>Sign in to view SEO changes</h1>
+    <p class="sub">Connect with your Google account to access GA4 organic traffic AND Search Console keyword data.</p>
+    <button class="btn-google" onclick="startOAuth()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="scope-note"><strong>Note:</strong> This dashboard needs Search Console access. Grant both GA4 and Search Console permissions when prompted.</div>
+  </div>
+</div>
+
+<div class="reauth-overlay" id="reauth-modal">
+  <div class="reauth-card">
+    <h2>Session expired</h2>
+    <p>Your Google session has timed out. Reconnect to continue.</p>
+    <button class="btn-google" onclick="reconnect()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Reconnect with Google
+    </button>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="tl">
+      <div class="logo">Nuovo Luxury <span>/ SEO Changes</span></div>
+      <div class="nav">
+        <a href="/">← Home</a>
+        <a href="/ai">AI Traffic</a>
+        <a href="/paid">Paid Ads</a>
+        <a href="/organic">Organic</a>
+        <a href="/performance">Performance</a>
+        <a href="/product">Products</a>
+        <a href="/changes" class="active">SEO Changes</a>
+      </div>
+      <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
+    </div>
+    <div class="tr">
+      <button class="bsm" onclick="refresh()" title="Refresh">↻ Refresh</button>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+      <button class="bsm" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Summary card -->
+    <div class="summary">
+      <div class="summary-eyebrow">This week at a glance</div>
+      <h2 class="summary-title">What <em>changed</em> in the last 7 days.</h2>
+      <div id="summary-body" class="summary-loading">
+        <div class="ld"><span class="sp"></span>Analysing changes...</div>
+      </div>
+    </div>
+
+    <!-- Keyword position movements -->
+    <div class="card">
+      <div class="ct">
+        <span>Keyword position movements <span class="ct-sub">— last 7d vs previous 7d</span></span>
+        <div class="ct-filters">
+          <button class="filter-btn active" data-filter="all" onclick="setKwFilter('all')">All movers</button>
+          <button class="filter-btn" data-filter="up" onclick="setKwFilter('up')">Risers only</button>
+          <button class="filter-btn" data-filter="down" onclick="setKwFilter('down')">Decliners only</button>
+          <button class="filter-btn" data-filter="vol" onclick="setKwFilter('vol')">&gt;10 impressions</button>
+        </div>
+      </div>
+      <div class="tbl-row kw tbl-hdr">
+        <span>Keyword</span>
+        <span class="tnum">Now</span>
+        <span class="tnum">Prev</span>
+        <span class="tnum">Change</span>
+        <span class="tnum">Impr.</span>
+        <span class="tnum">Clicks</span>
+        <span class="tnum">Click ∆</span>
+      </div>
+      <div id="kw-body"><div class="ld"><span class="sp"></span>Loading keyword data...</div></div>
+      <div class="show-more" id="kw-more-wrap" style="display:none">
+        <button class="show-more-btn" id="kw-more-btn" onclick="toggleKwShowAll()">Show more</button>
+      </div>
+    </div>
+
+    <!-- Page traffic changes -->
+    <div class="card">
+      <div class="ct">
+        <span>Page traffic changes <span class="ct-sub">— organic, last 7d vs previous 7d</span></span>
+      </div>
+      <div class="tbl-row pg tbl-hdr">
+        <span>Page</span>
+        <span class="tnum">Sess.</span>
+        <span class="tnum">Prev</span>
+        <span class="tnum">∆%</span>
+        <span class="tnum">KE</span>
+        <span class="tnum">KE prev</span>
+        <span class="tnum">KE ∆</span>
+        <span class="tnum">Calls ∆</span>
+        <span class="tnum">Forms ∆</span>
+      </div>
+      <div id="pg-body"><div class="ld"><span class="sp"></span>Loading page data...</div></div>
+    </div>
+
+    <!-- New + Lost keywords -->
+    <div class="row2">
+      <div class="card">
+        <div class="ct"><span>New ranking keywords <span class="ct-sub">— 28d vs prev 28d</span></span></div>
+        <div class="tbl-row nk tbl-hdr">
+          <span>Keyword</span>
+          <span class="tnum">Pos.</span>
+          <span class="tnum">Impr.</span>
+          <span class="tnum">Clicks</span>
+        </div>
+        <div id="nk-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span>Lost keywords <span class="ct-sub">— had impressions, now gone</span></span></div>
+        <div class="tbl-row lk tbl-hdr">
+          <span>Keyword</span>
+          <span class="tnum">Was #</span>
+          <span class="tnum">Impr.</span>
+          <span class="tnum">Clicks</span>
+        </div>
+        <div id="lk-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="ftl" id="fts">—</div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase">SEO Changes · Week-over-week</div>
+  </div>
+</div>
+
+<script>
+// --- Theme ---
+function applyTheme(theme){
+  document.documentElement.classList.toggle('light',theme==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const isLight=document.documentElement.classList.contains('light');
+  const next=isLight?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
+
+// --- Constants ---
+const PROP='346978985';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
+const GSC_URLS=['https://www.nuovoluxury.co.uk/','https://www.nuovoluxury.co.uk','https://nuovoluxury.co.uk/','https://nuovoluxury.co.uk','sc-domain:nuovoluxury.co.uk'];
+let token=null;
+let gscSiteUrl=null;
+let kwData={current:[],previous:[]};
+let kwFilter='all';
+let kwShowAll=false;
+
+// --- OAuth ---
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
+
+function startOAuth(state){
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+'/changes',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
+    include_granted_scopes:'true',
+    state:state||'sign-in'
+  });
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
+}
+function reconnect(){startOAuth('reauth');}
+function showReauth(){document.getElementById('reauth-modal').classList.add('show');}
+function hideReauth(){document.getElementById('reauth-modal').classList.remove('show');}
+function signOut(){
+  token=null;
+  localStorage.removeItem('nuovo_token');
+  localStorage.removeItem('nuovo_scope');
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('setup').style.display='flex';
+}
+function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message);}
+
+function launch(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  refresh();
+  setInterval(refresh,30*60*1000);
+}
+
+// --- GA4 with country filter ---
+const EXCLUDE_COUNTRY={filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam',negation:true}}};
+function injectCountryFilter(body){
+  if(!body.dimensionFilter)body.dimensionFilter=EXCLUDE_COUNTRY;
+  else body.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,body.dimensionFilter]}};
+  return body;
+}
+async function ga4(body){
+  injectCountryFilter(body);
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));const err=new Error(e.error?.message||'GA4 '+r.status);err.status=r.status;throw err;}
+  return r.json();
+}
+
+// --- GSC ---
+async function gscFindSite(){
+  if(gscSiteUrl)return gscSiteUrl;
+  try{
+    const r=await fetch('https://www.googleapis.com/webmasters/v3/sites',{headers:{'Authorization':'Bearer '+token}});
+    if(r.ok){
+      const data=await r.json();
+      const sites=(data.siteEntry||[]).map(s=>s.siteUrl);
+      const match=sites.find(s=>s.includes('nuovoluxury'));
+      if(match){gscSiteUrl=match;return match;}
+    }
+  }catch(e){}
+  for(const url of GSC_URLS){
+    try{
+      const r=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(url)}/searchAnalytics/query`,{
+        method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({startDate:'2026-05-01',endDate:'2026-05-10',dimensions:['query'],rowLimit:1})
+      });
+      if(r.ok){gscSiteUrl=url;return url;}
+    }catch(e){}
+  }
+  throw new Error('GSC_NO_SITE');
+}
+async function gsc(body){
+  const siteUrl=await gscFindSite();
+  const url=`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){
+    const e=await r.json().catch(()=>({}));
+    if(r.status===401||r.status===403){const err=new Error('Auth');err.status=r.status;throw err;}
+    throw new Error(e.error?.message||'GSC '+r.status);
+  }
+  return r.json();
+}
+
+// --- Date helpers (UK timezone) ---
+const fmtDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function gscRange(daysAgo,daysBack){
+  // GSC has ~3 day lag
+  const today=new Date();
+  const end=new Date(today);end.setDate(today.getDate()-3-daysAgo);
+  const start=new Date(end);start.setDate(end.getDate()-(daysBack-1));
+  return{startDate:fmtDate(start),endDate:fmtDate(end)};
+}
+function ga4Range(daysAgo,daysBack){
+  const today=new Date();
+  const end=new Date(today);end.setDate(today.getDate()-daysAgo);
+  const start=new Date(end);start.setDate(end.getDate()-(daysBack-1));
+  return{startDate:fmtDate(start),endDate:fmtDate(end)};
+}
+
+// --- Formatting ---
+function posClass(p){if(p<=3)return'pos-1-3';if(p<=10)return'pos-4-10';if(p<=20)return'pos-11-20';return'pos-21';}
+function fmtInt(v){return v>0?Math.round(v).toLocaleString('en-GB'):'—';}
+function fmtPct(v,decimals=1){return(v*100).toFixed(decimals)+'%';}
+function cleanPath(p){return(p||'').replace(/^https?:\/\/[^/]+/,'')||'/';}
+
+// --- Main refresh ---
+async function refresh(){
+  document.getElementById('fst').textContent='Fetching...';
+  document.getElementById('summary-body').innerHTML='<div class="ld"><span class="sp"></span>Analysing changes...</div>';
+  document.getElementById('kw-body').innerHTML='<div class="ld"><span class="sp"></span>Loading keyword data...</div>';
+  document.getElementById('pg-body').innerHTML='<div class="ld"><span class="sp"></span>Loading page data...</div>';
+  document.getElementById('nk-body').innerHTML='<div class="ld"><span class="sp"></span>Loading...</div>';
+  document.getElementById('lk-body').innerHTML='<div class="ld"><span class="sp"></span>Loading...</div>';
+
+  const orgFil={filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}};
+
+  // 7-day comparison ranges for pages
+  const pgCurr=ga4Range(0,7);
+  const pgPrev=ga4Range(7,7);
+  // 7-day GSC ranges
+  const kwCurr=gscRange(0,7);
+  const kwPrev=gscRange(7,7);
+  // 28-day GSC ranges for new/lost
+  const longCurr=gscRange(0,28);
+  const longPrev=gscRange(28,28);
+
+  try{
+    // GA4 page traffic comparison
+    const [pgNow,pgPrior]=await Promise.all([
+      ga4({dateRanges:[pgCurr],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:100}),
+      ga4({dateRanges:[pgPrev],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:100})
+    ]);
+    const pgRows=buildPageChanges(pgNow,pgPrior);
+    renderPages(pgRows);
+
+    // GSC keyword data
+    let kwRows=[],newKw=[],lostKw=[],gscOk=true;
+    try{
+      await gscFindSite();
+      const [k7,k7p,k28,k28p]=await Promise.all([
+        gsc({startDate:kwCurr.startDate,endDate:kwCurr.endDate,dimensions:['query'],rowLimit:500,startRow:0}),
+        gsc({startDate:kwPrev.startDate,endDate:kwPrev.endDate,dimensions:['query'],rowLimit:500,startRow:0}),
+        gsc({startDate:longCurr.startDate,endDate:longCurr.endDate,dimensions:['query'],rowLimit:1000,startRow:0}),
+        gsc({startDate:longPrev.startDate,endDate:longPrev.endDate,dimensions:['query'],rowLimit:1000,startRow:0})
+      ]);
+      kwRows=buildKeywordMovements(k7.rows||[],k7p.rows||[]);
+      kwData.current=k7.rows||[];kwData.previous=k7p.rows||[];kwData.movements=kwRows;
+      newKw=buildNewKeywords(k28.rows||[],k28p.rows||[]);
+      lostKw=buildLostKeywords(k28.rows||[],k28p.rows||[]);
+      renderKeywords();
+      renderNewKeywords(newKw);
+      renderLostKeywords(lostKw);
+    }catch(gscErr){
+      gscOk=false;
+      console.warn('GSC error:',gscErr);
+      let msg='Search Console access not available';
+      if(gscErr.status===401||gscErr.status===403){msg='Search Console permission required — <a href="#" onclick="startOAuth();return false" style="color:var(--gold)">re-authenticate</a>';}
+      else if(gscErr.message==='GSC_NO_SITE'){msg='Could not find nuovoluxury.co.uk in Search Console — make sure it\'s verified';}
+      document.getElementById('kw-body').innerHTML='<div class="empty">'+msg+'</div>';
+      document.getElementById('nk-body').innerHTML='<div class="empty">Requires Search Console</div>';
+      document.getElementById('lk-body').innerHTML='<div class="empty">Requires Search Console</div>';
+    }
+
+    // Build summary
+    renderSummary(pgRows, kwRows, newKw, lostKw, gscOk);
+
+    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('fts').textContent='GA4 + GSC · '+new Date().toLocaleString('en-GB');
+  }catch(e){
+    if(isAuthError(e)){showReauth();return;}
+    document.getElementById('fst').textContent='Error: '+e.message;
+    console.error(e);
+  }
+}
+
+// --- Keyword movements ---
+function buildKeywordMovements(curr,prev){
+  const prevMap={};
+  prev.forEach(r=>{prevMap[r.keys[0]]={pos:r.position,clicks:r.clicks||0,impressions:r.impressions||0,ctr:r.ctr||0};});
+  const rows=[];
+  curr.forEach(r=>{
+    const kw=r.keys[0];
+    const p=prevMap[kw];
+    if(!p)return; // only keywords in both periods
+    const nowPos=r.position;
+    const prevPos=p.pos;
+    const delta=prevPos-nowPos; // positive = improved
+    const clickDelta=(r.clicks||0)-(p.clicks||0);
+    rows.push({
+      kw,
+      nowPos,prevPos,delta,
+      impressions:r.impressions||0,
+      clicks:r.clicks||0,
+      clickDelta,
+      impact:Math.abs(delta)*(r.impressions||0)
+    });
+  });
+  return rows.sort((a,b)=>b.impact-a.impact);
+}
+
+function renderKeywords(){
+  const all=kwData.movements||[];
+  let filtered=all;
+  if(kwFilter==='up')filtered=all.filter(r=>r.delta>0.5);
+  else if(kwFilter==='down')filtered=all.filter(r=>r.delta<-0.5);
+  else if(kwFilter==='vol')filtered=all.filter(r=>r.impressions>10);
+  else filtered=all.filter(r=>Math.abs(r.delta)>0.2);
+
+  if(!filtered.length){document.getElementById('kw-body').innerHTML='<div class="empty">No matching keyword movements</div>';document.getElementById('kw-more-wrap').style.display='none';return;}
+
+  const limit=kwShowAll?filtered.length:30;
+  const visible=filtered.slice(0,limit);
+
+  let html='';
+  visible.forEach(r=>{
+    const dir=r.delta>0.2?'up':r.delta<-0.2?'down':'flat';
+    const arrow=dir==='up'?'↑':dir==='down'?'↓':'·';
+    const deltaStr=Math.abs(r.delta).toFixed(1);
+    const clickDirCls=r.clickDelta>0?'green':r.clickDelta<0?'red':'mu';
+    const clickStr=(r.clickDelta>0?'+':'')+r.clickDelta;
+    html+=`<div class="tbl-row kw">
+      <span class="tkw" title="${r.kw}">${r.kw}</span>
+      <span class="tnum"><span class="pos-badge ${posClass(r.nowPos)}">${r.nowPos.toFixed(1)}</span></span>
+      <span class="tnum mu">${r.prevPos.toFixed(1)}</span>
+      <span class="tnum"><span class="change-pill ${dir}">${arrow} ${deltaStr}</span></span>
+      <span class="tnum mu">${r.impressions.toLocaleString('en-GB')}</span>
+      <span class="tnum">${r.clicks}</span>
+      <span class="tnum ${clickDirCls}">${r.clicks===0&&r.clickDelta===0?'—':clickStr}</span>
+    </div>`;
+  });
+  document.getElementById('kw-body').innerHTML=html;
+
+  if(filtered.length>30){
+    document.getElementById('kw-more-wrap').style.display='block';
+    document.getElementById('kw-more-btn').textContent=kwShowAll?'Show top 30':`Show all ${filtered.length}`;
+  } else {
+    document.getElementById('kw-more-wrap').style.display='none';
+  }
+}
+
+function setKwFilter(f){
+  kwFilter=f;
+  kwShowAll=false;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.filter===f));
+  renderKeywords();
+}
+function toggleKwShowAll(){kwShowAll=!kwShowAll;renderKeywords();}
+
+// --- Page changes ---
+function buildPageChanges(now,prev){
+  const prevMap={};
+  (prev.rows||[]).forEach(r=>{
+    const p=r.dimensionValues[0].value;
+    prevMap[p]={sessions:parseInt(r.metricValues[0].value||0),ke:parseInt(r.metricValues[1].value||0),calls:parseInt(r.metricValues[2]?.value||0),forms:parseInt(r.metricValues[3]?.value||0)};
+  });
+  const rows=[];
+  const seen=new Set();
+  (now.rows||[]).forEach(r=>{
+    const p=r.dimensionValues[0].value;
+    seen.add(p);
+    const nowSess=parseInt(r.metricValues[0].value||0);
+    const nowKe=parseInt(r.metricValues[1].value||0);
+    const nowCalls=parseInt(r.metricValues[2]?.value||0);
+    const nowForms=parseInt(r.metricValues[3]?.value||0);
+    const pp=prevMap[p]||{sessions:0,ke:0,calls:0,forms:0};
+    if(nowSess<10&&pp.sessions<10)return;
+    const sessDelta=nowSess-pp.sessions;
+    const pctChange=pp.sessions>0?(sessDelta/pp.sessions):(nowSess>0?1:0);
+    rows.push({
+      page:p,nowSess,prevSess:pp.sessions,sessDelta,pctChange,
+      nowKe,prevKe:pp.ke,keDelta:nowKe-pp.ke,
+      callsDelta:nowCalls-pp.calls,formsDelta:nowForms-pp.forms
+    });
+  });
+  // Also include pages that disappeared
+  Object.keys(prevMap).forEach(p=>{
+    if(seen.has(p))return;
+    const pp=prevMap[p];
+    if(pp.sessions<10)return;
+    rows.push({
+      page:p,nowSess:0,prevSess:pp.sessions,sessDelta:-pp.sessions,pctChange:-1,
+      nowKe:0,prevKe:pp.ke,keDelta:-pp.ke,
+      callsDelta:-pp.calls,formsDelta:-pp.forms
+    });
+  });
+  return rows.sort((a,b)=>Math.abs(b.sessDelta)-Math.abs(a.sessDelta));
+}
+
+function renderPages(rows){
+  if(!rows.length){document.getElementById('pg-body').innerHTML='<div class="empty">No page traffic changes</div>';return;}
+  let html='';
+  rows.slice(0,30).forEach(r=>{
+    const pctStr=Math.abs(r.pctChange)>=1?(r.pctChange>0?'+':'')+Math.round(r.pctChange*100)+'%':(r.pctChange*100).toFixed(0)+'%';
+    const dir=r.pctChange>0.05?'up':r.pctChange<-0.05?'down':'flat';
+    const arrow=dir==='up'?'↑':dir==='down'?'↓':'·';
+    const highlight=Math.abs(r.pctChange)>0.3?(r.pctChange>0?'row-highlight':'row-warn-bg'):'';
+    const path=cleanPath(r.page);
+    const url=r.page.startsWith('http')?r.page:'https://www.nuovoluxury.co.uk'+path;
+    const callsCls=r.callsDelta>0?'green':r.callsDelta<0?'red':'mu';
+    const formsCls=r.formsDelta>0?'green':r.formsDelta<0?'red':'mu';
+    const keCls=r.keDelta>0?'green':r.keDelta<0?'red':'mu';
+    html+=`<div class="tbl-row pg ${highlight}">
+      <span class="tpath"><a href="${url}" target="_blank" title="${path}">${path}</a></span>
+      <span class="tnum">${r.nowSess.toLocaleString('en-GB')}</span>
+      <span class="tnum mu">${r.prevSess.toLocaleString('en-GB')}</span>
+      <span class="tnum"><span class="change-pill ${dir}">${arrow} ${pctStr}</span></span>
+      <span class="tnum">${r.nowKe||'—'}</span>
+      <span class="tnum mu">${r.prevKe||'—'}</span>
+      <span class="tnum ${keCls}">${r.keDelta===0?'—':(r.keDelta>0?'+':'')+r.keDelta}</span>
+      <span class="tnum ${callsCls}">${r.callsDelta===0?'—':(r.callsDelta>0?'+':'')+r.callsDelta}</span>
+      <span class="tnum ${formsCls}">${r.formsDelta===0?'—':(r.formsDelta>0?'+':'')+r.formsDelta}</span>
+    </div>`;
+  });
+  document.getElementById('pg-body').innerHTML=html;
+}
+
+// --- New keywords ---
+function buildNewKeywords(curr,prev){
+  const prevMap={};
+  prev.forEach(r=>{prevMap[r.keys[0]]={pos:r.position,impressions:r.impressions||0};});
+  const newOnes=[];
+  curr.forEach(r=>{
+    const kw=r.keys[0];
+    const imp=r.impressions||0;
+    if(imp<3)return;
+    const p=prevMap[kw];
+    // Newly ranking: zero impressions before, OR was >20 and now top 20
+    if(!p||p.impressions===0){
+      newOnes.push({kw,pos:r.position,impressions:imp,clicks:r.clicks||0,reason:'new'});
+    } else if(r.position<=20&&p.pos>20){
+      newOnes.push({kw,pos:r.position,impressions:imp,clicks:r.clicks||0,reason:'improved',prevPos:p.pos});
+    }
+  });
+  return newOnes.sort((a,b)=>b.impressions-a.impressions).slice(0,20);
+}
+
+function renderNewKeywords(rows){
+  if(!rows.length){document.getElementById('nk-body').innerHTML='<div class="empty">No newly ranking keywords this period</div>';return;}
+  let html='';
+  rows.forEach(r=>{
+    html+=`<div class="tbl-row nk">
+      <span class="tkw" title="${r.kw}">${r.kw}</span>
+      <span class="tnum"><span class="pos-badge ${posClass(r.pos)}">${r.pos.toFixed(1)}</span></span>
+      <span class="tnum mu">${r.impressions.toLocaleString('en-GB')}</span>
+      <span class="tnum">${r.clicks}</span>
+    </div>`;
+  });
+  document.getElementById('nk-body').innerHTML=html;
+}
+
+// --- Lost keywords ---
+function buildLostKeywords(curr,prev){
+  const currMap={};
+  curr.forEach(r=>{currMap[r.keys[0]]={pos:r.position,impressions:r.impressions||0};});
+  const lost=[];
+  prev.forEach(r=>{
+    const kw=r.keys[0];
+    const prevImp=r.impressions||0;
+    if(prevImp<10)return;
+    const c=currMap[kw];
+    if(!c||c.impressions===0){
+      lost.push({kw,prevPos:r.position,prevImpressions:prevImp,prevClicks:r.clicks||0});
+    } else if(c.pos>50&&r.position<=50){
+      lost.push({kw,prevPos:r.position,prevImpressions:prevImp,prevClicks:r.clicks||0});
+    }
+  });
+  return lost.sort((a,b)=>b.prevImpressions-a.prevImpressions).slice(0,20);
+}
+
+function renderLostKeywords(rows){
+  if(!rows.length){document.getElementById('lk-body').innerHTML='<div class="empty">No lost keywords — nothing dropped out</div>';return;}
+  let html='';
+  rows.forEach(r=>{
+    html+=`<div class="tbl-row lk">
+      <span class="tkw" title="${r.kw}">${r.kw}</span>
+      <span class="tnum"><span class="pos-badge ${posClass(r.prevPos)}">${r.prevPos.toFixed(1)}</span></span>
+      <span class="tnum mu">${r.prevImpressions.toLocaleString('en-GB')}</span>
+      <span class="tnum">${r.prevClicks}</span>
+    </div>`;
+  });
+  document.getElementById('lk-body').innerHTML=html;
+}
+
+// --- Summary card ---
+function renderSummary(pgRows, kwRows, newKw, lostKw, gscOk){
+  const lines=[];
+
+  // 1. Biggest WoW traffic change (page-level)
+  const totalNow=pgRows.reduce((a,r)=>a+r.nowSess,0);
+  const totalPrev=pgRows.reduce((a,r)=>a+r.prevSess,0);
+  if(totalPrev>0){
+    const pct=Math.round(((totalNow-totalPrev)/totalPrev)*100);
+    if(Math.abs(pct)>=3){
+      const cls=pct>0?'up':'warn';
+      const icon=pct>0?'📈':'📉';
+      lines.push({cls,icon,html:`Organic traffic <strong>${pct>0?'up':'down'} ${Math.abs(pct)}%</strong> week-over-week — ${totalNow.toLocaleString('en-GB')} sessions this week vs ${totalPrev.toLocaleString('en-GB')} last week.`});
+    }
+  }
+
+  // 2. Biggest page winner
+  const winners=pgRows.filter(r=>r.sessDelta>0&&r.prevSess>=5).sort((a,b)=>b.sessDelta-a.sessDelta);
+  if(winners.length){
+    const w=winners[0];
+    lines.push({cls:'up',icon:'🚀',html:`<strong>${cleanPath(w.page)}</strong> added <strong>+${w.sessDelta}</strong> sessions this week (${w.nowSess} vs ${w.prevSess}).`});
+  }
+
+  // 3. Concerning drop
+  const droppers=pgRows.filter(r=>r.prevSess>=20&&r.pctChange<=-0.3).sort((a,b)=>a.sessDelta-b.sessDelta);
+  if(droppers.length){
+    const d=droppers[0];
+    lines.push({cls:'warn',icon:'⚠',html:`<strong>${cleanPath(d.page)}</strong> dropped ${Math.abs(Math.round(d.pctChange*100))}% — review the page for ranking losses or technical issues.`});
+  }
+
+  if(gscOk){
+    // 4. Highest-impact keyword change
+    const kwMovers=(kwRows||[]).filter(r=>Math.abs(r.delta)>=1&&r.impressions>=20);
+    if(kwMovers.length){
+      const top=kwMovers[0];
+      const dir=top.delta>0?'climbed':'dropped';
+      const cls=top.delta>0?'up':'warn';
+      const icon=top.delta>0?'⬆️':'⬇️';
+      lines.push({cls,icon,html:`Keyword <strong>${top.kw}</strong> ${dir} ${Math.abs(top.delta).toFixed(1)} positions to #${top.nowPos.toFixed(1)} — ${top.impressions.toLocaleString('en-GB')} impressions.`});
+    }
+
+    // 5. New opportunity (page-2 keyword with highest potential)
+    const opps=(kwData.current||[]).filter(r=>r.position>=8&&r.position<=15&&(r.impressions||0)>=100).sort((a,b)=>(b.impressions||0)-(a.impressions||0));
+    if(opps.length){
+      const o=opps[0];
+      const potential=Math.max(0,Math.round((o.impressions||0)*0.08-(o.clicks||0)));
+      lines.push({cls:'up',icon:'🎯',html:`<strong>${o.keys[0]}</strong> at #${o.position.toFixed(1)} with ${(o.impressions||0).toLocaleString('en-GB')} impressions — push to top 5 for an estimated <strong>+${potential} clicks/wk</strong>.`});
+    }
+
+    // 6. New keyword (if notable)
+    if(newKw.length){
+      const n=newKw[0];
+      if(n.impressions>=20){
+        lines.push({cls:'up',icon:'✨',html:`New keyword <strong>${n.kw}</strong> now ranking at #${n.pos.toFixed(1)} with ${n.impressions.toLocaleString('en-GB')} impressions.`});
+      }
+    }
+  }
+
+  if(!lines.length){
+    document.getElementById('summary-body').innerHTML='<div style="font-size:14px;color:var(--muted);line-height:1.6">No significant changes this week — site performance is stable.</div>';
+    return;
+  }
+
+  // Limit to 5 lines
+  const final=lines.slice(0,5);
+  document.getElementById('summary-body').innerHTML=final.map(l=>`<div class="summary-line ${l.cls}"><span class="summary-icon">${l.icon}</span><span>${l.html}</span></div>`).join('');
+}
+
+// --- Init ---
+window.addEventListener('load',()=>{
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    const state=hash.get('state');
+    if(state==='reauth'){hideReauth();}
+  }
+  const saved=localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();}
+});
+</script>
+</body>
+</html>
