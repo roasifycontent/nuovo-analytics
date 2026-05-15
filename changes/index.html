@@ -287,12 +287,12 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       </div>
       <div class="tbl-row kw tbl-hdr">
         <span>Keyword</span>
-        <span class="tnum">Now</span>
-        <span class="tnum">Prev</span>
-        <span class="tnum">Change</span>
-        <span class="tnum">Impr.</span>
-        <span class="tnum">Clicks</span>
-        <span class="tnum">Click ∆</span>
+        <span class="tnum" title="Current average position">Pos. now</span>
+        <span class="tnum" title="Position last week">Pos. last wk</span>
+        <span class="tnum" title="Positions gained or lost (↑ = better rank)">∆ position</span>
+        <span class="tnum" title="Impressions this week">Impressions</span>
+        <span class="tnum" title="Clicks this week">Clicks</span>
+        <span class="tnum" title="Clicks gained or lost vs last week">∆ clicks</span>
       </div>
       <div id="kw-body"><div class="ld"><span class="sp"></span>Loading keyword data...</div></div>
       <div class="show-more" id="kw-more-wrap" style="display:none">
@@ -307,14 +307,14 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       </div>
       <div class="tbl-row pg tbl-hdr">
         <span>Page</span>
-        <span class="tnum">Sess.</span>
-        <span class="tnum">Prev</span>
-        <span class="tnum">∆%</span>
-        <span class="tnum">KE</span>
-        <span class="tnum">KE prev</span>
-        <span class="tnum">KE ∆</span>
-        <span class="tnum">Calls ∆</span>
-        <span class="tnum">Forms ∆</span>
+        <span class="tnum" title="Organic sessions this week">Sess. now</span>
+        <span class="tnum" title="Organic sessions last week">Sess. last wk</span>
+        <span class="tnum" title="Percent change in sessions">∆ %</span>
+        <span class="tnum" title="Key events this week">KE now</span>
+        <span class="tnum" title="Key events last week">KE last wk</span>
+        <span class="tnum" title="Change in key events">∆ KE</span>
+        <span class="tnum" title="Change in phone calls">∆ calls</span>
+        <span class="tnum" title="Change in form submits">∆ forms</span>
       </div>
       <div id="pg-body"><div class="ld"><span class="sp"></span>Loading page data...</div></div>
     </div>
@@ -325,9 +325,9 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
         <div class="ct"><span>New ranking keywords <span class="ct-sub">— 28d vs prev 28d</span></span></div>
         <div class="tbl-row nk tbl-hdr">
           <span>Keyword</span>
-          <span class="tnum">Pos.</span>
-          <span class="tnum">Impr.</span>
-          <span class="tnum">Clicks</span>
+          <span class="tnum" title="Current average position">Position</span>
+          <span class="tnum" title="Impressions in last 28 days">Impressions</span>
+          <span class="tnum" title="Clicks in last 28 days">Clicks</span>
         </div>
         <div id="nk-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
       </div>
@@ -335,9 +335,9 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
         <div class="ct"><span>Lost keywords <span class="ct-sub">— had impressions, now gone</span></span></div>
         <div class="tbl-row lk tbl-hdr">
           <span>Keyword</span>
-          <span class="tnum">Was #</span>
-          <span class="tnum">Impr.</span>
-          <span class="tnum">Clicks</span>
+          <span class="tnum" title="Previous average position">Was at #</span>
+          <span class="tnum" title="Impressions in previous 28 days">Impressions</span>
+          <span class="tnum" title="Clicks in previous 28 days">Clicks</span>
         </div>
         <div id="lk-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
       </div>
@@ -354,11 +354,11 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       </div>
       <div class="tbl-row qw tbl-hdr">
         <span>Keyword</span>
-        <span class="tnum">Pos.</span>
-        <span class="tnum">Impr.</span>
-        <span class="tnum">Clicks</span>
-        <span class="tnum">Potential/mo</span>
-        <span class="tnum">Est. revenue</span>
+        <span class="tnum" title="Current average position">Position</span>
+        <span class="tnum" title="Impressions in last 28 days">Impressions</span>
+        <span class="tnum" title="Clicks in last 28 days">Clicks</span>
+        <span class="tnum" title="Estimated extra clicks if pushed to page 1">+ clicks/mo</span>
+        <span class="tnum" title="Potential clicks × your value per click">Est. revenue</span>
       </div>
       <div id="qw-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
     </div>
@@ -368,12 +368,12 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       <div class="ct"><span>Cannibalisation detector <span class="ct-sub">— queries where 2+ pages compete (last 28d)</span></span></div>
       <div class="tbl-row cn tbl-hdr">
         <span>Keyword</span>
-        <span>Page A</span>
-        <span class="tnum">A #</span>
-        <span class="tnum">A clicks</span>
-        <span>Page B</span>
-        <span class="tnum">B #</span>
-        <span class="tnum">B clicks</span>
+        <span>Top-ranking page</span>
+        <span class="tnum" title="Position of page A">Position</span>
+        <span class="tnum" title="Clicks page A got">Clicks</span>
+        <span>Competing page</span>
+        <span class="tnum" title="Position of page B">Position</span>
+        <span class="tnum" title="Clicks page B got">Clicks</span>
       </div>
       <div id="cn-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
     </div>
@@ -388,7 +388,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       </div>
       <div class="tbl-row ix tbl-hdr">
         <span>URL</span>
-        <span class="tnum">Submitted</span>
+        <span class="tnum">Submitted on</span>
         <span class="tnum">Status</span>
         <span></span>
       </div>
@@ -1042,6 +1042,7 @@ function renderTrendChart(points){
       },
       scales:{
         x:{
+          title:{display:true,text:'Date',color:themeColor('--dim'),font:{family:'DM Mono',size:10}},
           grid:{color:themeColor('--chart-grid')},
           ticks:{
             color:themeColor('--chart-tick'),
@@ -1052,7 +1053,11 @@ function renderTrendChart(points){
             callback(v){const lbl=this.getLabelForValue(v);return lbl?lbl.slice(5):lbl;}
           }
         },
-        y:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0,beginAtZero:true}}
+        y:{
+          title:{display:true,text:'Organic sessions',color:themeColor('--dim'),font:{family:'DM Mono',size:10}},
+          grid:{color:themeColor('--chart-grid')},
+          ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0,beginAtZero:true}
+        }
       }
     },
     plugins:[annotationLinesPlugin]
