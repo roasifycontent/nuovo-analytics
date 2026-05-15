@@ -450,16 +450,26 @@ function setCustom(){
 }
 
 const EXCLUDE_COUNTRY={notExpression:{filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam'}}}};
-function injectCountryFilter(body){
-  if(!body.dimensionFilter)body.dimensionFilter=EXCLUDE_COUNTRY;
-  else body.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,body.dimensionFilter]}};
-  return body;
+function withCountryFilter(body){
+  const b={...body};
+  if(!b.dimensionFilter)b.dimensionFilter=EXCLUDE_COUNTRY;
+  else b.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,b.dimensionFilter]}};
+  return b;
 }
 async function ga4(body){
-  injectCountryFilter(body);
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!r.ok){const e=await r.json();const err=new Error(e.error?.message||'GA4 '+r.status);err.status=r.status;throw err;}
+  const hdrs={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+  let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
+  if(!r.ok){
+    const e=await r.json().catch(()=>({}));
+    const msg=e.error?.message||'';
+    if(/remove country|incompatible/i.test(msg)){
+      r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      if(r.ok)return r.json();
+      const e2=await r.json().catch(()=>({}));const err2=new Error(e2.error?.message||'GA4 '+r.status);err2.status=r.status;throw err2;
+    }
+    const err=new Error(msg||'GA4 '+r.status);err.status=r.status;throw err;
+  }
   return r.json();
 }
 
