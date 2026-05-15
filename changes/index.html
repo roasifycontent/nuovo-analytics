@@ -6,6 +6,7 @@
 <title>SEO Changes — Nuovo Luxury</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>N</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
   --bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;
@@ -144,6 +145,46 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
 
 .footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
 .ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+
+/* Annotations */
+.ann-input{display:grid;grid-template-columns:130px 1fr 160px 1fr 140px;gap:8px;margin-bottom:14px;align-items:center}
+@media(max-width:900px){.ann-input{grid-template-columns:1fr;}}
+.ann-field{background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:100%}
+.ann-field:focus{border-color:var(--gold)}
+.ann-btn{background:var(--gold);border:none;border-radius:6px;padding:9px 14px;color:#0a0a0b;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s}
+.ann-btn:hover{opacity:0.85}
+.ann-btn:disabled{opacity:0.4;cursor:not-allowed}
+.ann-list{margin-top:18px;border-top:0.5px solid var(--border);padding-top:14px;max-height:240px;overflow-y:auto}
+.ann-row{display:grid;grid-template-columns:90px 90px 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.ann-row:last-child{border-bottom:none}
+.ann-date{font-family:'DM Mono',monospace;color:var(--gold);font-size:11px}
+.ann-type{font-family:'DM Mono',monospace;color:var(--muted);font-size:10px;letter-spacing:0.05em;text-transform:uppercase}
+.ann-desc{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ann-url{font-family:'DM Mono',monospace;font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.ann-url a{color:var(--dim);text-decoration:none}
+.ann-url a:hover{color:var(--gold)}
+.ann-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:2px 8px;border-radius:4px;transition:all 0.2s}
+.ann-del:hover{color:var(--red);background:rgba(248,113,113,0.08)}
+
+/* Chart container */
+.chart-wrap{position:relative;height:260px;margin-top:6px}
+
+/* Quick wins config */
+.qw-cfg{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.qw-cfg input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:4px 8px;color:var(--gold);font-family:'DM Mono',monospace;font-size:11px;width:64px;outline:none;text-align:right}
+.qw-cfg input:focus{border-color:var(--gold)}
+.tbl-row.qw{grid-template-columns:minmax(180px,2fr) 70px 70px 70px 90px 100px}
+.tbl-row.cn{grid-template-columns:minmax(160px,1.5fr) minmax(160px,2fr) 60px 60px minmax(160px,2fr) 60px 60px}
+.tbl-row.ix{grid-template-columns:minmax(220px,3fr) 110px 80px auto}
+
+/* Indexation tracker */
+.ix-input{display:grid;grid-template-columns:1fr 140px 120px;gap:8px;margin-bottom:14px;align-items:center}
+@media(max-width:900px){.ix-input{grid-template-columns:1fr}}
+.ix-status{display:inline-block;padding:3px 9px;border-radius:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.05em;text-transform:uppercase}
+.ix-status.pending{background:rgba(167,139,250,0.12);color:var(--purple)}
+.ix-status.indexed{background:rgba(16,185,129,0.12);color:var(--green)}
+.ix-mark-btn{background:none;border:0.5px solid var(--border2);border-radius:4px;padding:3px 9px;color:var(--muted);font-family:'Syne',sans-serif;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;transition:all 0.2s}
+.ix-mark-btn:hover{border-color:var(--green);color:var(--green)}
 </style>
 </head>
 <body>
@@ -203,6 +244,34 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       <div id="summary-body" class="summary-loading">
         <div class="ld"><span class="sp"></span>Analysing changes...</div>
       </div>
+    </div>
+
+    <!-- Change log / annotations -->
+    <div class="card">
+      <div class="ct"><span>Change log <span class="ct-sub">— log SEO changes, see their impact on traffic</span></span></div>
+      <div class="ann-input">
+        <input type="date" id="ann-date" class="ann-field">
+        <input type="text" id="ann-desc" class="ann-field" placeholder="What changed? e.g. Published Best Saunas pillar">
+        <select id="ann-type" class="ann-field">
+          <option value="Page published">Page published</option>
+          <option value="Title updated">Title updated</option>
+          <option value="Content added">Content added</option>
+          <option value="Schema added">Schema added</option>
+          <option value="Technical fix">Technical fix</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="text" id="ann-url" class="ann-field" placeholder="URL affected (optional)">
+        <button class="ann-btn" onclick="saveAnnotation()">Save annotation</button>
+      </div>
+      <div id="ann-list" class="ann-list"></div>
+    </div>
+
+    <!-- 28-day organic trend with annotations -->
+    <div class="card">
+      <div class="ct">
+        <span>Organic sessions trend <span class="ct-sub">— 28 days · annotations shown as gold lines</span></span>
+      </div>
+      <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
     </div>
 
     <!-- Keyword position movements -->
@@ -272,6 +341,58 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
         </div>
         <div id="lk-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
       </div>
+    </div>
+
+    <!-- Quick wins -->
+    <div class="card">
+      <div class="ct">
+        <span>Quick wins <span class="ct-sub">— page-2 keywords (pos 11–20, 30+ impressions) ranked by potential</span></span>
+        <div class="qw-cfg">
+          <span>Value per click £</span>
+          <input type="number" id="qw-vpc" min="0" step="1" onchange="saveValuePerClick();renderQuickWins()">
+        </div>
+      </div>
+      <div class="tbl-row qw tbl-hdr">
+        <span>Keyword</span>
+        <span class="tnum">Pos.</span>
+        <span class="tnum">Impr.</span>
+        <span class="tnum">Clicks</span>
+        <span class="tnum">Potential/mo</span>
+        <span class="tnum">Est. revenue</span>
+      </div>
+      <div id="qw-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
+    </div>
+
+    <!-- Cannibalisation -->
+    <div class="card">
+      <div class="ct"><span>Cannibalisation detector <span class="ct-sub">— queries where 2+ pages compete (last 28d)</span></span></div>
+      <div class="tbl-row cn tbl-hdr">
+        <span>Keyword</span>
+        <span>Page A</span>
+        <span class="tnum">A #</span>
+        <span class="tnum">A clicks</span>
+        <span>Page B</span>
+        <span class="tnum">B #</span>
+        <span class="tnum">B clicks</span>
+      </div>
+      <div id="cn-body"><div class="ld"><span class="sp"></span>Loading...</div></div>
+    </div>
+
+    <!-- Indexation tracker -->
+    <div class="card">
+      <div class="ct"><span>Indexation tracker <span class="ct-sub">— manually track URLs you've submitted for indexing</span></span></div>
+      <div class="ix-input">
+        <input type="text" id="ix-url" class="ann-field" placeholder="URL submitted for indexing">
+        <input type="date" id="ix-date" class="ann-field">
+        <button class="ann-btn" onclick="addPendingIndexation()">Add to list</button>
+      </div>
+      <div class="tbl-row ix tbl-hdr">
+        <span>URL</span>
+        <span class="tnum">Submitted</span>
+        <span class="tnum">Status</span>
+        <span></span>
+      </div>
+      <div id="ix-body"><div class="empty">No URLs being tracked. Add one above after submitting in Search Console.</div></div>
     </div>
 
   </div>
@@ -776,6 +897,344 @@ function renderSummary(pgRows, kwRows, newKw, lostKw, gscOk){
   document.getElementById('summary-body').innerHTML=final.map(l=>`<div class="summary-line ${l.cls}"><span class="summary-icon">${l.icon}</span><span>${l.html}</span></div>`).join('');
 }
 
+// --- Annotations ---
+function loadAnnotations(){try{return JSON.parse(localStorage.getItem('nuovo_annotations')||'[]');}catch(e){return[];}}
+function saveAnnotations(arr){localStorage.setItem('nuovo_annotations',JSON.stringify(arr));}
+function saveAnnotation(){
+  const date=document.getElementById('ann-date').value;
+  const desc=document.getElementById('ann-desc').value.trim();
+  const type=document.getElementById('ann-type').value;
+  const url=document.getElementById('ann-url').value.trim();
+  if(!date||!desc){alert('Date and description are required');return;}
+  const arr=loadAnnotations();
+  arr.push({id:Date.now(),date,description:desc,type,url});
+  saveAnnotations(arr);
+  document.getElementById('ann-desc').value='';
+  document.getElementById('ann-url').value='';
+  renderAnnotations();
+  if(window._trendData)renderTrendChart(window._trendData);
+}
+function deleteAnnotation(id){
+  const arr=loadAnnotations().filter(a=>a.id!==id);
+  saveAnnotations(arr);
+  renderAnnotations();
+  if(window._trendData)renderTrendChart(window._trendData);
+}
+function renderAnnotations(){
+  const arr=loadAnnotations().sort((a,b)=>b.date.localeCompare(a.date));
+  const el=document.getElementById('ann-list');
+  if(!arr.length){el.innerHTML='<div class="empty">No annotations yet — log a change above and it will appear here and on the chart.</div>';return;}
+  el.innerHTML=arr.map(a=>{
+    const urlPart=a.url?`<span class="ann-url"><a href="${a.url}" target="_blank" title="${a.url}">${cleanPath(a.url)||a.url}</a></span>`:`<span class="ann-url">—</span>`;
+    return `<div class="ann-row">
+      <span class="ann-date">${a.date}</span>
+      <span class="ann-type">${a.type}</span>
+      <span class="ann-desc" title="${a.description}">${a.description}</span>
+      ${urlPart}
+      <button class="ann-del" onclick="deleteAnnotation(${a.id})" title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// --- 28-day trend chart (with annotations overlay) ---
+let trendChart=null;
+async function loadTrend(){
+  const range=ga4Range(0,28);
+  const orgFil={filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}};
+  try{
+    const data=await ga4({
+      dateRanges:[range],
+      dimensions:[{name:'date'}],
+      metrics:[{name:'sessions'}],
+      dimensionFilter:orgFil,
+      orderBys:[{dimension:{dimensionName:'date'}}]
+    });
+    const points=(data.rows||[]).map(r=>{
+      const d=r.dimensionValues[0].value; // YYYYMMDD
+      return{date:`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`,sessions:parseInt(r.metricValues[0].value||0)};
+    });
+    window._trendData=points;
+    renderTrendChart(points);
+  }catch(e){
+    if(isAuthError(e)){showReauth();return;}
+    console.warn('Trend load failed',e);
+  }
+}
+
+function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+// Chart.js plugin: draw vertical annotation lines
+const annotationLinesPlugin={
+  id:'annotationLines',
+  afterDraw(chart){
+    const annotations=loadAnnotations();
+    if(!annotations.length)return;
+    const{ctx,chartArea,scales}=chart;
+    const xScale=scales.x;
+    const labels=chart.data.labels;
+    ctx.save();
+    annotations.forEach(a=>{
+      const idx=labels.indexOf(a.date);
+      if(idx<0)return;
+      const x=xScale.getPixelForValue(idx);
+      ctx.strokeStyle=themeColor('--gold');
+      ctx.lineWidth=1;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.moveTo(x,chartArea.top);
+      ctx.lineTo(x,chartArea.bottom);
+      ctx.stroke();
+      // Label at top
+      ctx.setLineDash([]);
+      ctx.fillStyle=themeColor('--gold');
+      ctx.font='10px DM Mono,monospace';
+      ctx.textAlign='left';
+      const lbl=a.description.length>22?a.description.slice(0,22)+'…':a.description;
+      ctx.fillText(lbl,x+4,chartArea.top+12);
+    });
+    ctx.restore();
+  }
+};
+
+function renderTrendChart(points){
+  if(!points||!points.length)return;
+  const ctx=document.getElementById('trend-chart');
+  if(!ctx)return;
+  const labels=points.map(p=>p.date);
+  const data=points.map(p=>p.sessions);
+  if(trendChart)trendChart.destroy();
+  trendChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Organic sessions',
+      data,
+      borderColor:themeColor('--gold'),
+      backgroundColor:themeColor('--gold')+'18',
+      borderWidth:1.5,
+      pointRadius:2,
+      pointHoverRadius:5,
+      fill:true,
+      tension:0.3
+    }]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:themeColor('--bg2'),
+          titleColor:themeColor('--text'),
+          bodyColor:themeColor('--text'),
+          borderColor:themeColor('--border2'),
+          borderWidth:0.5,
+          padding:10,
+          callbacks:{
+            afterBody(items){
+              const idx=items[0].dataIndex;
+              const date=labels[idx];
+              const anns=loadAnnotations().filter(a=>a.date===date);
+              if(!anns.length)return null;
+              return anns.map(a=>`${a.type}: ${a.description}`);
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:themeColor('--chart-grid')},
+          ticks:{
+            color:themeColor('--chart-tick'),
+            font:{family:'DM Mono',size:10},
+            maxRotation:0,
+            autoSkip:true,
+            maxTicksLimit:10,
+            callback(v){const lbl=this.getLabelForValue(v);return lbl?lbl.slice(5):lbl;}
+          }
+        },
+        y:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},precision:0,beginAtZero:true}}
+      }
+    },
+    plugins:[annotationLinesPlugin]
+  });
+}
+
+// --- Quick wins ---
+let qwData=[];
+function getValuePerClick(){
+  const v=parseFloat(localStorage.getItem('nuovo_value_per_click')||'25');
+  return isNaN(v)?25:v;
+}
+function saveValuePerClick(){
+  const v=parseFloat(document.getElementById('qw-vpc').value);
+  if(!isNaN(v)&&v>=0)localStorage.setItem('nuovo_value_per_click',String(v));
+}
+async function loadQuickWins(){
+  if(!gscSiteUrl){
+    try{await gscFindSite();}catch(e){
+      document.getElementById('qw-body').innerHTML='<div class="empty">Requires Search Console</div>';return;
+    }
+  }
+  const range=gscRange(0,28);
+  try{
+    const data=await gsc({startDate:range.startDate,endDate:range.endDate,dimensions:['query'],rowLimit:2000,startRow:0});
+    const rows=(data.rows||[]).filter(r=>r.position>=11&&r.position<=20&&(r.impressions||0)>=30);
+    qwData=rows.map(r=>{
+      const pot=Math.max(0,Math.round((r.impressions||0)*0.05-(r.clicks||0)));
+      return{kw:r.keys[0],pos:r.position,impressions:r.impressions||0,clicks:r.clicks||0,potential:pot};
+    }).sort((a,b)=>b.potential-a.potential).slice(0,15);
+    renderQuickWins();
+  }catch(e){
+    document.getElementById('qw-body').innerHTML='<div class="empty">Could not load quick wins data</div>';
+  }
+}
+function renderQuickWins(){
+  if(!qwData.length){document.getElementById('qw-body').innerHTML='<div class="empty">No page-2 keywords with significant volume — nothing to push</div>';return;}
+  const vpc=getValuePerClick();
+  document.getElementById('qw-body').innerHTML=qwData.map(r=>{
+    const revenue=Math.round(r.potential*vpc);
+    return `<div class="tbl-row qw">
+      <span class="tkw" title="${r.kw}">${r.kw}</span>
+      <span class="tnum"><span class="pos-badge ${posClass(r.pos)}">${r.pos.toFixed(1)}</span></span>
+      <span class="tnum mu">${r.impressions.toLocaleString('en-GB')}</span>
+      <span class="tnum">${r.clicks}</span>
+      <span class="tnum green">+${r.potential}</span>
+      <span class="tnum gold">£${revenue.toLocaleString('en-GB')}</span>
+    </div>`;
+  }).join('');
+}
+
+// --- Cannibalisation ---
+async function loadCannibalisation(){
+  if(!gscSiteUrl){
+    try{await gscFindSite();}catch(e){
+      document.getElementById('cn-body').innerHTML='<div class="empty">Requires Search Console</div>';return;
+    }
+  }
+  const range=gscRange(0,28);
+  try{
+    const data=await gsc({startDate:range.startDate,endDate:range.endDate,dimensions:['query','page'],rowLimit:5000,startRow:0});
+    // Group by query
+    const byQuery={};
+    (data.rows||[]).forEach(r=>{
+      const[q,p]=r.keys;
+      if((r.impressions||0)<5)return;
+      if(!byQuery[q])byQuery[q]=[];
+      byQuery[q].push({page:p,pos:r.position,clicks:r.clicks||0,impressions:r.impressions||0});
+    });
+    const cannibals=[];
+    Object.entries(byQuery).forEach(([q,pages])=>{
+      if(pages.length<2)return;
+      pages.sort((a,b)=>a.pos-b.pos);
+      const totalImpr=pages.reduce((a,p)=>a+p.impressions,0);
+      cannibals.push({kw:q,pages:pages.slice(0,2),impact:totalImpr});
+    });
+    cannibals.sort((a,b)=>b.impact-a.impact);
+    renderCannibalisation(cannibals.slice(0,20));
+  }catch(e){
+    document.getElementById('cn-body').innerHTML='<div class="empty">Could not load cannibalisation data</div>';
+  }
+}
+function renderCannibalisation(rows){
+  if(!rows.length){document.getElementById('cn-body').innerHTML='<div class="empty">No cannibalisation detected — keywords map cleanly to single pages</div>';return;}
+  document.getElementById('cn-body').innerHTML=rows.map(r=>{
+    const a=r.pages[0],b=r.pages[1];
+    const pa=cleanPath(a.page);const pb=cleanPath(b.page);
+    return `<div class="tbl-row cn">
+      <span class="tkw" title="${r.kw}">${r.kw}</span>
+      <span class="tpath"><a href="${a.page}" target="_blank" title="${pa}">${pa}</a></span>
+      <span class="tnum"><span class="pos-badge ${posClass(a.pos)}">${a.pos.toFixed(1)}</span></span>
+      <span class="tnum">${a.clicks}</span>
+      <span class="tpath"><a href="${b.page}" target="_blank" title="${pb}">${pb}</a></span>
+      <span class="tnum"><span class="pos-badge ${posClass(b.pos)}">${b.pos.toFixed(1)}</span></span>
+      <span class="tnum">${b.clicks}</span>
+    </div>`;
+  }).join('');
+}
+
+// --- Indexation tracker ---
+function loadPendingIndex(){try{return JSON.parse(localStorage.getItem('nuovo_pending_indexation')||'[]');}catch(e){return[];}}
+function savePendingIndex(arr){localStorage.setItem('nuovo_pending_indexation',JSON.stringify(arr));}
+function addPendingIndexation(){
+  const url=document.getElementById('ix-url').value.trim();
+  const date=document.getElementById('ix-date').value;
+  if(!url||!date){alert('URL and submitted date are required');return;}
+  const arr=loadPendingIndex();
+  arr.push({id:Date.now(),url,submittedDate:date});
+  savePendingIndex(arr);
+  document.getElementById('ix-url').value='';
+  renderIndexation();
+  checkIndexationStatus();
+}
+function removePendingIndex(id){
+  const arr=loadPendingIndex().filter(x=>x.id!==id);
+  savePendingIndex(arr);
+  renderIndexation();
+}
+function daysAgo(dateStr){
+  const d=new Date(dateStr);
+  const today=new Date();
+  return Math.max(0,Math.floor((today-d)/(1000*60*60*24)));
+}
+function renderIndexation(){
+  const arr=loadPendingIndex().sort((a,b)=>b.submittedDate.localeCompare(a.submittedDate));
+  const el=document.getElementById('ix-body');
+  if(!arr.length){el.innerHTML='<div class="empty">No URLs being tracked. Add one above after submitting in Search Console.</div>';return;}
+  el.innerHTML=arr.map(x=>{
+    const days=daysAgo(x.submittedDate);
+    const status=x.indexed?'<span class="ix-status indexed">Indexed ✓</span>':`<span class="ix-status pending">${days}d pending</span>`;
+    const path=cleanPath(x.url)||x.url;
+    return `<div class="tbl-row ix">
+      <span class="tpath"><a href="${x.url}" target="_blank" title="${x.url}">${path}</a></span>
+      <span class="tnum mu">${x.submittedDate}</span>
+      <span class="tnum">${status}</span>
+      <span class="tnum"><button class="ix-mark-btn" onclick="removePendingIndex(${x.id})">Remove</button></span>
+    </div>`;
+  }).join('');
+}
+async function checkIndexationStatus(){
+  const arr=loadPendingIndex();
+  if(!arr.length)return;
+  if(!gscSiteUrl){try{await gscFindSite();}catch(e){return;}}
+  const range=gscRange(0,28);
+  try{
+    const data=await gsc({startDate:range.startDate,endDate:range.endDate,dimensions:['page'],rowLimit:5000,startRow:0});
+    const pages=new Set((data.rows||[]).filter(r=>(r.impressions||0)>0).map(r=>r.keys[0]));
+    // Match: GSC page URL may be canonical, normalise both
+    function normalise(u){return(u||'').replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/$/,'').toLowerCase();}
+    const indexedSet=new Set(Array.from(pages).map(normalise));
+    let changed=false;
+    arr.forEach(x=>{
+      if(x.indexed)return;
+      if(indexedSet.has(normalise(x.url))){
+        x.indexed=true;changed=true;
+      }
+    });
+    if(changed){savePendingIndex(arr);renderIndexation();}
+  }catch(e){console.warn('Indexation check failed',e);}
+}
+
+// --- Init annotations + new sections UI (data is loaded by refresh) ---
+function initExtras(){
+  const today=new Date();
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  if(!document.getElementById('ann-date').value)document.getElementById('ann-date').value=todayStr;
+  if(!document.getElementById('ix-date').value)document.getElementById('ix-date').value=todayStr;
+  document.getElementById('qw-vpc').value=getValuePerClick();
+  renderAnnotations();
+  renderIndexation();
+}
+
+// Hook into refresh to also load trend, quick wins, cannibalisation, indexation check
+const _originalRefresh=refresh;
+refresh=async function(){
+  await _originalRefresh.apply(this,arguments);
+  loadTrend();
+  loadQuickWins();
+  loadCannibalisation();
+  checkIndexationStatus();
+};
+
 // --- Init ---
 window.addEventListener('load',()=>{
   const hash=new URLSearchParams(window.location.hash.slice(1));
@@ -784,7 +1243,7 @@ window.addEventListener('load',()=>{
     if(state==='reauth'){hideReauth();}
   }
   const saved=localStorage.getItem('nuovo_token');
-  if(saved){token=saved;launch();}
+  if(saved){token=saved;launch();initExtras();}
 });
 </script>
 </body>
