@@ -1233,6 +1233,10 @@ function renderTable(){
     const fulfillVal=r.rawFulfillment!=null?r.rawFulfillment.toFixed(2):'';
     const fulfillCls=r.rawFulfillment!=null?'saved':(o.isUnpaid?'':'empty');
     const warnIcon=r.rawFulfillment==null&&!o.isUnpaid?'<span class="warn-icon" title="Missing fulfillment cost">⚠</span>':'';
+    // When in ex-VAT mode AND costs are entered inc-VAT, show the ex-VAT equivalent beneath the input
+    const vc=getVatConfig();
+    const showExHint=vc.showExVat&&vc.costsIncVat&&r.rawFulfillment!=null&&r.fulfillment!=null&&r.rawFulfillment!==r.fulfillment;
+    const exHint=showExHint?`<span style="display:block;color:var(--dim);font-size:10px;margin-top:2px">ex-VAT: ${fmtGBP(r.fulfillment)}</span>`:'';
     const orderLink=`${ADMIN_BASE}/orders/${o.id}`;
     const status=statusPill(o);
     return`<tr class="${rowCls.join(' ')}" data-order="${o.id}" data-idx="${idx}">
@@ -1242,7 +1246,7 @@ function renderTable(){
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
       <td class="nm">${fmtGBP(r.revenue)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
       <td class="nm muted">${fmtGBP(o.txFee)}</td>
-      <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span></td>
+      <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span>${exHint}</td>
       <td class="nm ${profitCls}">${profitTxt}</td>
       <td class="nm">${marginHtml}</td>
       <td>${status}</td>
