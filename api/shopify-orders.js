@@ -2,6 +2,23 @@
 // Env vars required on Vercel: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN
 
 const API_VERSION = '2024-10';
+const TZ = 'Europe/London';
+
+// Convert a UK-local YYYY-MM-DD date to a UTC ISO instant for the start (00:00:00)
+// or end (23:59:59.999) of that UK day. Handles BST/GMT automatically.
+function ukDayBoundUtc(ymd, isEnd) {
+  // Find UK offset from UTC at this date by probing noon UTC and reading the UK hour.
+  // Noon avoids DST transition edge cases at midnight.
+  const probe = new Date(`${ymd}T12:00:00Z`);
+  const ukHourStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ, hour: '2-digit', hour12: false
+  }).formatToParts(probe).find(p => p.type === 'hour').value;
+  const ukHour = parseInt(ukHourStr, 10);
+  const offsetHours = ukHour - 12; // 1 in BST, 0 in GMT
+  const base = new Date(`${ymd}T${isEnd ? '23:59:59.999' : '00:00:00.000'}Z`);
+  base.setUTCHours(base.getUTCHours() - offsetHours);
+  return base.toISOString();
+}
 
 const ORDERS_QUERY = `
 query GetOrders($first: Int!, $after: String, $q: String!) {
@@ -76,7 +93,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const filter = `created_at:>='${startDate}T00:00:00Z' AND created_at:<='${endDate}T23:59:59Z'`;
+    // Use UK-local day bounds (handles BST/GMT). Orders placed at 00:30 BST on
+    // May 19 (= 23:30 UTC May 18) are correctly attributed to May 19.
+    const startUtc = ukDayBoundUtc(startDate, false);
+    const endUtc = ukDayBoundUtc(endDate, true);
+    const filter = `created_at:>='${startUtc}' AND created_at:<='${endUtc}'`;
     const allOrders = [];
     let after = null;
     let pageCount = 0;

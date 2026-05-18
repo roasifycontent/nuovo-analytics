@@ -560,8 +560,16 @@ function fmtGBP(v,short){
   return'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function fmtPct(v){return(v*100).toFixed(1)+'%';}
-function fmtDate(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function fmtDateShort(s){const d=new Date(s);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+// All dates are computed in Europe/London (BST/GMT auto-handled) regardless of browser.
+const TZ='Europe/London';
+const _ukYmdFmt=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'});
+// fmtDate accepts either a Date object or an ISO string and returns YYYY-MM-DD in UK time.
+function fmtDate(d){return _ukYmdFmt.format(typeof d==='string'?new Date(d):d);}
+function fmtDateShort(s){return new Date(s).toLocaleDateString('en-GB',{timeZone:TZ,day:'2-digit',month:'short'});}
+// Today's date in UK (YYYY-MM-DD)
+function ukToday(){return _ukYmdFmt.format(new Date());}
+// Add N days to a UK YYYY-MM-DD date (returns YYYY-MM-DD).
+function addDays(ymd,n){const d=new Date(`${ymd}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return _ukYmdFmt.format(d);}
 function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
 
 // ===== Date range =====
@@ -578,9 +586,8 @@ function restoreDateRange(){
 function setPreset(btn,preset){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const today=new Date(),f=fmtDate;
   if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
-  else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:f(y),endDate:f(y)};}
+  else if(preset==='yesterday'){const y=addDays(ukToday(),-1);dateRange={startDate:y,endDate:y};}
   else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
   document.getElementById('date-from').value='';
   document.getElementById('date-to').value='';
@@ -597,21 +604,20 @@ function setCustom(){
   }
 }
 function resolveDateRange(){
-  // Convert preset-style range to actual ISO dates for Shopify
-  const today=new Date();
+  // Convert preset-style range to actual YYYY-MM-DD dates anchored in UK time.
+  const today=ukToday();
   let start,end;
-  if(dateRange.startDate==='today'){start=fmtDate(today);end=fmtDate(today);}
+  if(dateRange.startDate==='today'){start=today;end=today;}
   else if(/(\d+)daysAgo/.test(dateRange.startDate)){
     const days=parseInt(dateRange.startDate.match(/(\d+)/)[1]);
-    const s=new Date(today);s.setDate(today.getDate()-days);
-    start=fmtDate(s);end=fmtDate(today);
-  } else {start=dateRange.startDate;end=dateRange.endDate==='today'?fmtDate(today):dateRange.endDate;}
+    start=addDays(today,-days);end=today;
+  } else {start=dateRange.startDate;end=dateRange.endDate==='today'?today:dateRange.endDate;}
   return{start,end};
 }
 function getDatesInRange(start,end){
   const out=[];
-  const s=new Date(start),e=new Date(end);
-  for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1))out.push(fmtDate(new Date(d)));
+  let cur=start;
+  while(cur<=end){out.push(cur);cur=addDays(cur,1);}
   return out;
 }
 
@@ -721,8 +727,8 @@ async function refresh(){
 
     renderAll();
 
-    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    document.getElementById('fts').textContent=`Shopify + GA4 · ${allOrders.length} orders · ${new Date().toLocaleString('en-GB')}`;
+    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit'});
+    document.getElementById('fts').textContent=`Shopify + GA4 · ${allOrders.length} orders · ${new Date().toLocaleString('en-GB',{timeZone:TZ})}`;
   }catch(e){
     if(isAuthError(e)){showReauth();return;}
     document.getElementById('orders-body').innerHTML=`<tr><td colspan="11" class="empty">Error: ${e.message}</td></tr>`;
