@@ -251,6 +251,7 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
         <span style="color:var(--dim);font-size:11px">→</span>
         <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
       </div>
+      <button class="bsm" id="vat-toggle" onclick="toggleVatMode()" title="Switch between ex-VAT (true profit) and inc-VAT (gross) view">VAT: ex</button>
       <button class="bsm" onclick="refresh()" title="Refresh">↻</button>
       <button class="cog-btn" onclick="openSettings()" title="Settings">⚙</button>
       <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
@@ -374,6 +375,22 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
     <button class="drawer-close" onclick="closeSettings()">✕</button>
   </div>
   <div class="drawer-body">
+
+    <div class="drawer-section">
+      <h4>Tax (VAT)</h4>
+      <p class="help">Strip VAT from revenue and costs for true profit. The toggle at the top of the page switches between ex-VAT and inc-VAT view.</p>
+      <label>VAT rate (%)</label>
+      <input type="number" class="drawer-input" id="vat-rate" min="0" max="100" step="0.1" value="20" oninput="saveVatConfig()" style="margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-family:'Syne',sans-serif;font-size:12px;color:var(--text)">
+        <input type="checkbox" id="vat-costs-inc" onchange="saveVatConfig()" style="width:16px;height:16px;cursor:pointer">
+        Fulfillment costs entered include VAT
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;text-transform:none;letter-spacing:0;font-family:'Syne',sans-serif;font-size:12px;color:var(--text)">
+        <input type="checkbox" id="vat-spend-inc" onchange="saveVatConfig()" style="width:16px;height:16px;cursor:pointer">
+        Ad spend entered includes VAT
+      </label>
+      <p class="help" style="margin-top:10px;margin-bottom:0">Revenue ex-VAT uses Shopify's actual tax field per order (accurate for multi-rate / zero-rated). Costs use the assumed rate above.</p>
+    </div>
 
     <div class="drawer-section">
       <h4>Microsoft Ads spend</h4>
@@ -608,6 +625,10 @@ function getOrderCosts(){return lsGet('nuovo_order_costs',{});}
 function setOrderCost(orderId,cost){const c=getOrderCosts();if(cost==null||cost==='')delete c[orderId];else c[orderId]=cost;lsSet('nuovo_order_costs',c);}
 function getFeeConfig(){return lsGet('nuovo_fee_config',{mode:'estimate',uk:{pct:1.5,fixed:0.25},int:{pct:2.5,fixed:0.25}});}
 function setFeeConfig(c){lsSet('nuovo_fee_config',c);}
+function getVatConfig(){return lsGet('nuovo_vat_config',{showExVat:true,vatRate:0.20,costsIncVat:true,spendIncVat:false});}
+function setVatConfig(c){lsSet('nuovo_vat_config',c);}
+// Apply VAT stripping to an inc-VAT amount based on current config
+function exVat(amount){const c=getVatConfig();return amount/(1+c.vatRate);}
 function getSpendMode(platform){return lsGet(`nuovo_spend_mode_${platform}`,'period');}
 function setSpendModeStorage(platform,mode){lsSet(`nuovo_spend_mode_${platform}`,mode);}
 function getOtherLabel(){return localStorage.getItem('nuovo_other_label')||'';}
@@ -761,6 +782,15 @@ function normaliseOrder(o){
   const isUnpaid=['PENDING','AUTHORIZED','VOIDED','EXPIRED'].includes(o.displayFinancialStatus);
   // Effective revenue (post-refund)
   const grossRev=Math.max(0,totalAmt-refundedAmt);
+  // VAT — use Shopify's actual totalTaxSet (accurate for multi-rate / zero-rated orders).
+  // Pro-rate VAT on refunds.
+  const totalVat=parseFloat(o.totalTaxSet?.shopMoney?.amount||0);
+  let vatRefunded=0;
+  if(refundedAmt>0&&totalAmt+refundedAmt>0){
+    vatRefunded=totalVat*(refundedAmt/(totalAmt+refundedAmt));
+  }
+  const vatAmount=Math.max(0,totalVat-vatRefunded);
+  const grossRevExVat=Math.max(0,grossRev-vatAmount);
   const orderId=o.id.split('/').pop();
   return{
     id:orderId,
@@ -773,6 +803,8 @@ function normaliseOrder(o){
     productsLabel,
     productNames,
     grossRev,
+    grossRevExVat,
+    vatAmount,
     totalAmt,
     refundedAmt,
     txFee,
@@ -805,46 +837,65 @@ function computeAllocations(){
   return allocs;
 }
 
+// ===== VAT helpers =====
+// Returns the displayed (VAT-adjusted) figures for an order based on current mode.
+function displayedRevenue(o){
+  const v=getVatConfig();
+  return v.showExVat?o.grossRevExVat:o.grossRev;
+}
+function displayedFulfillment(rawCost){
+  if(rawCost==null)return null;
+  const v=getVatConfig();
+  return(v.showExVat&&v.costsIncVat)?rawCost/(1+v.vatRate):rawCost;
+}
+function displayedAdSpend(rawSpend){
+  const v=getVatConfig();
+  return(v.showExVat&&v.spendIncVat)?rawSpend/(1+v.vatRate):rawSpend;
+}
+
 // ===== Per-order P&L =====
 // Per-order profit excludes ad spend — ad spend is a period-level cost subtracted
 // at the hero/timeline aggregate level only.
 function orderProfit(o,alloc){
   const costs=getOrderCosts();
-  const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
-  if(fulfillment==null||isNaN(fulfillment)||o.isUnpaid)return{profit:null,margin:null,fulfillment:null,alloc};
-  const profit=o.grossRev-o.txFee-fulfillment;
-  const margin=o.grossRev>0?profit/o.grossRev:0;
-  return{profit,margin,fulfillment,alloc};
+  const rawFulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
+  if(rawFulfillment==null||isNaN(rawFulfillment)||o.isUnpaid)return{profit:null,margin:null,fulfillment:null,alloc};
+  const fulfillment=displayedFulfillment(rawFulfillment);
+  const revenue=displayedRevenue(o);
+  const profit=revenue-o.txFee-fulfillment;
+  const margin=revenue>0?profit/revenue:0;
+  return{profit,margin,fulfillment,rawFulfillment,alloc};
 }
 
 // ===== Aggregates =====
 function computeAggregates(){
   const allocs=computeAllocations();
   const costs=getOrderCosts();
-  let gross=0,spendTotal=0,feesTotal=0,fulfillTotal=0,netProfit=0;
+  let gross=0,vatCollected=0,spendTotal=0,feesTotal=0,fulfillTotal=0;
   let missing=0,withCosts=0;
   const byDate={};
   const byProduct={};
 
-  // Total ad spend from dailyAdSpend
-  Object.values(dailyAdSpend).forEach(d=>{spendTotal+=d.total;});
+  // Total ad spend from dailyAdSpend (apply ex-VAT adjustment if configured)
+  Object.values(dailyAdSpend).forEach(d=>{spendTotal+=displayedAdSpend(d.total);});
 
   allOrders.forEach(o=>{
     if(o.isUnpaid)return;
-    gross+=o.grossRev;
+    const rev=displayedRevenue(o);
+    gross+=rev;
+    vatCollected+=o.vatAmount||0;
     feesTotal+=o.txFee;
-    const alloc=allocs[o.id]||0;
+    const alloc=displayedAdSpend(allocs[o.id]||0);
     const{profit,fulfillment}=orderProfit(o,alloc);
     if(fulfillment!=null){
       fulfillTotal+=fulfillment;
-      netProfit+=profit;
       withCosts++;
     } else {
       missing++;
     }
     // Daily breakdown
     if(!byDate[o.dateKey])byDate[o.dateKey]={gross:0,fees:0,fulfill:0,profit:0,hasMissing:false};
-    byDate[o.dateKey].gross+=o.grossRev;
+    byDate[o.dateKey].gross+=rev;
     byDate[o.dateKey].fees+=o.txFee;
     if(fulfillment!=null){
       byDate[o.dateKey].fulfill+=fulfillment;
@@ -857,9 +908,11 @@ function computeAggregates(){
       o.lineItems.forEach(li=>{
         const t=li.title||'(unknown)';
         if(!byProduct[t])byProduct[t]={rev:0,profit:0,count:0};
-        // Apportion order profit by line-item revenue share
-        const liRev=parseFloat(li.originalUnitPriceSet?.shopMoney?.amount||0)*(li.quantity||1);
-        const share=o.grossRev>0?liRev/o.grossRev:0;
+        // Line-item prices in Shopify are inc-VAT; apportion ex-VAT proportionally
+        const liRevRaw=parseFloat(li.originalUnitPriceSet?.shopMoney?.amount||0)*(li.quantity||1);
+        const ratio=o.grossRev>0?(rev/o.grossRev):0; // ex-VAT (or 1.0 in inc-VAT mode)
+        const liRev=liRevRaw*ratio;
+        const share=rev>0?liRev/rev:0;
         byProduct[t].rev+=liRev;
         byProduct[t].profit+=profit*share;
         byProduct[t].count+=li.quantity||1;
@@ -867,19 +920,21 @@ function computeAggregates(){
     }
   });
 
-  // Headline net profit: orders with costs entered only. Ad spend subtracted
-  // proportional to the share of paid orders that have costs.
+  // Headline net profit: orders with costs entered only.
+  // Ad spend subtracted proportional to the share of paid orders that have costs.
   let headlineGross=0,headlineFees=0,headlineAllocShare=0;
   allOrders.forEach(o=>{
     if(o.isUnpaid)return;
-    const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
-    if(fulfillment==null||isNaN(fulfillment))return;
-    headlineGross+=o.grossRev;headlineFees+=o.txFee;headlineAllocShare+=allocs[o.id]||0;
+    const rawFulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
+    if(rawFulfillment==null||isNaN(rawFulfillment))return;
+    headlineGross+=displayedRevenue(o);
+    headlineFees+=o.txFee;
+    headlineAllocShare+=displayedAdSpend(allocs[o.id]||0);
   });
   const headlineProfit=headlineGross-headlineFees-headlineAllocShare-fulfillTotal;
   const headlineMargin=headlineGross>0?headlineProfit/headlineGross:0;
 
-  return{gross,spendTotal,feesTotal,fulfillTotal,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
+  return{gross,vatCollected,spendTotal,feesTotal,fulfillTotal,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
 }
 
 // ===== Render all =====
@@ -911,8 +966,13 @@ function addBanner(type,html,id){
 
 // ===== Hero =====
 function renderHero(agg){
+  const v=getVatConfig();
   document.getElementById('h-gross').textContent=fmtGBP(agg.gross);
-  document.getElementById('h-gross-sub').textContent=`${allOrders.filter(o=>!o.isUnpaid).length} paid orders`;
+  let grossSub=`${allOrders.filter(o=>!o.isUnpaid).length} paid orders`;
+  if(v.showExVat&&agg.vatCollected>0){
+    grossSub=`${allOrders.filter(o=>!o.isUnpaid).length} orders · +${fmtGBP(agg.vatCollected,true)} VAT to HMRC`;
+  }
+  document.getElementById('h-gross-sub').textContent=grossSub;
   document.getElementById('h-spend').textContent=fmtGBP(agg.spendTotal);
   const spendDetail=[];
   ['google','microsoft','meta','tiktok','other'].forEach(p=>{
@@ -1101,11 +1161,13 @@ function filterAndSort(){
   const allocs=computeAllocations();
   const costs=getOrderCosts();
   let rows=allOrders.map(o=>{
-    const alloc=allocs[o.id]||0;
-    const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
-    const profit=fulfillment!=null&&!o.isUnpaid?o.grossRev-o.txFee-alloc-fulfillment:null;
-    const margin=profit!=null&&o.grossRev>0?profit/o.grossRev:null;
-    return{o,alloc,fulfillment,profit,margin};
+    const alloc=displayedAdSpend(allocs[o.id]||0);
+    const rawFulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
+    const fulfillment=displayedFulfillment(rawFulfillment);
+    const revenue=displayedRevenue(o);
+    const profit=fulfillment!=null&&!o.isUnpaid?revenue-o.txFee-fulfillment:null;
+    const margin=profit!=null&&revenue>0?profit/revenue:null;
+    return{o,alloc,revenue,fulfillment,rawFulfillment,profit,margin};
   });
   if(search){
     rows=rows.filter(r=>{
@@ -1128,7 +1190,7 @@ function filterAndSort(){
       case'date':av=a.o.date;bv=b.o.date;break;
       case'customer':av=a.o.customer.toLowerCase();bv=b.o.customer.toLowerCase();break;
       case'products':av=a.o.productsLabel.toLowerCase();bv=b.o.productsLabel.toLowerCase();break;
-      case'gross':av=a.o.grossRev;bv=b.o.grossRev;break;
+      case'gross':av=a.revenue;bv=b.revenue;break;
       case'fee':av=a.o.txFee;bv=b.o.txFee;break;
       case'fulfill':av=a.fulfillment??-Infinity;bv=b.fulfillment??-Infinity;break;
       case'profit':av=a.profit??-Infinity;bv=b.profit??-Infinity;break;
@@ -1167,9 +1229,10 @@ function renderTable(){
     const profitTxt=r.profit==null?'—':fmtGBP(r.profit);
     const profitCls=r.profit==null?'dim':(r.profit>=0?'green':'red');
     const marginHtml=r.margin==null?'<span class="margin-pill dim">—</span>':marginPill(r.margin);
-    const fulfillVal=r.fulfillment!=null?r.fulfillment.toFixed(2):'';
-    const fulfillCls=r.fulfillment!=null?'saved':(o.isUnpaid?'':'empty');
-    const warnIcon=r.fulfillment==null&&!o.isUnpaid?'<span class="warn-icon" title="Missing fulfillment cost">⚠</span>':'';
+    // Keep raw entered value in the input (don't morph what user typed)
+    const fulfillVal=r.rawFulfillment!=null?r.rawFulfillment.toFixed(2):'';
+    const fulfillCls=r.rawFulfillment!=null?'saved':(o.isUnpaid?'':'empty');
+    const warnIcon=r.rawFulfillment==null&&!o.isUnpaid?'<span class="warn-icon" title="Missing fulfillment cost">⚠</span>':'';
     const orderLink=`${ADMIN_BASE}/orders/${o.id}`;
     const status=statusPill(o);
     return`<tr class="${rowCls.join(' ')}" data-order="${o.id}" data-idx="${idx}">
@@ -1177,7 +1240,7 @@ function renderTable(){
       <td class="muted">${fmtDateShort(o.date)}</td>
       <td><div class="customer-cell" title="${escapeHtml(o.customer)}">${escapeHtml(o.customer)||'—'}</div></td>
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
-      <td class="nm">${fmtGBP(o.grossRev)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
+      <td class="nm">${fmtGBP(r.revenue)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
       <td class="nm muted">${fmtGBP(o.txFee)}</td>
       <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span></td>
       <td class="nm ${profitCls}">${profitTxt}</td>
@@ -1187,7 +1250,7 @@ function renderTable(){
   }).join('');
   // Totals row
   const totals=rows.reduce((a,r)=>{
-    a.gross+=r.o.grossRev;a.fee+=r.o.txFee;
+    a.gross+=r.revenue;a.fee+=r.o.txFee;
     if(r.fulfillment!=null)a.fulfill+=r.fulfillment;
     if(r.profit!=null)a.profit+=r.profit;
     return a;
@@ -1246,6 +1309,11 @@ function openSettings(){document.getElementById('drawer').classList.add('open');
 function closeSettings(){document.getElementById('drawer').classList.remove('open');document.getElementById('drawer-overlay').classList.remove('show');}
 
 function renderDrawer(){
+  // VAT
+  const vc=getVatConfig();
+  document.getElementById('vat-rate').value=(vc.vatRate*100).toFixed(1);
+  document.getElementById('vat-costs-inc').checked=!!vc.costsIncVat;
+  document.getElementById('vat-spend-inc').checked=!!vc.spendIncVat;
   ['microsoft','meta','tiktok'].forEach(p=>{
     const mode=getSpendMode(p);
     document.querySelectorAll(`.spend-mode-tab[data-platform="${p}"]`).forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
@@ -1263,6 +1331,32 @@ function renderDrawer(){
   document.getElementById('fee-int-fixed').value=fc.int.fixed;
   document.getElementById('fee-mode-actual').classList.toggle('active',fc.mode==='actual');
   document.getElementById('fee-mode-estimate').classList.toggle('active',fc.mode==='estimate');
+}
+
+function saveVatConfig(){
+  const rate=parseFloat(document.getElementById('vat-rate').value);
+  const c=getVatConfig();
+  c.vatRate=isNaN(rate)||rate<0?0.20:rate/100;
+  c.costsIncVat=document.getElementById('vat-costs-inc').checked;
+  c.spendIncVat=document.getElementById('vat-spend-inc').checked;
+  setVatConfig(c);
+  renderAll();
+}
+
+function toggleVatMode(){
+  const c=getVatConfig();
+  c.showExVat=!c.showExVat;
+  setVatConfig(c);
+  updateVatPill();
+  renderAll();
+}
+
+function updateVatPill(){
+  const c=getVatConfig();
+  const btn=document.getElementById('vat-toggle');
+  if(!btn)return;
+  btn.textContent=c.showExVat?'VAT: ex':'VAT: inc';
+  btn.classList.toggle('active',c.showExVat);
 }
 
 function renderPlatformSpendInputs(platform,mode){
@@ -1318,19 +1412,9 @@ function setFeeMode(m){
   const c=getFeeConfig();c.mode=m;setFeeConfig(c);
   document.getElementById('fee-mode-actual').classList.toggle('active',m==='actual');
   document.getElementById('fee-mode-estimate').classList.toggle('active',m==='estimate');
-  // Re-normalise orders (fee recompute)
-  allOrders=allOrders.map(o=>normaliseOrder({
-    id:o.rawId,name:o.name,createdAt:o.date,
-    displayFinancialStatus:o.financialStatus,displayFulfillmentStatus:o.fulfillmentStatus,
-    currencyCode:o.currency,currentTotalPriceSet:{shopMoney:{amount:o.totalAmt}},
-    currentSubtotalPriceSet:{shopMoney:{amount:o.totalAmt}},
-    totalRefundedSet:{shopMoney:{amount:o.refundedAmt}},
-    originalTotalPriceSet:{shopMoney:{amount:o.totalAmt+o.refundedAmt}},
-    lineItems:{edges:o.lineItems.map(li=>({node:li}))},
-    transactions:o.saleTxns,
-    customer:{firstName:o.customer.split(' ')[0],lastName:o.customer.split(' ').slice(1).join(' ')}
-  }));
-  renderAll();
+  // Fee mode changed — easiest correct path is a full refresh from Shopify so
+  // every field (incl. VAT) is preserved.
+  refresh();
 }
 function saveFeeConfig(){
   const c={
@@ -1393,14 +1477,18 @@ function importData(e){
 // ===== Export CSV =====
 function exportCSV(){
   const rows=filterAndSort();
-  const headers=['Order','Date','Customer','Products','Revenue','Tx fee','Fulfillment','Net profit','Margin %','Status'];
+  const v=getVatConfig();
+  const vatMode=v.showExVat?'ex-VAT':'inc-VAT';
+  const headers=['Order','Date','Customer','Products',`Revenue (${vatMode})`,'VAT','Tx fee',`Fulfillment (${vatMode})`,`Net profit (${vatMode})`,'Margin %','Status'];
   const lines=[headers.join(',')];
   rows.forEach(r=>{
     const o=r.o;
     const cells=[
       o.name,o.date,o.customer,
       `"${(o.productsLabel||'').replace(/"/g,'""')}"`,
-      o.grossRev.toFixed(2),o.txFee.toFixed(2),
+      r.revenue.toFixed(2),
+      (o.vatAmount||0).toFixed(2),
+      o.txFee.toFixed(2),
       r.fulfillment!=null?r.fulfillment.toFixed(2):'',
       r.profit!=null?r.profit.toFixed(2):'',
       r.margin!=null?(r.margin*100).toFixed(2):'',
@@ -1418,6 +1506,7 @@ function exportCSV(){
 // ===== Init =====
 window.addEventListener('load',()=>{
   restoreDateRange();
+  updateVatPill();
   const saved=localStorage.getItem('nuovo_token');
   if(saved){token=saved;launch();}
 });
