@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profit — Nuovo Luxury</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>N</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--gold:#d4a843;--red:#f87171;--green:#10b981;--amber:#f59e0b;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
+html.light{--bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);--text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;--gold:#b8902e;--red:#dc2626;--green:#059669;--amber:#d97706;--chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560}
+html.light .bsm.active{color:#fff}
+html.light .setup-card,html.light .reauth-card,html.light .drawer{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+html.light input[type=date]{color:var(--muted)!important}
+html.light input[type=number]{color:var(--text)!important}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;min-height:100vh}
+
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:12px 28px;gap:8px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+.tl{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.logo span{color:var(--gold)}
+.nav{display:flex;gap:3px;margin-left:8px;flex-wrap:wrap}
+.nav a{font-size:10px;color:var(--muted);text-decoration:none;padding:4px 9px;border-radius:6px;letter-spacing:0.05em;text-transform:uppercase;transition:color 0.2s;white-space:nowrap}
+.nav a:hover{color:var(--text)}
+.nav a.active{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2)}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.tr{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bsm{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:4px 10px;color:var(--text);font-family:'Syne',sans-serif;font-size:10px;cursor:pointer;transition:border-color 0.2s}
+.bsm:hover{border-color:var(--gold)}
+.bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.theme-toggle,.cog-btn{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;color:var(--muted);transition:border-color 0.2s}
+.theme-toggle:hover,.cog-btn:hover{border-color:var(--gold);color:var(--text)}
+
+.main{padding:24px 28px;max-width:1500px;margin:0 auto}
+
+/* Banner */
+.banner{background:linear-gradient(135deg,rgba(245,158,11,0.1) 0%,transparent 100%);border:0.5px solid rgba(245,158,11,0.3);border-radius:8px;padding:12px 18px;margin-bottom:16px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px}
+.banner.err{background:linear-gradient(135deg,rgba(248,113,113,0.1) 0%,transparent 100%);border-color:rgba(248,113,113,0.3)}
+.banner.info{background:linear-gradient(135deg,rgba(212,168,67,0.08) 0%,transparent 100%);border-color:rgba(212,168,67,0.3)}
+.banner-icon{font-size:16px;flex-shrink:0}
+.banner-dismiss{margin-left:auto;cursor:pointer;color:var(--dim);font-size:18px;background:none;border:none;padding:0 4px}
+.banner-dismiss:hover{color:var(--text)}
+
+/* Hero metrics */
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat.gross::before{background:var(--text)}
+.stat.spend::before{background:var(--red)}
+.stat.fees::before{background:var(--red)}
+.stat.fulfill::before{background:var(--red)}
+.stat.profit::before{background:var(--gold)}
+.stat.profit{background:linear-gradient(135deg,rgba(212,168,67,0.06) 0%,var(--bg2) 100%)}
+.stat-lbl{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace}
+.stat-val{font-size:24px;font-weight:700;letter-spacing:-0.02em;font-family:'DM Mono',monospace;font-feature-settings:'tnum';line-height:1.1}
+.stat.profit .stat-val{font-size:30px;color:var(--gold)}
+.stat-val.red{color:var(--red)}
+.stat-val.green{color:var(--green)}
+.stat-sub{font-size:11px;color:var(--dim);margin-top:6px;font-family:'DM Mono',monospace;display:flex;align-items:center;gap:6px}
+.delta-up{color:var(--green)}
+.delta-down{color:var(--red)}
+
+@media(max-width:1100px){.hero{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.hero{grid-template-columns:1fr 1fr}}
+
+/* Card */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:18px}
+.ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-family:'DM Mono',monospace}
+.ct-sub{font-size:11px;color:var(--dim);text-transform:none;letter-spacing:0}
+.ct-actions{display:flex;gap:6px}
+
+.chart-wrap{position:relative;height:280px;margin-top:6px}
+.chart-wrap.small{height:240px}
+
+.row2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:18px}
+@media(max-width:900px){.row2{grid-template-columns:1fr}}
+
+/* Order table */
+.table-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.search-box{flex:1;min-width:200px;max-width:320px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none}
+.search-box:focus{border-color:var(--gold)}
+.chip{background:none;border:0.5px solid var(--border2);border-radius:14px;padding:5px 12px;color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;letter-spacing:0.05em;transition:all 0.2s;white-space:nowrap}
+.chip:hover{color:var(--text);border-color:var(--gold)}
+.chip.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.chip.warn.active{background:var(--amber);border-color:var(--amber);color:#0a0a0b}
+
+.table-scroll{overflow-x:auto;border:0.5px solid var(--border);border-radius:10px;background:var(--bg2)}
+table.orders{width:100%;border-collapse:collapse;font-size:12px;font-family:'DM Mono',monospace;font-feature-settings:'tnum';min-width:1100px}
+table.orders thead th{position:sticky;top:0;background:var(--bg2);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);text-align:left;padding:10px 12px;font-weight:400;border-bottom:0.5px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+table.orders thead th:hover{color:var(--text)}
+table.orders thead th.sort-active{color:var(--gold)}
+table.orders thead th .sort-arrow{margin-left:4px;font-size:8px}
+table.orders tbody td{padding:10px 12px;border-bottom:0.5px solid var(--border);vertical-align:middle;color:var(--text)}
+table.orders tbody tr:hover{background:var(--bg3)}
+table.orders tbody tr.refunded{opacity:0.55}
+table.orders tbody tr.unpaid{opacity:0.55}
+table.orders tbody tr.product-filter-active{background:rgba(212,168,67,0.04)}
+table.orders tbody td.nm{text-align:right;font-feature-settings:'tnum'}
+table.orders tbody td.red{color:var(--red)}
+table.orders tbody td.green{color:var(--green)}
+table.orders tbody td.muted{color:var(--muted)}
+table.orders tbody td.dim{color:var(--dim)}
+table.orders tbody td.gold{color:var(--gold)}
+table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--border2);background:var(--bg2);color:var(--gold)}
+.order-name{font-family:'DM Mono',monospace;font-size:12px;color:var(--text)}
+.order-name a{color:var(--gold);text-decoration:none}
+.order-name a:hover{text-decoration:underline}
+.linkout{font-size:10px;color:var(--dim);margin-left:4px}
+
+.cost-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:80px;outline:none;text-align:right;font-feature-settings:'tnum'}
+.cost-input:focus{border-color:var(--gold)}
+.cost-input.saved{border-color:var(--green)}
+.cost-input.empty{border-color:rgba(245,158,11,0.4)}
+.cost-saved-tick{display:inline-block;margin-left:4px;color:var(--green);font-size:11px;opacity:0;transition:opacity 0.4s}
+.cost-saved-tick.show{opacity:1}
+
+.status-pill{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;font-family:'DM Mono',monospace;font-weight:500}
+.status-paid{background:rgba(16,185,129,0.12);color:var(--green)}
+.status-refunded{background:rgba(248,113,113,0.12);color:var(--red)}
+.status-partial{background:rgba(245,158,11,0.12);color:var(--amber)}
+.status-pending{background:rgba(167,139,250,0.1);color:#a78bfa}
+.status-fulfilled{background:rgba(16,185,129,0.08);color:var(--green)}
+.status-unfulfilled{background:rgba(248,113,113,0.08);color:var(--red)}
+
+.margin-pill{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:500;min-width:46px;text-align:center;font-family:'DM Mono',monospace}
+.margin-pill.red{background:rgba(248,113,113,0.12);color:var(--red)}
+.margin-pill.amber{background:rgba(245,158,11,0.12);color:var(--amber)}
+.margin-pill.green{background:rgba(16,185,129,0.12);color:var(--green)}
+.margin-pill.dim{color:var(--dim);background:transparent}
+
+.products-cell{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Syne',sans-serif;font-size:12px;color:var(--muted)}
+.customer-cell{font-family:'Syne',sans-serif;color:var(--text);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.warn-icon{display:inline-block;color:var(--amber);font-size:13px;margin-right:4px;cursor:help}
+
+.tooltip{position:relative;display:inline-block;cursor:help}
+.tooltip .tip{visibility:hidden;background:var(--bg3);color:var(--text);text-align:left;border-radius:6px;padding:8px 10px;position:absolute;z-index:20;bottom:125%;left:50%;transform:translateX(-50%);width:240px;font-size:11px;line-height:1.4;border:0.5px solid var(--border2);font-family:'Syne',sans-serif;text-transform:none;letter-spacing:0;opacity:0;transition:opacity 0.2s}
+.tooltip:hover .tip{visibility:visible;opacity:1}
+
+/* Setup */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.setup-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center}
+.setup-logo{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:2rem}
+.setup-logo span{color:var(--gold)}
+.setup-card h1{font-size:22px;font-weight:700;margin-bottom:8px}
+.setup-card .sub{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:1.5rem}
+.btn-google{width:100%;padding:13px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
+.err{color:var(--red);font-size:12px;margin-top:8px}
+
+/* Reauth */
+.reauth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center}
+.reauth-overlay.show{display:flex}
+.reauth-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:2.5rem;max-width:380px;width:100%;text-align:center}
+.reauth-card h2{font-size:18px;font-weight:700;margin-bottom:8px}
+.reauth-card p{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:1.5rem}
+
+#dashboard{display:none}
+
+/* Settings drawer */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);z-index:99;display:none}
+.drawer-overlay.show{display:block}
+.drawer{position:fixed;top:0;right:-460px;width:440px;max-width:100vw;height:100vh;background:var(--bg2);border-left:0.5px solid var(--border2);z-index:100;padding:0;transition:right 0.3s cubic-bezier(0.4,0,0.2,1);overflow-y:auto;display:flex;flex-direction:column}
+.drawer.open{right:0}
+.drawer-head{padding:20px 24px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:5}
+.drawer-head h3{font-size:14px;font-weight:600;letter-spacing:0.05em}
+.drawer-close{background:none;border:none;color:var(--dim);font-size:22px;cursor:pointer;line-height:1}
+.drawer-close:hover{color:var(--text)}
+.drawer-body{padding:18px 24px 24px;flex:1}
+.drawer-section{margin-bottom:24px;padding-bottom:20px;border-bottom:0.5px solid var(--border)}
+.drawer-section:last-child{border-bottom:none}
+.drawer-section h4{font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;font-family:'DM Mono',monospace}
+.drawer-section p.help{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px}
+.drawer-section label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;font-family:'DM Mono',monospace;letter-spacing:0.05em;text-transform:uppercase}
+.spend-mode-tabs{display:flex;gap:4px;margin-bottom:10px}
+.spend-mode-tab{flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--muted);font-size:10px;text-transform:uppercase;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:0.05em}
+.spend-mode-tab.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.drawer-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:7px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none}
+.drawer-input:focus{border-color:var(--gold)}
+.daily-grid{display:grid;grid-template-columns:1fr 90px;gap:6px 10px;max-height:260px;overflow-y:auto;padding-right:4px}
+.daily-grid .dl{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;align-self:center}
+.fee-row{display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.fee-row label{margin-bottom:0}
+.drawer-btn{background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:8px 14px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.2s}
+.drawer-btn:hover{border-color:var(--gold);color:var(--gold)}
+.drawer-btn.danger:hover{border-color:var(--red);color:var(--red)}
+.drawer-btn.primary{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.drawer-btn.primary:hover{opacity:0.85;color:#0a0a0b}
+
+/* Footer */
+.footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+
+/* Loading */
+.ld{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:30px;justify-content:center}
+.sp{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:40px 20px;text-align:center;color:var(--dim);font-size:13px;font-family:'DM Mono',monospace}
+.skeleton{background:linear-gradient(90deg,var(--bg2) 0%,var(--bg3) 50%,var(--bg2) 100%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">Nuovo Luxury <span>/ Profit</span></div>
+    <h1>Connect your GA4</h1>
+    <p class="sub">Sign in to access ad spend data. Order data comes from Shopify (connected server-side).</p>
+    <button class="btn-google" onclick="startOAuth()"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Sign in with Google</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div class="reauth-overlay" id="reauth-modal">
+  <div class="reauth-card">
+    <h2>Session expired</h2>
+    <p>Your Google session has timed out. Reconnect to continue.</p>
+    <button class="btn-google" onclick="reconnect()"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Reconnect with Google</button>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="tl">
+      <div class="logo">Nuovo Luxury <span>/ Profit</span></div>
+      <div class="nav">
+        <a href="/">← Home</a>
+        <a href="/ai">AI Traffic</a>
+        <a href="/paid">Paid Ads</a>
+        <a href="/organic">Organic</a>
+        <a href="/performance">Performance</a>
+        <a href="/product">Products</a>
+        <a href="/changes">SEO Changes</a>
+        <a href="/profit" class="active">Profit</a>
+      </div>
+      <div class="live"><span class="pulse"></span><span id="fst">Live</span></div>
+    </div>
+    <div class="tr">
+      <button class="bsm preset-btn" onclick="setPreset(this,'today')" data-preset="today">Today</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'yesterday')" data-preset="yesterday">Yesterday</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'7')" data-preset="7">7d</button>
+      <button class="bsm preset-btn active" onclick="setPreset(this,'28')" data-preset="28">28d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'90')" data-preset="90">90d</button>
+      <button class="bsm preset-btn" onclick="setPreset(this,'180')" data-preset="180">180d</button>
+      <div style="display:flex;align-items:center;gap:4px;margin-left:4px">
+        <input type="date" id="date-from" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+        <span style="color:var(--dim);font-size:11px">→</span>
+        <input type="date" id="date-to" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer" onchange="setCustom()">
+      </div>
+      <button class="bsm" onclick="refresh()" title="Refresh">↻</button>
+      <button class="cog-btn" onclick="openSettings()" title="Settings">⚙</button>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">🌙</button>
+      <button class="bsm" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="banners"></div>
+
+    <!-- Hero metrics -->
+    <div class="hero">
+      <div class="stat gross">
+        <div class="stat-lbl">Gross revenue</div>
+        <div class="stat-val" id="h-gross">—</div>
+        <div class="stat-sub" id="h-gross-sub">orders this period</div>
+      </div>
+      <div class="stat spend">
+        <div class="stat-lbl">Ad spend</div>
+        <div class="stat-val red" id="h-spend">—</div>
+        <div class="stat-sub" id="h-spend-sub">G + MS + Meta + TT</div>
+      </div>
+      <div class="stat fees">
+        <div class="stat-lbl">Transaction fees</div>
+        <div class="stat-val red" id="h-fees">—</div>
+        <div class="stat-sub" id="h-fees-sub">payment processing</div>
+      </div>
+      <div class="stat fulfill">
+        <div class="stat-lbl">Fulfillment costs</div>
+        <div class="stat-val red" id="h-fulfill">—</div>
+        <div class="stat-sub" id="h-fulfill-sub">manually entered</div>
+      </div>
+      <div class="stat profit">
+        <div class="stat-lbl">Net profit</div>
+        <div class="stat-val" id="h-profit">—</div>
+        <div class="stat-sub" id="h-profit-sub">margin —</div>
+      </div>
+    </div>
+
+    <!-- Profit timeline -->
+    <div class="card">
+      <div class="ct">
+        <span>Profit timeline <span class="ct-sub">— daily net profit over selected range</span></span>
+        <div class="ct-actions">
+          <button class="chip active" id="tl-mode-stack" onclick="setTimelineMode('stack')">Breakdown</button>
+          <button class="chip" id="tl-mode-line" onclick="setTimelineMode('line')">Profit only</button>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="timeline-chart"></canvas></div>
+    </div>
+
+    <!-- Row 3: by product + margin distribution -->
+    <div class="row2">
+      <div class="card">
+        <div class="ct">
+          <span>Profit by product <span class="ct-sub">— top 10 by net profit</span></span>
+          <div class="ct-actions" id="product-filter-clear" style="display:none">
+            <button class="chip" onclick="clearProductFilter()">Clear filter ✕</button>
+          </div>
+        </div>
+        <div class="chart-wrap small"><canvas id="product-chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span>Margin distribution <span class="ct-sub">— orders with costs entered</span></span></div>
+        <div class="chart-wrap small"><canvas id="margin-chart"></canvas></div>
+        <div id="margin-pending" style="text-align:center;font-size:11px;color:var(--dim);margin-top:8px;font-family:'DM Mono',monospace"></div>
+      </div>
+    </div>
+
+    <!-- Order table -->
+    <div class="card">
+      <div class="ct">
+        <span>Orders <span class="ct-sub" id="order-count">— loading...</span></span>
+        <div class="ct-actions">
+          <button class="chip" onclick="exportCSV()">↓ Export CSV</button>
+        </div>
+      </div>
+      <div class="table-controls">
+        <input type="text" class="search-box" id="search" placeholder="Search orders, customers, products..." oninput="renderTable()">
+        <button class="chip warn" id="chip-missing" onclick="toggleChip('missing')">Missing costs</button>
+        <button class="chip" id="chip-profitable" onclick="toggleChip('profitable')">Profitable only</button>
+        <button class="chip" id="chip-loss" onclick="toggleChip('loss')">Loss-making</button>
+        <button class="chip" id="chip-refunded" onclick="toggleChip('refunded')">Refunded</button>
+        <button class="chip" id="chip-unfulfilled" onclick="toggleChip('unfulfilled')">Unfulfilled</button>
+      </div>
+      <div class="table-scroll">
+        <table class="orders">
+          <thead>
+            <tr id="orders-head">
+              <th data-col="name">Order</th>
+              <th data-col="date">Date</th>
+              <th data-col="customer">Customer</th>
+              <th data-col="products">Products</th>
+              <th data-col="gross" class="nm">Revenue</th>
+              <th data-col="fee" class="nm">Tx fee</th>
+              <th data-col="alloc" class="nm">Ad spend <span class="tooltip">ⓘ<span class="tip">Blended: daily total ad spend ÷ paid orders that day. Not per-order attribution.</span></span></th>
+              <th data-col="fulfill" class="nm">Fulfillment</th>
+              <th data-col="profit" class="nm">Net profit</th>
+              <th data-col="margin" class="nm">Margin</th>
+              <th data-col="status">Status</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr><td colspan="11"><div class="ld"><span class="sp"></span>Loading orders...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="ftl" id="fts">—</div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase">Profit tracking · Shopify + GA4</div>
+  </div>
+</div>
+
+<!-- Settings drawer -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeSettings()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3>Settings</h3>
+    <button class="drawer-close" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="drawer-body">
+
+    <div class="drawer-section">
+      <h4>Microsoft Ads spend</h4>
+      <p class="help">Google Ads pulls from GA4 automatically. Microsoft, Meta, TikTok and Other need manual entry.</p>
+      <div class="spend-mode-tabs">
+        <button class="spend-mode-tab" data-platform="microsoft" data-mode="daily" onclick="setSpendMode('microsoft','daily')">Daily</button>
+        <button class="spend-mode-tab active" data-platform="microsoft" data-mode="period" onclick="setSpendMode('microsoft','period')">Period total</button>
+      </div>
+      <div id="microsoft-spend-input"></div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Meta Ads spend</h4>
+      <div class="spend-mode-tabs">
+        <button class="spend-mode-tab" data-platform="meta" data-mode="daily" onclick="setSpendMode('meta','daily')">Daily</button>
+        <button class="spend-mode-tab active" data-platform="meta" data-mode="period" onclick="setSpendMode('meta','period')">Period total</button>
+      </div>
+      <div id="meta-spend-input"></div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>TikTok Ads spend</h4>
+      <div class="spend-mode-tabs">
+        <button class="spend-mode-tab" data-platform="tiktok" data-mode="daily" onclick="setSpendMode('tiktok','daily')">Daily</button>
+        <button class="spend-mode-tab active" data-platform="tiktok" data-mode="period" onclick="setSpendMode('tiktok','period')">Period total</button>
+      </div>
+      <div id="tiktok-spend-input"></div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Other ad spend</h4>
+      <label>Label</label>
+      <input type="text" class="drawer-input" id="other-label" placeholder="e.g. Pinterest, Snapchat" oninput="saveOtherSpend()" style="margin-bottom:8px">
+      <label>Total £ for period</label>
+      <input type="number" class="drawer-input" id="other-total" placeholder="0.00" min="0" step="0.01" oninput="saveOtherSpend()">
+    </div>
+
+    <div class="drawer-section">
+      <h4>Transaction fee calculation</h4>
+      <p class="help">Shopify Payments reports actual fees per transaction. If a transaction is missing fee data, this fallback is used.</p>
+      <div class="spend-mode-tabs">
+        <button class="spend-mode-tab" id="fee-mode-actual" onclick="setFeeMode('actual')">Use actual</button>
+        <button class="spend-mode-tab active" id="fee-mode-estimate" onclick="setFeeMode('estimate')">Estimate fallback</button>
+      </div>
+      <div class="fee-row">
+        <label>UK</label>
+        <input type="number" class="drawer-input" id="fee-uk-pct" placeholder="%" step="0.1" min="0">
+        <input type="number" class="drawer-input" id="fee-uk-fixed" placeholder="fixed £" step="0.01" min="0">
+      </div>
+      <div class="fee-row">
+        <label>Int'l</label>
+        <input type="number" class="drawer-input" id="fee-int-pct" placeholder="%" step="0.1" min="0">
+        <input type="number" class="drawer-input" id="fee-int-fixed" placeholder="fixed £" step="0.01" min="0">
+      </div>
+      <button class="drawer-btn primary" onclick="saveFeeConfig()">Save fee config</button>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Data management</h4>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="drawer-btn" onclick="exportData()">↓ Export all data as JSON</button>
+        <button class="drawer-btn" onclick="document.getElementById('import-file').click()">↑ Import from JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+        <button class="drawer-btn danger" onclick="resetFulfillment()">Reset all fulfillment costs</button>
+        <button class="drawer-btn danger" onclick="resetAdSpend()">Reset all manual ad spend</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ===== Theme =====
+function applyTheme(theme){
+  document.documentElement.classList.toggle('light',theme==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const next=document.documentElement.classList.contains('light')?'dark':'light';
+  localStorage.setItem('nuovo_theme',next);
+  applyTheme(next);
+  if(token&&allOrders.length)renderAll();
+}
+(function(){const t=localStorage.getItem('nuovo_theme');if(t)applyTheme(t);})();
+
+// ===== Constants =====
+const PROP='346978985';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
+const STORE_BASE='nuovoluxury.co.uk';
+const ADMIN_BASE='https://admin.shopify.com/store/nuovo-luxury';
+let token=null;
+let dateRange={startDate:'28daysAgo',endDate:'today'};
+let allOrders=[];
+let dailyAdSpend={}; // { 'YYYY-MM-DD': { google: x, microsoft: y, meta: z, tiktok: w, other: v, total } }
+let charts={};
+let timelineMode='stack';
+let productFilter=null;
+let activeChips={missing:false,profitable:false,loss:false,refunded:false,unfulfilled:false};
+let sortCol='date',sortDesc=true;
+
+// ===== OAuth =====
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
+function startOAuth(state){
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+'/profit',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    include_granted_scopes:'true',
+    state:state||'sign-in'
+  });
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
+}
+function reconnect(){startOAuth('reauth');}
+function showReauth(){document.getElementById('reauth-modal').classList.add('show');}
+function hideReauth(){document.getElementById('reauth-modal').classList.remove('show');}
+function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message||'');}
+
+function launch(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  refresh();
+  setInterval(refresh,30*60*1000);
+}
+
+// ===== GA4 =====
+const EXCLUDE_COUNTRY={notExpression:{filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam'}}}};
+function withCountryFilter(body){
+  const b={...body};
+  if(!b.dimensionFilter)b.dimensionFilter=EXCLUDE_COUNTRY;
+  else b.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,b.dimensionFilter]}};
+  return b;
+}
+async function ga4(body){
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const hdrs={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+  let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
+  if(!r.ok){
+    const e=await r.json().catch(()=>({}));
+    const msg=e.error?.message||'';
+    if(/remove country|incompatible/i.test(msg)){
+      r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      if(r.ok)return r.json();
+    }
+    const err=new Error(msg||'API '+r.status);err.status=r.status;throw err;
+  }
+  return r.json();
+}
+const safe=async(q)=>{try{return await ga4(q);}catch(e){if(isAuthError(e)){showReauth();throw e;}console.warn('GA4 failed:',e.message);return{rows:[]};}};
+
+// ===== Formatting =====
+function fmtGBP(v,short){
+  if(v==null||isNaN(v))return'—';
+  const abs=Math.abs(v);
+  if(short&&abs>=1000)return'£'+(v/1000).toFixed(1)+'k';
+  if(abs>=100)return'£'+Math.round(v).toLocaleString('en-GB');
+  return'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtPct(v){return(v*100).toFixed(1)+'%';}
+function fmtDate(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fmtDateShort(s){const d=new Date(s);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+// ===== Date range =====
+function saveDateRange(preset){localStorage.setItem('nuovo_profit_date_range',JSON.stringify({dateRange,preset:preset||null}));}
+function restoreDateRange(){
+  const saved=localStorage.getItem('nuovo_profit_date_range');
+  if(!saved)return;
+  try{
+    const s=JSON.parse(saved);
+    dateRange=s.dateRange;
+    if(s.preset){document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('data-preset')===s.preset));}
+  }catch(e){}
+}
+function setPreset(btn,preset){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const today=new Date(),f=fmtDate;
+  if(preset==='today'){dateRange={startDate:'today',endDate:'today'};}
+  else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);dateRange={startDate:f(y),endDate:f(y)};}
+  else{dateRange={startDate:`${preset}daysAgo`,endDate:'today'};}
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  saveDateRange(preset);
+  refresh();
+}
+function setCustom(){
+  const from=document.getElementById('date-from').value,to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    dateRange={startDate:from,endDate:to};
+    saveDateRange(null);
+    refresh();
+  }
+}
+function resolveDateRange(){
+  // Convert preset-style range to actual ISO dates for Shopify
+  const today=new Date();
+  let start,end;
+  if(dateRange.startDate==='today'){start=fmtDate(today);end=fmtDate(today);}
+  else if(/(\d+)daysAgo/.test(dateRange.startDate)){
+    const days=parseInt(dateRange.startDate.match(/(\d+)/)[1]);
+    const s=new Date(today);s.setDate(today.getDate()-days);
+    start=fmtDate(s);end=fmtDate(today);
+  } else {start=dateRange.startDate;end=dateRange.endDate==='today'?fmtDate(today):dateRange.endDate;}
+  return{start,end};
+}
+function getDatesInRange(start,end){
+  const out=[];
+  const s=new Date(start),e=new Date(end);
+  for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1))out.push(fmtDate(new Date(d)));
+  return out;
+}
+
+// ===== localStorage helpers =====
+function lsGet(key,fallback){try{const v=localStorage.getItem(key);return v?JSON.parse(v):fallback;}catch(e){return fallback;}}
+function lsSet(key,val){localStorage.setItem(key,JSON.stringify(val));}
+
+function getSpend(platform){return lsGet(`nuovo_shared_${platform}_spend`,{});}
+function setSpend(platform,obj){lsSet(`nuovo_shared_${platform}_spend`,obj);}
+function getOrderCosts(){return lsGet('nuovo_order_costs',{});}
+function setOrderCost(orderId,cost){const c=getOrderCosts();if(cost==null||cost==='')delete c[orderId];else c[orderId]=cost;lsSet('nuovo_order_costs',c);}
+function getFeeConfig(){return lsGet('nuovo_fee_config',{mode:'estimate',uk:{pct:1.5,fixed:0.25},int:{pct:2.5,fixed:0.25}});}
+function setFeeConfig(c){lsSet('nuovo_fee_config',c);}
+function getSpendMode(platform){return lsGet(`nuovo_spend_mode_${platform}`,'period');}
+function setSpendModeStorage(platform,mode){lsSet(`nuovo_spend_mode_${platform}`,mode);}
+function getOtherLabel(){return localStorage.getItem('nuovo_other_label')||'';}
+
+// ===== Spend helpers =====
+// Each platform spend stored as { 'YYYY-MM-DD': £, '__period_total': £ } when in period mode total goes there
+function platformSpendForRange(platform,dates){
+  const s=getSpend(platform);
+  const mode=getSpendMode(platform);
+  if(mode==='period'){
+    const total=parseFloat(s.__period_total||0)||0;
+    if(!total)return{daily:{},total:0};
+    // Spread evenly across dates
+    const per=total/dates.length;
+    const daily={};dates.forEach(d=>daily[d]=per);
+    return{daily,total};
+  }
+  // daily mode
+  const daily={};let total=0;
+  dates.forEach(d=>{
+    const v=parseFloat(s[d]||0)||0;
+    daily[d]=v;total+=v;
+  });
+  return{daily,total};
+}
+
+// ===== Main refresh =====
+async function refresh(){
+  document.getElementById('fst').textContent='Fetching...';
+  document.getElementById('orders-body').innerHTML='<tr><td colspan="11"><div class="ld"><span class="sp"></span>Loading orders...</div></td></tr>';
+  document.getElementById('banners').innerHTML='';
+
+  const{start,end}=resolveDateRange();
+  const dates=getDatesInRange(start,end);
+
+  try{
+    // Parallel: Shopify orders + GA4 Google Ads spend
+    const [ordersResp, googleSpendResp]=await Promise.all([
+      fetchShopifyOrders(start,end),
+      fetchGoogleAdSpend(start,end)
+    ]);
+
+    allOrders=(ordersResp.orders||[]).map(normaliseOrder);
+
+    // Build daily ad spend map
+    dailyAdSpend={};
+    dates.forEach(d=>{dailyAdSpend[d]={google:0,microsoft:0,meta:0,tiktok:0,other:0,total:0};});
+
+    // Google from GA4
+    (googleSpendResp.rows||[]).forEach(r=>{
+      const raw=r.dimensionValues[0].value;
+      const d=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+      if(dailyAdSpend[d])dailyAdSpend[d].google=parseFloat(r.metricValues[0].value||0);
+    });
+    // Manual platforms
+    ['microsoft','meta','tiktok','other'].forEach(p=>{
+      const{daily}=platformSpendForRange(p,dates);
+      dates.forEach(d=>{if(dailyAdSpend[d])dailyAdSpend[d][p]=daily[d]||0;});
+    });
+    // Total per day
+    dates.forEach(d=>{const r=dailyAdSpend[d];r.total=r.google+r.microsoft+r.meta+r.tiktok+r.other;});
+
+    // Detect Google Ads not flowing
+    const googleTotal=Object.values(dailyAdSpend).reduce((a,d)=>a+d.google,0);
+    if(googleTotal===0){
+      addBanner('warn','Google Ads cost data not flowing from GA4 — check GA4 Admin → Google Ads links. Enter manually in settings if needed.','google-warn');
+    }
+
+    renderAll();
+
+    document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('fts').textContent=`Shopify + GA4 · ${allOrders.length} orders · ${new Date().toLocaleString('en-GB')}`;
+  }catch(e){
+    if(isAuthError(e)){showReauth();return;}
+    document.getElementById('orders-body').innerHTML=`<tr><td colspan="11" class="empty">Error: ${e.message}</td></tr>`;
+    document.getElementById('fst').textContent='Error: '+e.message;
+    addBanner('err',`Failed to load: ${e.message}`,'load-err');
+    console.error(e);
+  }
+}
+
+async function fetchShopifyOrders(start,end){
+  const r=await fetch(`/api/shopify-orders?startDate=${start}&endDate=${end}`);
+  if(!r.ok){
+    const e=await r.json().catch(()=>({error:'Shopify '+r.status}));
+    throw new Error(e.error||'Shopify request failed');
+  }
+  return r.json();
+}
+
+async function fetchGoogleAdSpend(start,end){
+  return safe({
+    dateRanges:[{startDate:start,endDate:end}],
+    dimensions:[{name:'date'}],
+    metrics:[{name:'advertiserAdCost'}],
+    dimensionFilter:{andGroup:{expressions:[
+      {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+      {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
+    ]}},
+    orderBys:[{dimension:{dimensionName:'date'}}]
+  });
+}
+
+// ===== Order normalisation =====
+function normaliseOrder(o){
+  const lineItems=(o.lineItems?.edges||[]).map(e=>e.node);
+  const txns=o.transactions||[];
+  const created=new Date(o.createdAt);
+  const dateKey=fmtDate(created);
+  const totalAmt=parseFloat(o.currentTotalPriceSet?.shopMoney?.amount||0);
+  const refundedAmt=parseFloat(o.totalRefundedSet?.shopMoney?.amount||0);
+  const subtotalAmt=parseFloat(o.currentSubtotalPriceSet?.shopMoney?.amount||0);
+  const originalAmt=parseFloat(o.originalTotalPriceSet?.shopMoney?.amount||0);
+  // Sum transaction fees
+  let txFee=0,gateway='',hasFee=false;
+  const saleTxns=txns.filter(t=>(t.kind==='SALE'||t.kind==='CAPTURE')&&t.status==='SUCCESS');
+  saleTxns.forEach(t=>{
+    gateway=t.gateway||gateway;
+    if(t.fees&&t.fees.length){
+      hasFee=true;
+      t.fees.forEach(f=>{txFee+=parseFloat(f.amount?.amount||0);});
+    }
+  });
+  // Fallback fee estimate
+  const feeCfg=getFeeConfig();
+  if(!hasFee||feeCfg.mode==='estimate'){
+    // Heuristic: GBP & UK probably domestic. We don't have country here, treat as UK by default.
+    const currency=o.currencyCode||'GBP';
+    const isUk=currency==='GBP';
+    const cfg=isUk?feeCfg.uk:feeCfg.int;
+    const base=originalAmt||totalAmt;
+    txFee=(base*(cfg.pct/100))+cfg.fixed;
+    // Pro-rate refund: refund portion of percentage fee, keep fixed
+    if(refundedAmt>0&&base>0){
+      const refundPct=refundedAmt/base;
+      txFee=(base-refundedAmt)*(cfg.pct/100)+cfg.fixed;
+    }
+  } else if(refundedAmt>0&&originalAmt>0&&hasFee){
+    // Pro-rate actual fee
+    const refundPct=refundedAmt/originalAmt;
+    txFee=txFee*(1-refundPct)+(0.25*refundPct); // approximate: keep fixed 25p
+  }
+  const productsLabel=lineItems.map(li=>{
+    const q=li.quantity>1?` x${li.quantity}`:'';
+    return(li.title||'item')+q;
+  }).join(', ');
+  const productNames=lineItems.map(li=>li.title).filter(Boolean);
+  const customer=o.customer?((o.customer.firstName||'')+' '+(o.customer.lastName||'')).trim()||(o.customer.email||'').split('@')[0]:'';
+  const isRefunded=o.displayFinancialStatus==='REFUNDED';
+  const isPartial=o.displayFinancialStatus==='PARTIALLY_REFUNDED';
+  const isUnpaid=['PENDING','AUTHORIZED','VOIDED','EXPIRED'].includes(o.displayFinancialStatus);
+  // Effective revenue (post-refund)
+  const grossRev=Math.max(0,totalAmt-refundedAmt);
+  const orderId=o.id.split('/').pop();
+  return{
+    id:orderId,
+    rawId:o.id,
+    name:o.name,
+    date:o.createdAt,
+    dateKey,
+    customer,
+    lineItems,
+    productsLabel,
+    productNames,
+    grossRev,
+    totalAmt,
+    refundedAmt,
+    txFee,
+    txFeeAuto:txFee,
+    gateway,
+    currency:o.currencyCode||'GBP',
+    financialStatus:o.displayFinancialStatus,
+    fulfillmentStatus:o.displayFulfillmentStatus,
+    isRefunded,isPartial,isUnpaid,
+    saleTxns
+  };
+}
+
+// ===== Compute allocated ad spend per order =====
+function computeAllocations(){
+  // For each date, sum paid orders revenue, then allocated spend per order = (daily spend) / (count of paid orders that day)
+  const byDay={};
+  allOrders.forEach(o=>{
+    if(o.isUnpaid)return;
+    if(!byDay[o.dateKey])byDay[o.dateKey]={count:0};
+    byDay[o.dateKey].count++;
+  });
+  const allocs={};
+  allOrders.forEach(o=>{
+    if(o.isUnpaid){allocs[o.id]=0;return;}
+    const d=byDay[o.dateKey];
+    const spend=dailyAdSpend[o.dateKey]?.total||0;
+    allocs[o.id]=d&&d.count>0?spend/d.count:0;
+  });
+  return allocs;
+}
+
+// ===== Per-order P&L =====
+function orderProfit(o,alloc){
+  const costs=getOrderCosts();
+  const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
+  if(fulfillment==null||isNaN(fulfillment)||o.isUnpaid)return{profit:null,margin:null,fulfillment:null,alloc};
+  const profit=o.grossRev-o.txFee-alloc-fulfillment;
+  const margin=o.grossRev>0?profit/o.grossRev:0;
+  return{profit,margin,fulfillment,alloc};
+}
+
+// ===== Aggregates =====
+function computeAggregates(){
+  const allocs=computeAllocations();
+  const costs=getOrderCosts();
+  let gross=0,spendTotal=0,feesTotal=0,fulfillTotal=0,netProfit=0;
+  let missing=0,withCosts=0;
+  const byDate={};
+  const byProduct={};
+
+  // Total ad spend from dailyAdSpend
+  Object.values(dailyAdSpend).forEach(d=>{spendTotal+=d.total;});
+
+  allOrders.forEach(o=>{
+    if(o.isUnpaid)return;
+    gross+=o.grossRev;
+    feesTotal+=o.txFee;
+    const alloc=allocs[o.id]||0;
+    const{profit,fulfillment}=orderProfit(o,alloc);
+    if(fulfillment!=null){
+      fulfillTotal+=fulfillment;
+      netProfit+=profit;
+      withCosts++;
+    } else {
+      missing++;
+    }
+    // Daily breakdown
+    if(!byDate[o.dateKey])byDate[o.dateKey]={gross:0,fees:0,fulfill:0,profit:0,hasMissing:false};
+    byDate[o.dateKey].gross+=o.grossRev;
+    byDate[o.dateKey].fees+=o.txFee;
+    if(fulfillment!=null){
+      byDate[o.dateKey].fulfill+=fulfillment;
+      byDate[o.dateKey].profit+=profit;
+    } else {
+      byDate[o.dateKey].hasMissing=true;
+    }
+    // Per-product profit (only orders with costs)
+    if(profit!=null){
+      o.lineItems.forEach(li=>{
+        const t=li.title||'(unknown)';
+        if(!byProduct[t])byProduct[t]={rev:0,profit:0,count:0};
+        // Apportion order profit by line-item revenue share
+        const liRev=parseFloat(li.originalUnitPriceSet?.shopMoney?.amount||0)*(li.quantity||1);
+        const share=o.grossRev>0?liRev/o.grossRev:0;
+        byProduct[t].rev+=liRev;
+        byProduct[t].profit+=profit*share;
+        byProduct[t].count+=li.quantity||1;
+      });
+    }
+  });
+
+  // True profit aggregate = gross - spend - fees - fulfill (across orders with costs only? No — global view, but exclude missing-cost orders' fulfillment piece)
+  // We compute headline as gross_with_costs - txfees_with_costs - allocated_spend_with_costs - fulfill_with_costs
+  // Actually for honest headline: only include orders where we have full picture
+  let headlineGross=0,headlineFees=0,headlineAlloc=0;
+  allOrders.forEach(o=>{
+    if(o.isUnpaid)return;
+    const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
+    if(fulfillment==null||isNaN(fulfillment))return;
+    headlineGross+=o.grossRev;headlineFees+=o.txFee;headlineAlloc+=allocs[o.id]||0;
+  });
+  const headlineProfit=headlineGross-headlineFees-headlineAlloc-fulfillTotal;
+  const headlineMargin=headlineGross>0?headlineProfit/headlineGross:0;
+
+  return{gross,spendTotal,feesTotal,fulfillTotal,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
+}
+
+// ===== Render all =====
+function renderAll(){
+  const agg=computeAggregates();
+  renderBanners(agg);
+  renderHero(agg);
+  renderTimeline(agg);
+  renderProductChart(agg);
+  renderMarginChart(agg);
+  renderTable();
+}
+
+function renderBanners(agg){
+  document.getElementById('banners').innerHTML='';
+  if(agg.missing>0){
+    addBanner('warn',`<strong>${agg.missing} order${agg.missing===1?'':'s'} missing fulfillment costs</strong> — enter to see true profit. Use the "Missing costs" filter below.`,'missing-banner');
+  }
+}
+function addBanner(type,html,id){
+  const el=document.getElementById('banners');
+  if(document.getElementById('b-'+id))return;
+  const div=document.createElement('div');
+  div.id='b-'+id;
+  div.className='banner '+(type==='err'?'err':type==='info'?'info':'');
+  div.innerHTML=`<span class="banner-icon">${type==='err'?'⚠':type==='info'?'ⓘ':'⚠'}</span><span>${html}</span><button class="banner-dismiss" onclick="this.parentElement.remove()">✕</button>`;
+  el.appendChild(div);
+}
+
+// ===== Hero =====
+function renderHero(agg){
+  document.getElementById('h-gross').textContent=fmtGBP(agg.gross);
+  document.getElementById('h-gross-sub').textContent=`${allOrders.filter(o=>!o.isUnpaid).length} paid orders`;
+  document.getElementById('h-spend').textContent=fmtGBP(agg.spendTotal);
+  const spendDetail=[];
+  ['google','microsoft','meta','tiktok','other'].forEach(p=>{
+    const total=Object.values(dailyAdSpend).reduce((a,d)=>a+(d[p]||0),0);
+    if(total>0)spendDetail.push(`${p[0].toUpperCase()+p.slice(1).slice(0,2)} ${fmtGBP(total,true)}`);
+  });
+  document.getElementById('h-spend-sub').textContent=spendDetail.length?spendDetail.join(' · '):'no spend in period';
+  document.getElementById('h-fees').textContent=fmtGBP(agg.feesTotal);
+  document.getElementById('h-fees-sub').textContent=`${(allOrders.length?agg.feesTotal/agg.gross*100:0).toFixed(2)}% of revenue`;
+  document.getElementById('h-fulfill').textContent=fmtGBP(agg.fulfillTotal);
+  document.getElementById('h-fulfill-sub').textContent=`${agg.withCosts} of ${agg.withCosts+agg.missing} orders`;
+  const profitEl=document.getElementById('h-profit');
+  profitEl.textContent=agg.withCosts>0?fmtGBP(agg.netProfit):'—';
+  profitEl.style.color=agg.netProfit>=0?'var(--gold)':'var(--red)';
+  document.getElementById('h-profit-sub').textContent=agg.withCosts>0?`margin ${fmtPct(agg.headlineMargin)}`:'enter costs to see profit';
+}
+
+// ===== Timeline chart =====
+function renderTimeline(agg){
+  const{start,end}=resolveDateRange();
+  const dates=getDatesInRange(start,end);
+  const allocs=agg.allocs;
+  // Daily series
+  const grossSer=[],feeSer=[],fulfillSer=[],spendSer=[],profitSer=[],missingDay=[];
+  dates.forEach(d=>{
+    const day=agg.byDate[d]||{gross:0,fees:0,fulfill:0,profit:0,hasMissing:false};
+    grossSer.push(day.gross);
+    feeSer.push(day.fees);
+    fulfillSer.push(day.fulfill);
+    spendSer.push(dailyAdSpend[d]?.total||0);
+    profitSer.push(day.profit);
+    missingDay.push(day.hasMissing);
+  });
+  const labels=dates.map(d=>d.slice(5));
+  const ctx=document.getElementById('timeline-chart');
+  if(charts.timeline)charts.timeline.destroy();
+
+  if(timelineMode==='line'){
+    charts.timeline=new Chart(ctx,{type:'line',data:{labels,datasets:[{
+      label:'Net profit',data:profitSer,
+      borderColor:themeColor('--gold'),backgroundColor:themeColor('--gold')+'25',
+      borderWidth:2,pointRadius:2,fill:true,tension:0.3
+    }]},options:lineChartOpts(missingDay)});
+  } else {
+    // Stacked: revenue (positive), spend/fees/fulfill (negative), with profit line overlaid
+    charts.timeline=new Chart(ctx,{
+      data:{labels,datasets:[
+        {type:'bar',label:'Revenue',data:grossSer,backgroundColor:themeColor('--green')+'88',borderWidth:0,stack:'pos'},
+        {type:'bar',label:'Ad spend',data:spendSer.map(v=>-v),backgroundColor:themeColor('--red')+'cc',borderWidth:0,stack:'neg'},
+        {type:'bar',label:'Tx fees',data:feeSer.map(v=>-v),backgroundColor:themeColor('--red')+'77',borderWidth:0,stack:'neg'},
+        {type:'bar',label:'Fulfillment',data:fulfillSer.map(v=>-v),backgroundColor:themeColor('--red')+'44',borderWidth:0,stack:'neg'},
+        {type:'line',label:'Net profit',data:profitSer,borderColor:themeColor('--gold'),backgroundColor:'transparent',borderWidth:2.5,pointRadius:3,pointHoverRadius:5,fill:false,tension:0.3,order:0}
+      ]},
+      options:stackChartOpts(missingDay)
+    });
+  }
+}
+function lineChartOpts(missingDay){
+  return{
+    responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:tooltipOpts(missingDay)},
+    scales:{
+      x:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0,autoSkip:true,maxTicksLimit:14}},
+      y:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},callback:v=>fmtGBP(v,true)},title:{display:true,text:'Net profit',color:themeColor('--dim'),font:{family:'DM Mono',size:10}}}
+    }
+  };
+}
+function stackChartOpts(missingDay){
+  return{
+    responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:10,padding:12}},tooltip:tooltipOpts(missingDay)},
+    scales:{
+      x:{stacked:true,grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},maxRotation:0,autoSkip:true,maxTicksLimit:14}},
+      y:{stacked:true,grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},callback:v=>fmtGBP(v,true)}}
+    }
+  };
+}
+function tooltipOpts(missingDay){
+  return{
+    backgroundColor:themeColor('--bg2'),titleColor:themeColor('--text'),bodyColor:themeColor('--text'),
+    borderColor:themeColor('--border2'),borderWidth:0.5,padding:10,
+    callbacks:{
+      label(ctx){const v=ctx.parsed.y;return`${ctx.dataset.label}: ${fmtGBP(Math.abs(v))}`;},
+      afterBody(items){
+        if(!items.length)return null;
+        const idx=items[0].dataIndex;
+        return missingDay[idx]?['⚠ Day has orders missing fulfillment costs']:null;
+      }
+    }
+  };
+}
+function setTimelineMode(m){
+  timelineMode=m;
+  document.getElementById('tl-mode-stack').classList.toggle('active',m==='stack');
+  document.getElementById('tl-mode-line').classList.toggle('active',m==='line');
+  renderAll();
+}
+
+// ===== Product chart =====
+function renderProductChart(agg){
+  const arr=Object.entries(agg.byProduct).map(([k,v])=>({name:k,profit:v.profit,rev:v.rev})).filter(p=>p.profit!==0).sort((a,b)=>b.profit-a.profit).slice(0,10);
+  const ctx=document.getElementById('product-chart');
+  if(charts.product)charts.product.destroy();
+  if(!arr.length){
+    if(ctx)ctx.parentElement.innerHTML='<div class="empty">No product profit data yet — enter fulfillment costs</div>';
+    return;
+  }
+  // Re-attach canvas in case it was replaced
+  if(!document.getElementById('product-chart')){
+    ctx.parentElement.innerHTML='<canvas id="product-chart"></canvas>';
+  }
+  const labels=arr.map(p=>p.name.length>26?p.name.slice(0,26)+'…':p.name);
+  charts.product=new Chart(document.getElementById('product-chart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Net profit',data:arr.map(p=>p.profit),backgroundColor:arr.map(p=>p.profit>=0?themeColor('--gold'):themeColor('--red')),borderWidth:0}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Profit: ${fmtGBP(c.parsed.x)}`}}},
+      onClick:(e,els)=>{if(els.length){productFilter=arr[els[0].index].name;document.getElementById('product-filter-clear').style.display='flex';renderTable();}},
+      scales:{
+        x:{grid:{color:themeColor('--chart-grid')},ticks:{color:themeColor('--chart-tick'),font:{family:'DM Mono',size:10},callback:v=>fmtGBP(v,true)}},
+        y:{grid:{display:false},ticks:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11}}}
+      }
+    }
+  });
+}
+function clearProductFilter(){productFilter=null;document.getElementById('product-filter-clear').style.display='none';renderTable();}
+
+// ===== Margin chart =====
+function renderMarginChart(agg){
+  const buckets={loss:0,b0:0,b20:0,b40:0,b60:0};
+  let countWithCosts=0;
+  const allocs=agg.allocs;
+  allOrders.forEach(o=>{
+    if(o.isUnpaid)return;
+    const{margin}=orderProfit(o,allocs[o.id]||0);
+    if(margin==null)return;
+    countWithCosts++;
+    if(margin<0)buckets.loss++;
+    else if(margin<0.2)buckets.b0++;
+    else if(margin<0.4)buckets.b20++;
+    else if(margin<0.6)buckets.b40++;
+    else buckets.b60++;
+  });
+  const ctx=document.getElementById('margin-chart');
+  if(charts.margin)charts.margin.destroy();
+  document.getElementById('margin-pending').textContent=agg.missing>0?`+ ${agg.missing} orders pending costs`:'';
+  if(!countWithCosts){
+    if(ctx)ctx.parentElement.innerHTML='<div class="empty">Enter fulfillment costs on orders to see margin distribution</div>';
+    return;
+  }
+  if(!document.getElementById('margin-chart')){
+    ctx.parentElement.innerHTML='<canvas id="margin-chart"></canvas>';
+  }
+  charts.margin=new Chart(document.getElementById('margin-chart'),{
+    type:'doughnut',
+    data:{labels:['Loss (<0%)','0–20%','20–40%','40–60%','60%+'],datasets:[{data:[buckets.loss,buckets.b0,buckets.b20,buckets.b40,buckets.b60],backgroundColor:[themeColor('--red'),themeColor('--amber'),'#facc15',themeColor('--green'),themeColor('--gold')],borderWidth:0}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'bottom',labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:10,padding:12}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} orders`}}}
+    }
+  });
+}
+
+// ===== Order table =====
+function toggleChip(name){
+  activeChips[name]=!activeChips[name];
+  document.getElementById('chip-'+name).classList.toggle('active',activeChips[name]);
+  renderTable();
+}
+document.addEventListener('click',e=>{
+  const th=e.target.closest('#orders-head th[data-col]');
+  if(!th)return;
+  const col=th.getAttribute('data-col');
+  if(col===sortCol)sortDesc=!sortDesc;
+  else{sortCol=col;sortDesc=true;}
+  renderTable();
+});
+
+function filterAndSort(){
+  const search=(document.getElementById('search')?.value||'').toLowerCase().trim();
+  const allocs=computeAllocations();
+  const costs=getOrderCosts();
+  let rows=allOrders.map(o=>{
+    const alloc=allocs[o.id]||0;
+    const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
+    const profit=fulfillment!=null&&!o.isUnpaid?o.grossRev-o.txFee-alloc-fulfillment:null;
+    const margin=profit!=null&&o.grossRev>0?profit/o.grossRev:null;
+    return{o,alloc,fulfillment,profit,margin};
+  });
+  if(search){
+    rows=rows.filter(r=>{
+      const o=r.o;
+      return o.name.toLowerCase().includes(search)||o.customer.toLowerCase().includes(search)||o.productsLabel.toLowerCase().includes(search);
+    });
+  }
+  if(activeChips.missing)rows=rows.filter(r=>r.fulfillment==null&&!r.o.isUnpaid);
+  if(activeChips.profitable)rows=rows.filter(r=>r.profit!=null&&r.profit>0);
+  if(activeChips.loss)rows=rows.filter(r=>r.profit!=null&&r.profit<0);
+  if(activeChips.refunded)rows=rows.filter(r=>r.o.isRefunded||r.o.isPartial);
+  if(activeChips.unfulfilled)rows=rows.filter(r=>r.o.fulfillmentStatus==='UNFULFILLED'||r.o.fulfillmentStatus==='PARTIALLY_FULFILLED');
+  if(productFilter)rows=rows.filter(r=>r.o.productNames.includes(productFilter));
+  // Sort
+  rows.sort((a,b)=>{
+    const dir=sortDesc?-1:1;
+    let av,bv;
+    switch(sortCol){
+      case'name':av=parseInt(a.o.name.replace(/\D/g,''))||0;bv=parseInt(b.o.name.replace(/\D/g,''))||0;break;
+      case'date':av=a.o.date;bv=b.o.date;break;
+      case'customer':av=a.o.customer.toLowerCase();bv=b.o.customer.toLowerCase();break;
+      case'products':av=a.o.productsLabel.toLowerCase();bv=b.o.productsLabel.toLowerCase();break;
+      case'gross':av=a.o.grossRev;bv=b.o.grossRev;break;
+      case'fee':av=a.o.txFee;bv=b.o.txFee;break;
+      case'alloc':av=a.alloc;bv=b.alloc;break;
+      case'fulfill':av=a.fulfillment??-Infinity;bv=b.fulfillment??-Infinity;break;
+      case'profit':av=a.profit??-Infinity;bv=b.profit??-Infinity;break;
+      case'margin':av=a.margin??-Infinity;bv=b.margin??-Infinity;break;
+      case'status':av=a.o.financialStatus;bv=b.o.financialStatus;break;
+      default:return 0;
+    }
+    if(av<bv)return-1*dir;if(av>bv)return 1*dir;return 0;
+  });
+  return rows;
+}
+
+function renderTable(){
+  const rows=filterAndSort();
+  document.getElementById('order-count').textContent=`— ${rows.length} of ${allOrders.length}`;
+  // Update sort indicators
+  document.querySelectorAll('#orders-head th[data-col]').forEach(th=>{
+    th.classList.remove('sort-active');
+    const arrow=th.querySelector('.sort-arrow');if(arrow)arrow.remove();
+    if(th.getAttribute('data-col')===sortCol){
+      th.classList.add('sort-active');
+      const sp=document.createElement('span');sp.className='sort-arrow';sp.textContent=sortDesc?'▼':'▲';th.appendChild(sp);
+    }
+  });
+  if(!rows.length){
+    document.getElementById('orders-body').innerHTML='<tr><td colspan="11" class="empty">No orders match these filters</td></tr>';
+    return;
+  }
+  const body=document.getElementById('orders-body');
+  // Build HTML; cost input gets data-order so we can handle blur and keyboard nav
+  const html=rows.map((r,idx)=>{
+    const o=r.o;
+    const rowCls=[];
+    if(o.isRefunded)rowCls.push('refunded');
+    if(o.isUnpaid)rowCls.push('unpaid');
+    const profitTxt=r.profit==null?'—':fmtGBP(r.profit);
+    const profitCls=r.profit==null?'dim':(r.profit>=0?'green':'red');
+    const marginHtml=r.margin==null?'<span class="margin-pill dim">—</span>':marginPill(r.margin);
+    const fulfillVal=r.fulfillment!=null?r.fulfillment.toFixed(2):'';
+    const fulfillCls=r.fulfillment!=null?'saved':(o.isUnpaid?'':'empty');
+    const warnIcon=r.fulfillment==null&&!o.isUnpaid?'<span class="warn-icon" title="Missing fulfillment cost">⚠</span>':'';
+    const orderLink=`${ADMIN_BASE}/orders/${o.id}`;
+    const status=statusPill(o);
+    return`<tr class="${rowCls.join(' ')}" data-order="${o.id}" data-idx="${idx}">
+      <td><span class="order-name"><a href="${orderLink}" target="_blank">${o.name}</a><span class="linkout">↗</span></span></td>
+      <td class="muted">${fmtDateShort(o.date)}</td>
+      <td><div class="customer-cell" title="${escapeHtml(o.customer)}">${escapeHtml(o.customer)||'—'}</div></td>
+      <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
+      <td class="nm">${fmtGBP(o.grossRev)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
+      <td class="nm muted">${fmtGBP(o.txFee)}</td>
+      <td class="nm muted">${fmtGBP(r.alloc)}</td>
+      <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span></td>
+      <td class="nm ${profitCls}">${profitTxt}</td>
+      <td class="nm">${marginHtml}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+  // Totals row
+  const totals=rows.reduce((a,r)=>{
+    a.gross+=r.o.grossRev;a.fee+=r.o.txFee;a.alloc+=r.alloc;
+    if(r.fulfillment!=null)a.fulfill+=r.fulfillment;
+    if(r.profit!=null)a.profit+=r.profit;
+    return a;
+  },{gross:0,fee:0,alloc:0,fulfill:0,profit:0});
+  const totalRow=`<tr class="totals">
+    <td colspan="4">Totals (${rows.length} rows)</td>
+    <td class="nm">${fmtGBP(totals.gross)}</td>
+    <td class="nm">${fmtGBP(totals.fee)}</td>
+    <td class="nm">${fmtGBP(totals.alloc)}</td>
+    <td class="nm">${fmtGBP(totals.fulfill)}</td>
+    <td class="nm">${fmtGBP(totals.profit)}</td>
+    <td></td>
+    <td></td>
+  </tr>`;
+  body.innerHTML=html+totalRow;
+}
+
+function escapeHtml(s){return(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function marginPill(m){
+  const cls=m<0.2?'red':m<0.4?'amber':'green';
+  return`<span class="margin-pill ${cls}">${fmtPct(m)}</span>`;
+}
+function statusPill(o){
+  const fs=o.financialStatus,ff=o.fulfillmentStatus;
+  let cls='status-pending',label=fs.toLowerCase().replace(/_/g,' ');
+  if(fs==='PAID')cls='status-paid';
+  else if(fs==='REFUNDED')cls='status-refunded';
+  else if(fs==='PARTIALLY_REFUNDED'){cls='status-partial';label='partial refund';}
+  return`<span class="status-pill ${cls}">${label}</span>`;
+}
+function saveCost(input){
+  const orderId=input.dataset.order;
+  const v=input.value.trim();
+  if(v===''){setOrderCost(orderId,null);}
+  else{const num=parseFloat(v);if(isNaN(num)||num<0)return;setOrderCost(orderId,num);}
+  input.classList.add('saved');
+  input.classList.remove('empty');
+  const tick=document.querySelector(`[data-tick="${orderId}"]`);
+  if(tick){tick.classList.add('show');setTimeout(()=>tick.classList.remove('show'),1200);}
+  // Recompute everything (debounce for performance on big tables)
+  clearTimeout(window._recompute);
+  window._recompute=setTimeout(()=>renderAll(),200);
+}
+function costKeyNav(e,el){
+  // Tab focuses next row's cost input automatically (browser default), but also Enter jumps next
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const inputs=Array.from(document.querySelectorAll('.cost-input:not(:disabled)'));
+    const i=inputs.indexOf(el);
+    if(i>=0&&i<inputs.length-1){inputs[i+1].focus();inputs[i+1].select();}
+    el.blur();
+  }
+}
+
+// ===== Settings drawer =====
+function openSettings(){document.getElementById('drawer').classList.add('open');document.getElementById('drawer-overlay').classList.add('show');renderDrawer();}
+function closeSettings(){document.getElementById('drawer').classList.remove('open');document.getElementById('drawer-overlay').classList.remove('show');}
+
+function renderDrawer(){
+  ['microsoft','meta','tiktok'].forEach(p=>{
+    const mode=getSpendMode(p);
+    document.querySelectorAll(`.spend-mode-tab[data-platform="${p}"]`).forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
+    renderPlatformSpendInputs(p,mode);
+  });
+  // Other
+  document.getElementById('other-label').value=getOtherLabel();
+  const otherSpend=getSpend('other');
+  document.getElementById('other-total').value=otherSpend.__period_total||'';
+  // Fees
+  const fc=getFeeConfig();
+  document.getElementById('fee-uk-pct').value=fc.uk.pct;
+  document.getElementById('fee-uk-fixed').value=fc.uk.fixed;
+  document.getElementById('fee-int-pct').value=fc.int.pct;
+  document.getElementById('fee-int-fixed').value=fc.int.fixed;
+  document.getElementById('fee-mode-actual').classList.toggle('active',fc.mode==='actual');
+  document.getElementById('fee-mode-estimate').classList.toggle('active',fc.mode==='estimate');
+}
+
+function renderPlatformSpendInputs(platform,mode){
+  const container=document.getElementById(`${platform}-spend-input`);
+  const spend=getSpend(platform);
+  if(mode==='period'){
+    container.innerHTML=`<label>Total £ for selected period</label><input type="number" class="drawer-input" id="${platform}-period" min="0" step="0.01" value="${spend.__period_total||''}" placeholder="0.00" oninput="savePeriodSpend('${platform}',this.value)">`;
+  } else {
+    const{start,end}=resolveDateRange();
+    const dates=getDatesInRange(start,end);
+    container.innerHTML=`<div class="daily-grid">${dates.map(d=>`<div class="dl">${d}</div><input type="number" class="drawer-input" min="0" step="0.01" value="${spend[d]||''}" placeholder="0.00" oninput="saveDailySpend('${platform}','${d}',this.value)">`).join('')}</div>`;
+  }
+}
+
+function setSpendMode(platform,mode){
+  setSpendModeStorage(platform,mode);
+  document.querySelectorAll(`.spend-mode-tab[data-platform="${platform}"]`).forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
+  renderPlatformSpendInputs(platform,mode);
+}
+function savePeriodSpend(platform,val){
+  const s=getSpend(platform);
+  const n=parseFloat(val);
+  if(isNaN(n)||val===''){delete s.__period_total;}else{s.__period_total=n;}
+  setSpend(platform,s);
+  scheduleRefresh();
+}
+function saveDailySpend(platform,date,val){
+  const s=getSpend(platform);
+  const n=parseFloat(val);
+  if(isNaN(n)||val===''){delete s[date];}else{s[date]=n;}
+  setSpend(platform,s);
+  scheduleRefresh();
+}
+function saveOtherSpend(){
+  const lbl=document.getElementById('other-label').value;
+  localStorage.setItem('nuovo_other_label',lbl);
+  const total=parseFloat(document.getElementById('other-total').value);
+  const s=getSpend('other');
+  if(isNaN(total)){delete s.__period_total;}else{s.__period_total=total;}
+  setSpend('other',s);
+  scheduleRefresh();
+}
+function scheduleRefresh(){clearTimeout(window._spendRefresh);window._spendRefresh=setTimeout(()=>{
+  // Just recompute without refetching orders
+  const{start,end}=resolveDateRange();
+  const dates=getDatesInRange(start,end);
+  dailyAdSpend={};
+  dates.forEach(d=>{dailyAdSpend[d]={google:dailyAdSpend[d]?.google||0,microsoft:0,meta:0,tiktok:0,other:0,total:0};});
+  // Re-read Google from existing dailyAdSpend persisted? Simpler: do full refresh
+  refresh();
+},700);}
+function setFeeMode(m){
+  const c=getFeeConfig();c.mode=m;setFeeConfig(c);
+  document.getElementById('fee-mode-actual').classList.toggle('active',m==='actual');
+  document.getElementById('fee-mode-estimate').classList.toggle('active',m==='estimate');
+  // Re-normalise orders (fee recompute)
+  allOrders=allOrders.map(o=>normaliseOrder({
+    id:o.rawId,name:o.name,createdAt:o.date,
+    displayFinancialStatus:o.financialStatus,displayFulfillmentStatus:o.fulfillmentStatus,
+    currencyCode:o.currency,currentTotalPriceSet:{shopMoney:{amount:o.totalAmt}},
+    currentSubtotalPriceSet:{shopMoney:{amount:o.totalAmt}},
+    totalRefundedSet:{shopMoney:{amount:o.refundedAmt}},
+    originalTotalPriceSet:{shopMoney:{amount:o.totalAmt+o.refundedAmt}},
+    lineItems:{edges:o.lineItems.map(li=>({node:li}))},
+    transactions:o.saleTxns,
+    customer:{firstName:o.customer.split(' ')[0],lastName:o.customer.split(' ').slice(1).join(' ')}
+  }));
+  renderAll();
+}
+function saveFeeConfig(){
+  const c={
+    mode:getFeeConfig().mode,
+    uk:{pct:parseFloat(document.getElementById('fee-uk-pct').value)||1.5,fixed:parseFloat(document.getElementById('fee-uk-fixed').value)||0.25},
+    int:{pct:parseFloat(document.getElementById('fee-int-pct').value)||2.5,fixed:parseFloat(document.getElementById('fee-int-fixed').value)||0.25}
+  };
+  setFeeConfig(c);
+  refresh();
+}
+
+function resetFulfillment(){
+  if(!confirm('Delete ALL manually entered fulfillment costs? This cannot be undone.'))return;
+  localStorage.removeItem('nuovo_order_costs');
+  renderAll();
+}
+function resetAdSpend(){
+  if(!confirm('Delete ALL manually entered ad spend (Microsoft, Meta, TikTok, Other)? This cannot be undone.'))return;
+  ['microsoft','meta','tiktok','other'].forEach(p=>localStorage.removeItem(`nuovo_shared_${p}_spend`));
+  refresh();
+}
+
+function exportData(){
+  const data={
+    order_costs:lsGet('nuovo_order_costs',{}),
+    microsoft_spend:lsGet('nuovo_shared_microsoft_spend',{}),
+    meta_spend:lsGet('nuovo_shared_meta_spend',{}),
+    tiktok_spend:lsGet('nuovo_shared_tiktok_spend',{}),
+    other_spend:lsGet('nuovo_shared_other_spend',{}),
+    other_label:getOtherLabel(),
+    fee_config:getFeeConfig(),
+    exported_at:new Date().toISOString()
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`nuovo-profit-backup-${fmtDate(new Date())}.json`;
+  a.click();
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(d.order_costs)lsSet('nuovo_order_costs',d.order_costs);
+      if(d.microsoft_spend)lsSet('nuovo_shared_microsoft_spend',d.microsoft_spend);
+      if(d.meta_spend)lsSet('nuovo_shared_meta_spend',d.meta_spend);
+      if(d.tiktok_spend)lsSet('nuovo_shared_tiktok_spend',d.tiktok_spend);
+      if(d.other_spend)lsSet('nuovo_shared_other_spend',d.other_spend);
+      if(d.other_label)localStorage.setItem('nuovo_other_label',d.other_label);
+      if(d.fee_config)setFeeConfig(d.fee_config);
+      alert('Imported successfully');
+      refresh();renderDrawer();
+    }catch(err){alert('Invalid JSON: '+err.message);}
+  };
+  r.readAsText(f);
+}
+
+// ===== Export CSV =====
+function exportCSV(){
+  const rows=filterAndSort();
+  const headers=['Order','Date','Customer','Products','Revenue','Tx fee','Ad spend (alloc)','Fulfillment','Net profit','Margin %','Status'];
+  const lines=[headers.join(',')];
+  rows.forEach(r=>{
+    const o=r.o;
+    const cells=[
+      o.name,o.date,o.customer,
+      `"${(o.productsLabel||'').replace(/"/g,'""')}"`,
+      o.grossRev.toFixed(2),o.txFee.toFixed(2),(r.alloc||0).toFixed(2),
+      r.fulfillment!=null?r.fulfillment.toFixed(2):'',
+      r.profit!=null?r.profit.toFixed(2):'',
+      r.margin!=null?(r.margin*100).toFixed(2):'',
+      o.financialStatus
+    ];
+    lines.push(cells.join(','));
+  });
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`nuovo-orders-${fmtDate(new Date())}.csv`;
+  a.click();
+}
+
+// ===== Init =====
+window.addEventListener('load',()=>{
+  restoreDateRange();
+  const saved=localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();}
+});
+</script>
+</body>
+</html>
