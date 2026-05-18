@@ -634,17 +634,33 @@ function setSpendModeStorage(platform,mode){lsSet(`nuovo_spend_mode_${platform}`
 function getOtherLabel(){return localStorage.getItem('nuovo_other_label')||'';}
 
 // ===== Spend helpers =====
-// Each platform spend stored as { 'YYYY-MM-DD': £, '__period_total': £ } when in period mode total goes there
+// Storage shape per platform:
+//   Daily mode: { 'YYYY-MM-DD': £, ... }
+//   Period mode: { __period_total: £, __period_start: 'YYYY-MM-DD', __period_end: 'YYYY-MM-DD' }
+// In period mode, total is converted to a daily rate (total / days_in_period) and
+// only applied to days that fall within [start, end]. This way a £510/28d entry
+// shows ~£18/day when viewing other ranges, and £0 on days outside the period.
 function platformSpendForRange(platform,dates){
   const s=getSpend(platform);
   const mode=getSpendMode(platform);
   if(mode==='period'){
     const total=parseFloat(s.__period_total||0)||0;
     if(!total)return{daily:{},total:0};
-    // Spread evenly across dates
-    const per=total/dates.length;
-    const daily={};dates.forEach(d=>daily[d]=per);
-    return{daily,total};
+    const pStart=s.__period_start;
+    const pEnd=s.__period_end;
+    if(!pStart||!pEnd){
+      // Legacy data missing dates — refuse to apply rather than misallocating.
+      // User needs to re-save in Settings to anchor the period.
+      return{daily:{},total:0,legacy:true};
+    }
+    const daysInPeriod=Math.max(1,Math.round((new Date(pEnd)-new Date(pStart))/86400000)+1);
+    const dailyRate=total/daysInPeriod;
+    const daily={};let viewTotal=0;
+    dates.forEach(d=>{
+      if(d>=pStart&&d<=pEnd){daily[d]=dailyRate;viewTotal+=dailyRate;}
+      else{daily[d]=0;}
+    });
+    return{daily,total:viewTotal};
   }
   // daily mode
   const daily={};let total=0;
@@ -684,10 +700,16 @@ async function refresh(){
       if(dailyAdSpend[d])dailyAdSpend[d].google=parseFloat(r.metricValues[0].value||0);
     });
     // Manual platforms
+    const legacyPlatforms=[];
     ['microsoft','meta','tiktok','other'].forEach(p=>{
-      const{daily}=platformSpendForRange(p,dates);
-      dates.forEach(d=>{if(dailyAdSpend[d])dailyAdSpend[d][p]=daily[d]||0;});
+      const result=platformSpendForRange(p,dates);
+      if(result.legacy)legacyPlatforms.push(p);
+      dates.forEach(d=>{if(dailyAdSpend[d])dailyAdSpend[d][p]=result.daily[d]||0;});
     });
+    if(legacyPlatforms.length){
+      const names=legacyPlatforms.map(p=>p[0].toUpperCase()+p.slice(1)).join(', ');
+      addBanner('warn',`<strong>Ad spend for ${names} not showing</strong> — old period totals need to be re-anchored to a date range. Open Settings ⚙ → re-save the period totals.`,'legacy-spend');
+    }
     // Total per day
     dates.forEach(d=>{const r=dailyAdSpend[d];r.total=r.google+r.microsoft+r.meta+r.tiktok+r.other;});
 
@@ -1375,7 +1397,25 @@ function renderPlatformSpendInputs(platform,mode){
   const container=document.getElementById(`${platform}-spend-input`);
   const spend=getSpend(platform);
   if(mode==='period'){
-    container.innerHTML=`<label>Total £ for selected period</label><input type="number" class="drawer-input" id="${platform}-period" min="0" step="0.01" value="${spend.__period_total||''}" placeholder="0.00" oninput="savePeriodSpend('${platform}',this.value)">`;
+    const{start,end}=resolveDateRange();
+    const hasTotal=!!spend.__period_total;
+    const pStart=spend.__period_start;
+    const pEnd=spend.__period_end;
+    const isLegacy=hasTotal&&(!pStart||!pEnd);
+    const rangeMatches=hasTotal&&pStart===start&&pEnd===end;
+    let note='';
+    if(isLegacy){
+      note=`<p class="help" style="color:var(--amber);margin-top:8px">⚠ This total was saved before period-date tracking. <strong>Re-enter the value</strong> to anchor it to a date range.</p>`;
+    } else if(hasTotal&&pStart&&pEnd){
+      const fmtNice=d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+      const days=Math.max(1,Math.round((new Date(pEnd)-new Date(pStart))/86400000)+1);
+      const dailyRate=spend.__period_total/days;
+      const matchTag=rangeMatches?'<span style="color:var(--green)">✓ matches current range</span>':`<a href="#" onclick="reanchorPeriod('${platform}');return false" style="color:var(--gold)">re-anchor to current range</a>`;
+      note=`<p class="help" style="margin-top:8px">Anchored to <strong>${fmtNice(pStart)} – ${fmtNice(pEnd)}</strong> · ${days} days · £${dailyRate.toFixed(2)}/day. ${matchTag}</p>`;
+    } else {
+      note=`<p class="help" style="margin-top:8px">Will anchor to current range when saved: <strong>${start} → ${end}</strong></p>`;
+    }
+    container.innerHTML=`<label>Total £ for the period</label><input type="number" class="drawer-input" id="${platform}-period" min="0" step="0.01" value="${spend.__period_total||''}" placeholder="0.00" oninput="savePeriodSpend('${platform}',this.value)">${note}`;
   } else {
     const{start,end}=resolveDateRange();
     const dates=getDatesInRange(start,end);
@@ -1391,8 +1431,15 @@ function setSpendMode(platform,mode){
 function savePeriodSpend(platform,val){
   const s=getSpend(platform);
   const n=parseFloat(val);
-  if(isNaN(n)||val===''){delete s.__period_total;}else{s.__period_total=n;}
+  if(isNaN(n)||val===''){
+    delete s.__period_total;delete s.__period_start;delete s.__period_end;
+  }else{
+    const{start,end}=resolveDateRange();
+    s.__period_total=n;s.__period_start=start;s.__period_end=end;
+  }
   setSpend(platform,s);
+  // Re-render to reflect the period dates label
+  renderPlatformSpendInputs(platform,'period');
   scheduleRefresh();
 }
 function saveDailySpend(platform,date,val){
@@ -1402,12 +1449,26 @@ function saveDailySpend(platform,date,val){
   setSpend(platform,s);
   scheduleRefresh();
 }
+function reanchorPeriod(platform){
+  const s=getSpend(platform);
+  if(!s.__period_total)return;
+  const{start,end}=resolveDateRange();
+  s.__period_start=start;s.__period_end=end;
+  setSpend(platform,s);
+  renderPlatformSpendInputs(platform,'period');
+  scheduleRefresh();
+}
 function saveOtherSpend(){
   const lbl=document.getElementById('other-label').value;
   localStorage.setItem('nuovo_other_label',lbl);
   const total=parseFloat(document.getElementById('other-total').value);
   const s=getSpend('other');
-  if(isNaN(total)){delete s.__period_total;}else{s.__period_total=total;}
+  if(isNaN(total)){
+    delete s.__period_total;delete s.__period_start;delete s.__period_end;
+  }else{
+    const{start,end}=resolveDateRange();
+    s.__period_total=total;s.__period_start=start;s.__period_end=end;
+  }
   setSpend('other',s);
   scheduleRefresh();
 }
