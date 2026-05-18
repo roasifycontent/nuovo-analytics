@@ -346,7 +346,6 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
               <th data-col="products">Products</th>
               <th data-col="gross" class="nm">Revenue</th>
               <th data-col="fee" class="nm">Tx fee</th>
-              <th data-col="alloc" class="nm">Ad spend <span class="tooltip">ⓘ<span class="tip">Blended: daily total ad spend ÷ paid orders that day. Not per-order attribution.</span></span></th>
               <th data-col="fulfill" class="nm">Fulfillment</th>
               <th data-col="profit" class="nm">Net profit</th>
               <th data-col="margin" class="nm">Margin</th>
@@ -354,7 +353,7 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
             </tr>
           </thead>
           <tbody id="orders-body">
-            <tr><td colspan="11"><div class="ld"><span class="sp"></span>Loading orders...</div></td></tr>
+            <tr><td colspan="10"><div class="ld"><span class="sp"></span>Loading orders...</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -807,11 +806,13 @@ function computeAllocations(){
 }
 
 // ===== Per-order P&L =====
+// Per-order profit excludes ad spend — ad spend is a period-level cost subtracted
+// at the hero/timeline aggregate level only.
 function orderProfit(o,alloc){
   const costs=getOrderCosts();
   const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
   if(fulfillment==null||isNaN(fulfillment)||o.isUnpaid)return{profit:null,margin:null,fulfillment:null,alloc};
-  const profit=o.grossRev-o.txFee-alloc-fulfillment;
+  const profit=o.grossRev-o.txFee-fulfillment;
   const margin=o.grossRev>0?profit/o.grossRev:0;
   return{profit,margin,fulfillment,alloc};
 }
@@ -866,17 +867,16 @@ function computeAggregates(){
     }
   });
 
-  // True profit aggregate = gross - spend - fees - fulfill (across orders with costs only? No — global view, but exclude missing-cost orders' fulfillment piece)
-  // We compute headline as gross_with_costs - txfees_with_costs - allocated_spend_with_costs - fulfill_with_costs
-  // Actually for honest headline: only include orders where we have full picture
-  let headlineGross=0,headlineFees=0,headlineAlloc=0;
+  // Headline net profit: orders with costs entered only. Ad spend subtracted
+  // proportional to the share of paid orders that have costs.
+  let headlineGross=0,headlineFees=0,headlineAllocShare=0;
   allOrders.forEach(o=>{
     if(o.isUnpaid)return;
     const fulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
     if(fulfillment==null||isNaN(fulfillment))return;
-    headlineGross+=o.grossRev;headlineFees+=o.txFee;headlineAlloc+=allocs[o.id]||0;
+    headlineGross+=o.grossRev;headlineFees+=o.txFee;headlineAllocShare+=allocs[o.id]||0;
   });
-  const headlineProfit=headlineGross-headlineFees-headlineAlloc-fulfillTotal;
+  const headlineProfit=headlineGross-headlineFees-headlineAllocShare-fulfillTotal;
   const headlineMargin=headlineGross>0?headlineProfit/headlineGross:0;
 
   return{gross,spendTotal,feesTotal,fulfillTotal,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
@@ -935,15 +935,19 @@ function renderTimeline(agg){
   const{start,end}=resolveDateRange();
   const dates=getDatesInRange(start,end);
   const allocs=agg.allocs;
-  // Daily series
+  // Daily series — net profit line now includes daily ad spend deduction
   const grossSer=[],feeSer=[],fulfillSer=[],spendSer=[],profitSer=[],missingDay=[];
   dates.forEach(d=>{
     const day=agg.byDate[d]||{gross:0,fees:0,fulfill:0,profit:0,hasMissing:false};
+    const spend=dailyAdSpend[d]?.total||0;
     grossSer.push(day.gross);
     feeSer.push(day.fees);
     fulfillSer.push(day.fulfill);
-    spendSer.push(dailyAdSpend[d]?.total||0);
-    profitSer.push(day.profit);
+    spendSer.push(spend);
+    // Daily net profit = gross - fees - fulfillment - ad spend.
+    // For days with orders missing fulfillment costs, fulfill is partial so
+    // profit is slightly overstated (flagged in tooltip).
+    profitSer.push(day.gross-day.fees-day.fulfill-spend);
     missingDay.push(day.hasMissing);
   });
   const labels=dates.map(d=>d.slice(5));
@@ -1126,7 +1130,6 @@ function filterAndSort(){
       case'products':av=a.o.productsLabel.toLowerCase();bv=b.o.productsLabel.toLowerCase();break;
       case'gross':av=a.o.grossRev;bv=b.o.grossRev;break;
       case'fee':av=a.o.txFee;bv=b.o.txFee;break;
-      case'alloc':av=a.alloc;bv=b.alloc;break;
       case'fulfill':av=a.fulfillment??-Infinity;bv=b.fulfillment??-Infinity;break;
       case'profit':av=a.profit??-Infinity;bv=b.profit??-Infinity;break;
       case'margin':av=a.margin??-Infinity;bv=b.margin??-Infinity;break;
@@ -1151,7 +1154,7 @@ function renderTable(){
     }
   });
   if(!rows.length){
-    document.getElementById('orders-body').innerHTML='<tr><td colspan="11" class="empty">No orders match these filters</td></tr>';
+    document.getElementById('orders-body').innerHTML='<tr><td colspan="10" class="empty">No orders match these filters</td></tr>';
     return;
   }
   const body=document.getElementById('orders-body');
@@ -1176,7 +1179,6 @@ function renderTable(){
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
       <td class="nm">${fmtGBP(o.grossRev)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
       <td class="nm muted">${fmtGBP(o.txFee)}</td>
-      <td class="nm muted">${fmtGBP(r.alloc)}</td>
       <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span></td>
       <td class="nm ${profitCls}">${profitTxt}</td>
       <td class="nm">${marginHtml}</td>
@@ -1185,16 +1187,15 @@ function renderTable(){
   }).join('');
   // Totals row
   const totals=rows.reduce((a,r)=>{
-    a.gross+=r.o.grossRev;a.fee+=r.o.txFee;a.alloc+=r.alloc;
+    a.gross+=r.o.grossRev;a.fee+=r.o.txFee;
     if(r.fulfillment!=null)a.fulfill+=r.fulfillment;
     if(r.profit!=null)a.profit+=r.profit;
     return a;
-  },{gross:0,fee:0,alloc:0,fulfill:0,profit:0});
+  },{gross:0,fee:0,fulfill:0,profit:0});
   const totalRow=`<tr class="totals">
     <td colspan="4">Totals (${rows.length} rows)</td>
     <td class="nm">${fmtGBP(totals.gross)}</td>
     <td class="nm">${fmtGBP(totals.fee)}</td>
-    <td class="nm">${fmtGBP(totals.alloc)}</td>
     <td class="nm">${fmtGBP(totals.fulfill)}</td>
     <td class="nm">${fmtGBP(totals.profit)}</td>
     <td></td>
@@ -1392,14 +1393,14 @@ function importData(e){
 // ===== Export CSV =====
 function exportCSV(){
   const rows=filterAndSort();
-  const headers=['Order','Date','Customer','Products','Revenue','Tx fee','Ad spend (alloc)','Fulfillment','Net profit','Margin %','Status'];
+  const headers=['Order','Date','Customer','Products','Revenue','Tx fee','Fulfillment','Net profit','Margin %','Status'];
   const lines=[headers.join(',')];
   rows.forEach(r=>{
     const o=r.o;
     const cells=[
       o.name,o.date,o.customer,
       `"${(o.productsLabel||'').replace(/"/g,'""')}"`,
-      o.grossRev.toFixed(2),o.txFee.toFixed(2),(r.alloc||0).toFixed(2),
+      o.grossRev.toFixed(2),o.txFee.toFixed(2),
       r.fulfillment!=null?r.fulfillment.toFixed(2):'',
       r.profit!=null?r.profit.toFixed(2):'',
       r.margin!=null?(r.margin*100).toFixed(2):'',
