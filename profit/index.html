@@ -46,13 +46,14 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .banner-dismiss:hover{color:var(--text)}
 
 /* Hero metrics */
-.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.hero{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
 .stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .stat.gross::before{background:var(--text)}
 .stat.spend::before{background:var(--red)}
 .stat.fees::before{background:var(--red)}
 .stat.fulfill::before{background:var(--red)}
+.stat.ops::before{background:var(--red)}
 .stat.profit::before{background:var(--gold)}
 .stat.profit{background:linear-gradient(135deg,rgba(212,168,67,0.06) 0%,var(--bg2) 100%)}
 .stat-lbl{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace}
@@ -64,7 +65,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .delta-up{color:var(--green)}
 .delta-down{color:var(--red)}
 
-@media(max-width:1100px){.hero{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1300px){.hero{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.hero{grid-template-columns:1fr 1fr}}
 
 /* Card */
@@ -190,6 +191,17 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
 .drawer-btn.primary{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
 .drawer-btn.primary:hover{opacity:0.85;color:#0a0a0b}
 
+/* Recurring costs list */
+.cost-row{display:grid;grid-template-columns:1fr 80px 90px 28px;gap:6px;align-items:center;margin-bottom:6px}
+.cost-row input,.cost-row select{background:var(--bg3);border:0.5px solid var(--border2);border-radius:5px;padding:6px 8px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;outline:none;width:100%}
+.cost-row input[type=text]{font-family:'Syne',sans-serif;font-size:12px}
+.cost-row input:focus,.cost-row select:focus{border-color:var(--gold)}
+.cost-row .del-cost{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;line-height:1;padding:4px;border-radius:4px}
+.cost-row .del-cost:hover{color:var(--red);background:rgba(248,113,113,0.08)}
+.cost-summary{margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
+.cost-summary .num{text-align:right;color:var(--gold);font-feature-settings:'tnum'}
+.cost-empty{padding:14px;text-align:center;font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;border:0.5px dashed var(--border2);border-radius:6px;margin-bottom:8px}
+
 /* Footer */
 .footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
 .ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
@@ -283,6 +295,11 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
         <div class="stat-lbl">Fulfillment costs</div>
         <div class="stat-val red" id="h-fulfill">—</div>
         <div class="stat-sub" id="h-fulfill-sub">manually entered</div>
+      </div>
+      <div class="stat ops">
+        <div class="stat-lbl">Software & ops</div>
+        <div class="stat-val red" id="h-ops">—</div>
+        <div class="stat-sub" id="h-ops-sub">recurring subscriptions</div>
       </div>
       <div class="stat profit">
         <div class="stat-lbl">Net profit</div>
@@ -390,6 +407,17 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
         Ad spend entered includes VAT
       </label>
       <p class="help" style="margin-top:10px;margin-bottom:0">Revenue ex-VAT uses Shopify's actual tax field per order (accurate for multi-rate / zero-rated). Costs use the assumed rate above.</p>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Recurring costs</h4>
+      <p class="help">Software, apps, AI tools, subscriptions. Pro-rated to the selected date range. Treated like fulfillment for VAT (subject to the "costs entered include VAT" toggle above).</p>
+      <div id="cost-list"></div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="drawer-btn primary" onclick="addCost()">+ Add cost</button>
+        <button class="drawer-btn" onclick="addCommonCosts()" title="Pre-fill Shopify + ChatGPT + Claude">Quick add commons</button>
+      </div>
+      <div class="cost-summary" id="cost-summary"></div>
     </div>
 
     <div class="drawer-section">
@@ -635,6 +663,39 @@ function getVatConfig(){return lsGet('nuovo_vat_config',{showExVat:true,vatRate:
 function setVatConfig(c){lsSet('nuovo_vat_config',c);}
 // Apply VAT stripping to an inc-VAT amount based on current config
 function exVat(amount){const c=getVatConfig();return amount/(1+c.vatRate);}
+
+// ===== Recurring operating costs =====
+// Storage: array of {id, label, amount, period}
+//   period: 'monthly' | 'annual' | 'weekly' | 'daily'
+//   amount is what the user typed (inc-VAT if costsIncVat is on, ex-VAT otherwise)
+function getOperatingCosts(){return lsGet('nuovo_operating_costs',[]);}
+function setOperatingCosts(arr){lsSet('nuovo_operating_costs',arr);}
+// Average days per period for pro-rating
+function periodDays(p){
+  if(p==='monthly')return 365/12; // 30.4375
+  if(p==='annual')return 365;
+  if(p==='weekly')return 7;
+  return 1; // daily
+}
+// Returns {total, breakdown:[{label, daily, portion}], days} for a date range
+function computeOpCosts(start,end){
+  const costs=getOperatingCosts();
+  const days=Math.max(1,Math.round((new Date(end+'T12:00:00Z')-new Date(start+'T12:00:00Z'))/86400000)+1);
+  let total=0;
+  const breakdown=costs.map(c=>{
+    const daily=(parseFloat(c.amount)||0)/periodDays(c.period);
+    const portion=daily*days;
+    total+=portion;
+    return{label:c.label||'(unlabelled)',daily,portion,period:c.period,amount:c.amount};
+  });
+  return{total,breakdown,days};
+}
+// Apply VAT to the operating cost total (same logic as fulfillment)
+function displayedOpCosts(rawTotal){
+  if(rawTotal==null)return 0;
+  const v=getVatConfig();
+  return(v.showExVat&&v.costsIncVat)?rawTotal/(1+v.vatRate):rawTotal;
+}
 function getSpendMode(platform){return lsGet(`nuovo_spend_mode_${platform}`,'period');}
 function setSpendModeStorage(platform,mode){lsSet(`nuovo_spend_mode_${platform}`,mode);}
 function getOtherLabel(){return localStorage.getItem('nuovo_other_label')||'';}
@@ -948,21 +1009,34 @@ function computeAggregates(){
     }
   });
 
+  // Operating costs (recurring software/SaaS) for the selected range
+  const{start,end}=resolveDateRange();
+  const opCostsRaw=computeOpCosts(start,end);
+  const opCostsTotal=displayedOpCosts(opCostsRaw.total);
+  const opCostsDaily=opCostsRaw.days>0?opCostsTotal/opCostsRaw.days:0;
+  // Sprinkle a per-day op-cost share into the timeline so the daily profit line is honest
+  Object.keys(byDate).forEach(d=>{byDate[d].ops=opCostsDaily;});
+
   // Headline net profit: orders with costs entered only.
   // Ad spend subtracted proportional to the share of paid orders that have costs.
+  // Operating costs subtracted proportional to share of paid orders with costs.
   let headlineGross=0,headlineFees=0,headlineAllocShare=0;
+  let paidOrdersTotal=0,paidOrdersWithCosts=0;
   allOrders.forEach(o=>{
     if(o.isUnpaid)return;
+    paidOrdersTotal++;
     const rawFulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
     if(rawFulfillment==null||isNaN(rawFulfillment))return;
+    paidOrdersWithCosts++;
     headlineGross+=displayedRevenue(o);
     headlineFees+=o.txFee;
     headlineAllocShare+=displayedAdSpend(allocs[o.id]||0);
   });
-  const headlineProfit=headlineGross-headlineFees-headlineAllocShare-fulfillTotal;
+  const opCostsShare=paidOrdersTotal>0?opCostsTotal*(paidOrdersWithCosts/paidOrdersTotal):(paidOrdersWithCosts>0?opCostsTotal:0);
+  const headlineProfit=headlineGross-headlineFees-headlineAllocShare-fulfillTotal-opCostsShare;
   const headlineMargin=headlineGross>0?headlineProfit/headlineGross:0;
 
-  return{gross,vatCollected,spendTotal,feesTotal,fulfillTotal,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
+  return{gross,vatCollected,spendTotal,feesTotal,fulfillTotal,opCostsTotal,opCostsBreakdown:opCostsRaw.breakdown,opCostsDays:opCostsRaw.days,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
 }
 
 // ===== Render all =====
@@ -1012,6 +1086,9 @@ function renderHero(agg){
   document.getElementById('h-fees-sub').textContent=`${(allOrders.length?agg.feesTotal/agg.gross*100:0).toFixed(2)}% of revenue`;
   document.getElementById('h-fulfill').textContent=fmtGBP(agg.fulfillTotal);
   document.getElementById('h-fulfill-sub').textContent=`${agg.withCosts} of ${agg.withCosts+agg.missing} orders`;
+  document.getElementById('h-ops').textContent=agg.opCostsTotal>0?fmtGBP(agg.opCostsTotal):'£0.00';
+  const opCount=(agg.opCostsBreakdown||[]).filter(c=>c.portion>0).length;
+  document.getElementById('h-ops-sub').textContent=opCount>0?`${opCount} subscription${opCount===1?'':'s'} · ${agg.opCostsDays}d`:'no subscriptions configured';
   const profitEl=document.getElementById('h-profit');
   profitEl.textContent=agg.withCosts>0?fmtGBP(agg.netProfit):'—';
   profitEl.style.color=agg.netProfit>=0?'var(--gold)':'var(--red)';
@@ -1023,19 +1100,19 @@ function renderTimeline(agg){
   const{start,end}=resolveDateRange();
   const dates=getDatesInRange(start,end);
   const allocs=agg.allocs;
-  // Daily series — net profit line now includes daily ad spend deduction
-  const grossSer=[],feeSer=[],fulfillSer=[],spendSer=[],profitSer=[],missingDay=[];
+  // Daily series — net profit line includes ad spend AND operating cost deduction
+  const opsDaily=agg.opCostsDays>0?agg.opCostsTotal/agg.opCostsDays:0;
+  const grossSer=[],feeSer=[],fulfillSer=[],opsSer=[],spendSer=[],profitSer=[],missingDay=[];
   dates.forEach(d=>{
     const day=agg.byDate[d]||{gross:0,fees:0,fulfill:0,profit:0,hasMissing:false};
     const spend=dailyAdSpend[d]?.total||0;
     grossSer.push(day.gross);
     feeSer.push(day.fees);
     fulfillSer.push(day.fulfill);
+    opsSer.push(opsDaily);
     spendSer.push(spend);
-    // Daily net profit = gross - fees - fulfillment - ad spend.
-    // For days with orders missing fulfillment costs, fulfill is partial so
-    // profit is slightly overstated (flagged in tooltip).
-    profitSer.push(day.gross-day.fees-day.fulfill-spend);
+    // Daily net profit = gross - fees - fulfillment - ad spend - ops.
+    profitSer.push(day.gross-day.fees-day.fulfill-spend-opsDaily);
     missingDay.push(day.hasMissing);
   });
   const labels=dates.map(d=>d.slice(5));
@@ -1056,6 +1133,7 @@ function renderTimeline(agg){
         {type:'bar',label:'Ad spend',data:spendSer.map(v=>-v),backgroundColor:themeColor('--red')+'cc',borderWidth:0,stack:'neg'},
         {type:'bar',label:'Tx fees',data:feeSer.map(v=>-v),backgroundColor:themeColor('--red')+'77',borderWidth:0,stack:'neg'},
         {type:'bar',label:'Fulfillment',data:fulfillSer.map(v=>-v),backgroundColor:themeColor('--red')+'44',borderWidth:0,stack:'neg'},
+        {type:'bar',label:'Ops',data:opsSer.map(v=>-v),backgroundColor:themeColor('--amber')+'88',borderWidth:0,stack:'neg'},
         {type:'line',label:'Net profit',data:profitSer,borderColor:themeColor('--gold'),backgroundColor:'transparent',borderWidth:2.5,pointRadius:3,pointHoverRadius:5,fill:false,tension:0.3,order:0}
       ]},
       options:stackChartOpts(missingDay)
@@ -1350,6 +1428,8 @@ function renderDrawer(){
   document.getElementById('vat-rate').value=(vc.vatRate*100).toFixed(1);
   document.getElementById('vat-costs-inc').checked=!!vc.costsIncVat;
   document.getElementById('vat-spend-inc').checked=!!vc.spendIncVat;
+  // Recurring costs
+  renderCostList();
   ['microsoft','meta','tiktok'].forEach(p=>{
     const mode=getSpendMode(p);
     document.querySelectorAll(`.spend-mode-tab[data-platform="${p}"]`).forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
@@ -1377,6 +1457,89 @@ function saveVatConfig(){
   c.spendIncVat=document.getElementById('vat-spend-inc').checked;
   setVatConfig(c);
   updateVatPill();
+  renderAll();
+}
+
+// ===== Recurring cost management =====
+function renderCostList(){
+  const list=document.getElementById('cost-list');
+  if(!list)return;
+  const costs=getOperatingCosts();
+  if(!costs.length){
+    list.innerHTML='<div class="cost-empty">No recurring costs yet. Add Shopify, app subscriptions, AI tools etc.</div>';
+  } else {
+    list.innerHTML=costs.map(c=>`<div class="cost-row" data-id="${c.id}">
+      <input type="text" placeholder="e.g. Shopify Basic" value="${escapeHtml(c.label||'')}" oninput="updateCost(${c.id},'label',this.value)">
+      <input type="number" placeholder="0.00" min="0" step="0.01" value="${c.amount||''}" oninput="updateCost(${c.id},'amount',this.value)">
+      <select onchange="updateCost(${c.id},'period',this.value)">
+        <option value="monthly" ${c.period==='monthly'?'selected':''}>monthly</option>
+        <option value="annual" ${c.period==='annual'?'selected':''}>annual</option>
+        <option value="weekly" ${c.period==='weekly'?'selected':''}>weekly</option>
+        <option value="daily" ${c.period==='daily'?'selected':''}>daily</option>
+      </select>
+      <button class="del-cost" onclick="deleteCost(${c.id})" title="Remove">✕</button>
+    </div>`).join('');
+  }
+  // Summary
+  const{start,end}=resolveDateRange();
+  const calc=computeOpCosts(start,end);
+  const monthlyTotal=costs.reduce((a,c)=>a+(parseFloat(c.amount)||0)/periodDays(c.period)*30.4375,0);
+  const summary=document.getElementById('cost-summary');
+  if(costs.length){
+    summary.innerHTML=`<span>Monthly total:</span><span class="num">£${monthlyTotal.toFixed(2)}</span>
+      <span>Annual equivalent:</span><span class="num">£${(monthlyTotal*12).toFixed(2)}</span>
+      <span>For current ${calc.days}d view:</span><span class="num">£${calc.total.toFixed(2)}</span>`;
+  } else summary.innerHTML='';
+}
+
+function addCost(){
+  const costs=getOperatingCosts();
+  costs.push({id:Date.now(),label:'',amount:'',period:'monthly'});
+  setOperatingCosts(costs);
+  renderCostList();
+}
+function deleteCost(id){
+  const costs=getOperatingCosts().filter(c=>c.id!==id);
+  setOperatingCosts(costs);
+  renderCostList();
+  renderAll();
+}
+function updateCost(id,field,value){
+  const costs=getOperatingCosts();
+  const c=costs.find(x=>x.id===id);
+  if(!c)return;
+  c[field]=field==='amount'?(value===''?'':parseFloat(value)||0):value;
+  setOperatingCosts(costs);
+  // Don't full-rerender list (loses focus) — just the summary
+  clearTimeout(window._costRefresh);
+  window._costRefresh=setTimeout(()=>{
+    // Update summary only without rebuilding inputs
+    const{start,end}=resolveDateRange();
+    const calc=computeOpCosts(start,end);
+    const monthlyTotal=costs.reduce((a,c)=>a+(parseFloat(c.amount)||0)/periodDays(c.period)*30.4375,0);
+    const summary=document.getElementById('cost-summary');
+    if(summary)summary.innerHTML=`<span>Monthly total:</span><span class="num">£${monthlyTotal.toFixed(2)}</span>
+      <span>Annual equivalent:</span><span class="num">£${(monthlyTotal*12).toFixed(2)}</span>
+      <span>For current ${calc.days}d view:</span><span class="num">£${calc.total.toFixed(2)}</span>`;
+    renderAll();
+  },350);
+}
+function addCommonCosts(){
+  const existing=getOperatingCosts();
+  const labels=new Set(existing.map(c=>(c.label||'').toLowerCase()));
+  const commons=[
+    {label:'Shopify subscription',amount:29,period:'monthly'},
+    {label:'ChatGPT Plus',amount:16,period:'monthly'},
+    {label:'Claude Pro',amount:16,period:'monthly'}
+  ];
+  let added=0;
+  commons.forEach(c=>{
+    if(!labels.has(c.label.toLowerCase())){
+      existing.push({id:Date.now()+(added++),...c});
+    }
+  });
+  setOperatingCosts(existing);
+  renderCostList();
   renderAll();
 }
 
@@ -1525,6 +1688,8 @@ function exportData(){
     other_spend:lsGet('nuovo_shared_other_spend',{}),
     other_label:getOtherLabel(),
     fee_config:getFeeConfig(),
+    vat_config:getVatConfig(),
+    operating_costs:getOperatingCosts(),
     exported_at:new Date().toISOString()
   };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -1546,6 +1711,8 @@ function importData(e){
       if(d.other_spend)lsSet('nuovo_shared_other_spend',d.other_spend);
       if(d.other_label)localStorage.setItem('nuovo_other_label',d.other_label);
       if(d.fee_config)setFeeConfig(d.fee_config);
+      if(d.vat_config)setVatConfig(d.vat_config);
+      if(d.operating_costs)setOperatingCosts(d.operating_costs);
       alert('Imported successfully');
       refresh();renderDrawer();
     }catch(err){alert('Invalid JSON: '+err.message);}
