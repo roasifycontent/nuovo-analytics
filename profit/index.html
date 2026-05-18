@@ -345,9 +345,9 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
               <th data-col="date">Date</th>
               <th data-col="customer">Customer</th>
               <th data-col="products">Products</th>
-              <th data-col="gross" class="nm">Revenue</th>
+              <th data-col="gross" class="nm">Revenue <span id="th-vat-tag" style="font-size:9px;color:var(--dim);font-weight:400">(ex)</span></th>
               <th data-col="fee" class="nm">Tx fee</th>
-              <th data-col="fulfill" class="nm">Fulfillment</th>
+              <th data-col="fulfill" class="nm">Fulfillment <span id="th-vat-tag2" style="font-size:9px;color:var(--dim);font-weight:400">(ex)</span></th>
               <th data-col="profit" class="nm">Net profit</th>
               <th data-col="margin" class="nm">Margin</th>
               <th data-col="status">Status</th>
@@ -1229,14 +1229,10 @@ function renderTable(){
     const profitTxt=r.profit==null?'—':fmtGBP(r.profit);
     const profitCls=r.profit==null?'dim':(r.profit>=0?'green':'red');
     const marginHtml=r.margin==null?'<span class="margin-pill dim">—</span>':marginPill(r.margin);
-    // Keep raw entered value in the input (don't morph what user typed)
-    const fulfillVal=r.rawFulfillment!=null?r.rawFulfillment.toFixed(2):'';
+    // Input value matches the current VAT mode (so the row visibly adds up)
+    const fulfillVal=r.fulfillment!=null?r.fulfillment.toFixed(2):'';
     const fulfillCls=r.rawFulfillment!=null?'saved':(o.isUnpaid?'':'empty');
     const warnIcon=r.rawFulfillment==null&&!o.isUnpaid?'<span class="warn-icon" title="Missing fulfillment cost">⚠</span>':'';
-    // When in ex-VAT mode AND costs are entered inc-VAT, show the ex-VAT equivalent beneath the input
-    const vc=getVatConfig();
-    const showExHint=vc.showExVat&&vc.costsIncVat&&r.rawFulfillment!=null&&r.fulfillment!=null&&r.rawFulfillment!==r.fulfillment;
-    const exHint=showExHint?`<span style="display:block;color:var(--dim);font-size:10px;margin-top:2px">ex-VAT: ${fmtGBP(r.fulfillment)}</span>`:'';
     const orderLink=`${ADMIN_BASE}/orders/${o.id}`;
     const status=statusPill(o);
     return`<tr class="${rowCls.join(' ')}" data-order="${o.id}" data-idx="${idx}">
@@ -1246,7 +1242,7 @@ function renderTable(){
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
       <td class="nm">${fmtGBP(r.revenue)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
       <td class="nm muted">${fmtGBP(o.txFee)}</td>
-      <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span>${exHint}</td>
+      <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span></td>
       <td class="nm ${profitCls}">${profitTxt}</td>
       <td class="nm">${marginHtml}</td>
       <td>${status}</td>
@@ -1288,7 +1284,15 @@ function saveCost(input){
   const orderId=input.dataset.order;
   const v=input.value.trim();
   if(v===''){setOrderCost(orderId,null);}
-  else{const num=parseFloat(v);if(isNaN(num)||num<0)return;setOrderCost(orderId,num);}
+  else{
+    let num=parseFloat(v);
+    if(isNaN(num)||num<0)return;
+    // If the input is showing ex-VAT (because mode = ex-VAT AND user entered values as inc-VAT),
+    // convert back to the storage base (inc-VAT) before saving.
+    const vc=getVatConfig();
+    if(vc.showExVat&&vc.costsIncVat)num=num*(1+vc.vatRate);
+    setOrderCost(orderId,num);
+  }
   input.classList.add('saved');
   input.classList.remove('empty');
   const tick=document.querySelector(`[data-tick="${orderId}"]`);
@@ -1344,6 +1348,7 @@ function saveVatConfig(){
   c.costsIncVat=document.getElementById('vat-costs-inc').checked;
   c.spendIncVat=document.getElementById('vat-spend-inc').checked;
   setVatConfig(c);
+  updateVatPill();
   renderAll();
 }
 
@@ -1361,6 +1366,9 @@ function updateVatPill(){
   if(!btn)return;
   btn.textContent=c.showExVat?'VAT: ex':'VAT: inc';
   btn.classList.toggle('active',c.showExVat);
+  const tag=c.showExVat?'(ex)':'(inc)';
+  const t1=document.getElementById('th-vat-tag');if(t1)t1.textContent=tag;
+  const t2=document.getElementById('th-vat-tag2');if(t2)t2.textContent=tag;
 }
 
 function renderPlatformSpendInputs(platform,mode){
