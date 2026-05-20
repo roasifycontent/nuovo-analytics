@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
-:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--chatgpt:#10b981;--claude:#e8a87c;--perplexity:#818cf8;--copilot:#38bdf8;--gold:#d4a843;--red:#f87171;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
+:root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--chatgpt:#10b981;--claude:#e8a87c;--perplexity:#818cf8;--copilot:#38bdf8;--gemini:#c084fc;--gold:#d4a843;--red:#f87171;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
 html.light{--bg:#f5f3ef;--bg2:#ffffff;--bg3:#eae7e1;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);--text:#1a1a1a;--muted:#6b6560;--dim:#9a958e;--gold:#b8902e;--red:#dc2626;--chart-grid:rgba(0,0,0,0.06);--chart-tick:#6b6560}
 html.light .bsm.active{color:#fff}
 html.light .setup-card,html.light .reauth-card{box-shadow:0 2px 12px rgba(0,0,0,0.08)}
@@ -40,10 +40,10 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .bsm.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
 .bsm:hover{border-color:var(--gold)}
 .main{padding:28px;max-width:1400px;margin:0 auto}
-.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
 .stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0.7}
-.cg::before{background:var(--chatgpt)}.cl::before{background:var(--claude)}.px::before{background:var(--perplexity)}.cp::before{background:var(--copilot)}
+.cg::before{background:var(--chatgpt)}.cl::before{background:var(--claude)}.px::before{background:var(--perplexity)}.cp::before{background:var(--copilot)}.gm::before{background:var(--gemini)}
 .slbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
 .sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .snum{font-size:32px;font-weight:700;line-height:1;font-family:'DM Mono',monospace;margin-bottom:4px}
@@ -164,6 +164,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="stat cl"><div class="slbl"><span class="sdot" style="background:var(--claude)"></span>Claude</div><div class="snum" id="ncl">—</div><div class="ssub">sessions<span class="delta" id="dcl"></span></div></div>
       <div class="stat px"><div class="slbl"><span class="sdot" style="background:var(--perplexity)"></span>Perplexity</div><div class="snum" id="npx">—</div><div class="ssub">sessions<span class="delta" id="dpx"></span></div></div>
       <div class="stat cp"><div class="slbl"><span class="sdot" style="background:var(--copilot)"></span>Copilot</div><div class="snum" id="ncp">—</div><div class="ssub">sessions<span class="delta" id="dcp"></span></div></div>
+      <div class="stat gm"><div class="slbl"><span class="sdot" style="background:var(--gemini)"></span>Gemini</div><div class="snum" id="ngm">—</div><div class="ssub">sessions<span class="delta" id="dgm"></span></div></div>
     </div>
     <div class="sumrow">
       <div class="sum"><div class="suml">Total AI sessions</div><div class="sumv" id="stot">—</div><span class="delta" id="dtot"></span></div>
@@ -222,6 +223,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="li"><span class="ld2" style="background:var(--claude)"></span>Claude</div>
       <div class="li"><span class="ld2" style="background:var(--perplexity)"></span>Perplexity</div>
       <div class="li"><span class="ld2" style="background:var(--copilot)"></span>Copilot</div>
+      <div class="li"><span class="ld2" style="background:var(--gemini)"></span>Gemini</div>
     </div>
   </div>
 </div>
@@ -250,7 +252,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 <script>
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
-const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot.microsoft','copilot.bing']}};
+const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot.microsoft','copilot.bing']},gemini:{label:'Gemini',color:'#c084fc',terms:['gemini.google','bard.google']}};
 let token=null,charts={};
 
 function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
@@ -481,6 +483,7 @@ function render(bs,bd,bp){
   document.getElementById('ncl').textContent=t.claude.sessions.toLocaleString();
   document.getElementById('npx').textContent=t.perplexity.sessions.toLocaleString();
   document.getElementById('ncp').textContent=t.copilot.sessions.toLocaleString();
+  document.getElementById('ngm').textContent=t.gemini.sessions.toLocaleString();
   document.getElementById('stot').textContent=tot.toLocaleString();
   document.getElementById('srev').textContent=rev>0?'£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0}):'£0';
   document.getElementById('seng').textContent=tot>0?(eng/tot*100).toFixed(1)+'%':'—';
@@ -494,6 +497,7 @@ function render(bs,bd,bp){
     setDelta('dcl',t.claude.sessions,pt.claude.sessions);
     setDelta('dpx',t.perplexity.sessions,pt.perplexity.sessions);
     setDelta('dcp',t.copilot.sessions,pt.copilot.sessions);
+    setDelta('dgm',t.gemini.sessions,pt.gemini.sessions);
     setDelta('dtot',tot,ptot);
     setDelta('drev',rev,prev);
     const engRate=tot>0?eng/tot:0,prevEngRate=ptot>0?peng/ptot:0;
@@ -744,8 +748,8 @@ function loadDemo(){
   document.getElementById('dashboard').style.display='block';
   document.getElementById('fst').textContent='Demo mode';
   document.getElementById('fts').textContent='Demo: Feb 11 – May 11, 2026';
-  const t={chatgpt:{sessions:244,engaged:124,revenue:1999,ke:4},claude:{sessions:2,engaged:0,revenue:0,ke:0},perplexity:{sessions:0,engaged:0,revenue:0,ke:0},copilot:{sessions:0,engaged:0,revenue:0,ke:0}};
-  document.getElementById('ncg').textContent='244';document.getElementById('ncl').textContent='2';document.getElementById('npx').textContent='0';document.getElementById('ncp').textContent='0';
+  const t={chatgpt:{sessions:244,engaged:124,revenue:1999,ke:4},claude:{sessions:2,engaged:0,revenue:0,ke:0},perplexity:{sessions:0,engaged:0,revenue:0,ke:0},copilot:{sessions:0,engaged:0,revenue:0,ke:0},gemini:{sessions:0,engaged:0,revenue:0,ke:0}};
+  document.getElementById('ncg').textContent='244';document.getElementById('ncl').textContent='2';document.getElementById('npx').textContent='0';document.getElementById('ncp').textContent='0';document.getElementById('ngm').textContent='0';
   document.getElementById('stot').textContent='246';document.getElementById('srev').textContent='£1,999';document.getElementById('seng').textContent='50.4%';document.getElementById('sconv').textContent='1.63%';
   const mx=244;
   document.getElementById('srcb').innerHTML=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions).map(([k,v])=>{const s=SOURCES[k],p=Math.round(v.sessions/246*100),e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="nm mu">${e}%</span></div>`;}).join('');
