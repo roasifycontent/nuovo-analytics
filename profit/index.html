@@ -1018,9 +1018,11 @@ function computeAggregates(){
   Object.keys(byDate).forEach(d=>{byDate[d].ops=opCostsDaily;});
 
   // Headline net profit: orders with costs entered only.
-  // Ad spend subtracted proportional to the share of paid orders that have costs.
-  // Operating costs subtracted proportional to share of paid orders with costs.
-  let headlineGross=0,headlineFees=0,headlineAllocShare=0;
+  // Ad spend and operating costs are period-level costs — subtracted proportional
+  // to the share of paid orders that have fulfillment costs entered. Using the full
+  // period spend (not a per-order/day allocation) ensures ad spend on days with no
+  // orders is still counted instead of vanishing.
+  let headlineGross=0,headlineFees=0;
   let paidOrdersTotal=0,paidOrdersWithCosts=0;
   allOrders.forEach(o=>{
     if(o.isUnpaid)return;
@@ -1030,10 +1032,11 @@ function computeAggregates(){
     paidOrdersWithCosts++;
     headlineGross+=displayedRevenue(o);
     headlineFees+=o.txFee;
-    headlineAllocShare+=displayedAdSpend(allocs[o.id]||0);
   });
-  const opCostsShare=paidOrdersTotal>0?opCostsTotal*(paidOrdersWithCosts/paidOrdersTotal):(paidOrdersWithCosts>0?opCostsTotal:0);
-  const headlineProfit=headlineGross-headlineFees-headlineAllocShare-fulfillTotal-opCostsShare;
+  const costShare=paidOrdersTotal>0?paidOrdersWithCosts/paidOrdersTotal:0;
+  const adSpendShare=spendTotal*costShare;
+  const opCostsShare=opCostsTotal*costShare;
+  const headlineProfit=headlineGross-headlineFees-adSpendShare-fulfillTotal-opCostsShare;
   const headlineMargin=headlineGross>0?headlineProfit/headlineGross:0;
 
   return{gross,vatCollected,spendTotal,feesTotal,fulfillTotal,opCostsTotal,opCostsBreakdown:opCostsRaw.breakdown,opCostsDays:opCostsRaw.days,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
