@@ -58,7 +58,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
 .cw{position:relative;height:200px}
 .srct{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px}
-.srcr{display:grid;grid-template-columns:120px 1fr 65px 65px 65px 70px 80px 55px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.srcr{display:grid;grid-template-columns:120px 1fr 58px 70px 50px 64px 64px 52px 50px 52px;gap:12px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .srcr:last-child{border-bottom:none}
 .srch{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)}
 .srcn{display:flex;align-items:center;gap:8px;font-weight:600}
@@ -67,9 +67,13 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .nm{font-family:'DM Mono',monospace;text-align:right}
 .nm.gold{color:var(--gold)}.nm.mu{color:var(--muted)}
 .botr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-.pr{display:grid;grid-template-columns:1fr 50px 42px 42px 42px 42px 42px 42px;gap:6px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
+.pr{display:grid;grid-template-columns:1fr 46px 40px 40px 40px 46px 44px 48px 44px;gap:6px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
 .pr:last-child{border-bottom:none}
 .pp{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgh{font-size:10px;letter-spacing:0.1em;text-transform:uppercase}
+.pgh span{cursor:pointer;user-select:none;color:var(--dim);transition:color 0.15s}
+.pgh span:hover{color:var(--gold)}
+.pgh span.act{color:var(--gold)}
 .ld{display:flex;align-items:center;justify-content:center;height:80px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;gap:8px}
 .sp{width:14px;height:14px;border:1.5px solid var(--dim);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -178,7 +182,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     </div>
     <div class="srct">
       <div class="ct" style="margin-bottom:12px">Breakdown by source</div>
-      <div class="srcr srch"><span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>Key events</span><span>Phone calls</span><span>Form submits</span><span>Eng%</span></div>
+      <div class="srcr srch"><span>Source</span><span>Share</span><span>Sessions</span><span>Revenue</span><span>ATC</span><span>Checkout</span><span>Purchase</span><span>Form</span><span>Call</span><span>Eng%</span></div>
       <div id="srcb"><div class="ld"><span class="sp"></span>Loading...</div></div>
     </div>
     <div class="botr">
@@ -254,6 +258,8 @@ const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot.microsoft','copilot.bing']},gemini:{label:'Gemini',color:'#c084fc',terms:['gemini.google','bard.google']}};
 let token=null,charts={};
+let pageRows=[],pageSort={col:'sess',dir:-1};
+const PAGE_COLS=[{k:'pg',l:'Page'},{k:'sess',l:'Sess.'},{k:'form',l:'Forms'},{k:'call',l:'Calls'},{k:'atc',l:'ATC'},{k:'checkout',l:'Chkout'},{k:'purchase',l:'Purch.'},{k:'cvr',l:'CVR'},{k:'eng',l:'Eng%'}];
 
 function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
 
@@ -411,19 +417,21 @@ async function refresh(){
   const dr=[dateRange];
   const fil={filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:ai}}};
   try{
+    const EV_NAMES=['form_submit','phone_call','add_to_cart','begin_checkout','purchase'];
     const queries=[
-      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:fil}),
+      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil}),
       ga4(url,{dateRanges:dr,dimensions:[{name:'date'},{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:fil,orderBys:[{dimension:{dimensionName:'date'}}]}),
-      ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8})
+      ga4(url,{dateRanges:dr,dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'engagementRate'},{name:'activeUsers'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
+      ga4(url,{dateRanges:dr,dimensions:[{name:'sessionSource'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[fil,{filter:{fieldName:'eventName',inListFilter:{values:EV_NAMES}}}]}},limit:500}).catch(()=>({rows:[]}))
     ];
     if(compareMode){
       const prevDr=[getPrevPeriod(dateRange)];
-      queries.push(ga4(url,{dateRanges:prevDr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:fil}));
+      queries.push(ga4(url,{dateRanges:prevDr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil}));
     }
     const results=await Promise.all(queries);
-    const[bs,bd,bp]=results;
-    prevData=compareMode?results[3]:null;
-    render(bs,bd,bp);
+    const[bs,bd,bp,bev]=results;
+    prevData=compareMode?results[4]:null;
+    render(bs,bd,bp,bev);
 
     // Fetch additional sections in parallel
     const[revPages, convPages, devices, countries, pageEvents] = await Promise.all([
@@ -475,9 +483,12 @@ function isAuthError(e){return e.status===401||e.status===403||/invalid.*credent
 
 function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
 
-function render(bs,bd,bp){
-  const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0,calls:0,forms:0};
-  (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);t[k].calls+=parseInt(r.metricValues[4]?.value||0);t[k].forms+=parseInt(r.metricValues[5]?.value||0);});
+function render(bs,bd,bp,bev){
+  const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0,atc:0,checkout:0,purchase:0,form:0,call:0};
+  (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);});
+  // Break key events down by event type (raw event counts, same source as the landing-page table)
+  const EVMAP={add_to_cart:'atc',begin_checkout:'checkout',purchase:'purchase',form_submit:'form',phone_call:'call'};
+  (((bev&&bev.rows))||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;const ef=EVMAP[r.dimensionValues[1].value];if(ef)t[k][ef]+=parseInt(r.metricValues[0].value||0);});
   const tot=Object.values(t).reduce((a,b)=>a+b.sessions,0),rev=Object.values(t).reduce((a,b)=>a+b.revenue,0),eng=Object.values(t).reduce((a,b)=>a+b.engaged,0),ke=Object.values(t).reduce((a,b)=>a+b.ke,0);
   document.getElementById('ncg').textContent=t.chatgpt.sessions.toLocaleString();
   document.getElementById('ncl').textContent=t.claude.sessions.toLocaleString();
@@ -507,7 +518,7 @@ function render(bs,bd,bp){
   }
   const sorted=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions);
   const mx=Math.max(...sorted.map(([,v])=>v.sessions),1);
-  document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm">${v.ke||'—'}</span><span class="nm">${v.calls||'—'}</span><span class="nm">${v.forms||'—'}</span><span class="nm mu">${v.sessions>0?(v.engaged/v.sessions*100).toFixed(1)+'%':'—'}</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
+  document.getElementById('srcb').innerHTML=sorted.length?sorted.map(([k,v])=>{const s=SOURCES[k],p=tot>0?Math.round(v.sessions/tot*100):0,e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions.toLocaleString()}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString('en-GB',{maximumFractionDigits:0}):'—'}</span><span class="nm">${v.atc||'—'}</span><span class="nm">${v.checkout||'—'}</span><span class="nm">${v.purchase||'—'}</span><span class="nm">${v.form||'—'}</span><span class="nm">${v.call||'—'}</span><span class="nm mu">${v.sessions>0?(v.engaged/v.sessions*100).toFixed(1)+'%':'—'}</span></div>`;}).join(''):'<div class="ld">No AI traffic in this period</div>';
   rTrend(bd);rPie(t);rWeekly(bd);
   // rPages called after pageEvents loaded
   window._pendingBp=bp;
@@ -527,7 +538,6 @@ function rPie(t){
   charts.p=new Chart(document.getElementById('pc'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
 }
 function rPages(bp, pe){
-  const rows=(bp.rows||[]).slice(0,8);
   // Build page→event map from pageEvents data
   const pem={};
   (pe&&pe.rows||[]).forEach(r=>{
@@ -541,17 +551,37 @@ function rPages(bp, pe){
   function getEvts(landingPage){
     const clean=landingPage.replace('https://www.nuovoluxury.co.uk','').split('?')[0];
     if(pem[clean])return pem[clean];
-    // Try partial match
     for(const p of Object.keys(pem)){if(p.startsWith(clean)||clean.startsWith(p))return pem[p];}
     return{form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0};
   }
+  pageRows=(bp.rows||[]).slice(0,8).map(r=>{
+    const pg=r.dimensionValues[0].value,e=getEvts(pg);
+    const sess=parseInt(r.metricValues[0].value||0),users=parseInt(r.metricValues[2].value||0);
+    return{pg,sess,users,eng:parseFloat(r.metricValues[1].value||0),form:e.form_submit,call:e.phone_call,atc:e.add_to_cart,checkout:e.begin_checkout,purchase:e.purchase,cvr:users>0?e.purchase/users:0};
+  });
+  renderPages();
+}
+function sortPages(col){
+  if(pageSort.col===col)pageSort.dir*=-1;
+  else pageSort={col,dir:col==='pg'?1:-1};
+  renderPages();
+}
+function renderPages(){
+  const pgb=document.getElementById('pgb');
+  if(!pgb)return;
+  if(!pageRows.length){pgb.innerHTML='<div class="ld">No data</div>';return;}
+  const sc=pageSort.col;
+  const sorted=[...pageRows].sort((a,b)=>sc==='pg'?pageSort.dir*a.pg.localeCompare(b.pg):pageSort.dir*((a[sc]||0)-(b[sc]||0)));
+  const hdr=`<div class="pr pgh">`+PAGE_COLS.map((c,i)=>{
+    const arrow=sc===c.k?(pageSort.dir<0?' ▾':' ▴'):'';
+    return`<span class="${sc===c.k?'act':''}" style="text-align:${i===0?'left':'right'}" onclick="sortPages('${c.k}')">${c.l}${arrow}</span>`;
+  }).join('')+`</div>`;
   const d=v=>v>0?v:'—';
-  document.getElementById('pgb').innerHTML=rows.length?`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sess.</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">ATC</span><span style="text-align:right">Chkout</span><span style="text-align:right">Purch.</span><span style="text-align:right">Eng%</span></div>`+rows.map(r=>{
-    const pg=r.dimensionValues[0].value;
-    const e=getEvts(pg);
-    const path=pg.replace('https://www.nuovoluxury.co.uk','').slice(0,32)||'/';
-    return`<div class="pr"><span class="pp" title="${pg.replace('https://www.nuovoluxury.co.uk','')}">${path}</span><span class="nm">${r.metricValues[0].value}</span><span class="nm">${d(e.form_submit)}</span><span class="nm">${d(e.phone_call)}</span><span class="nm">${d(e.add_to_cart)}</span><span class="nm">${d(e.begin_checkout)}</span><span class="nm">${d(e.purchase)}</span><span class="nm mu">${(parseFloat(r.metricValues[1].value||0)*100).toFixed(0)}%</span></div>`;
-  }).join(''):'<div class="ld">No data</div>';
+  const body=sorted.map(r=>{
+    const rel=r.pg.replace('https://www.nuovoluxury.co.uk','');
+    return`<div class="pr"><span class="pp" title="${rel}">${rel.slice(0,32)||'/'}</span><span class="nm">${r.sess}</span><span class="nm">${d(r.form)}</span><span class="nm">${d(r.call)}</span><span class="nm">${d(r.atc)}</span><span class="nm">${d(r.checkout)}</span><span class="nm">${d(r.purchase)}</span><span class="nm">${r.cvr>0?(r.cvr*100).toFixed(1)+'%':'—'}</span><span class="nm mu">${(r.eng*100).toFixed(0)}%</span></div>`;
+  }).join('');
+  pgb.innerHTML=hdr+body;
 }
 function rWeekly(bd){
   const wm={};(bd.rows||[]).forEach(r=>{const d=r.dimensionValues[0].value,dt=new Date(parseInt(d.slice(0,4)),parseInt(d.slice(4,6))-1,parseInt(d.slice(6,8))),ws=new Date(dt);ws.setDate(dt.getDate()-dt.getDay());const wk=`${ws.getFullYear()}-${String(ws.getMonth()+1).padStart(2,'0')}-${String(ws.getDate()).padStart(2,'0')}`;wm[wk]=(wm[wk]||0)+parseInt(r.metricValues[0].value||0);});
@@ -748,12 +778,13 @@ function loadDemo(){
   document.getElementById('dashboard').style.display='block';
   document.getElementById('fst').textContent='Demo mode';
   document.getElementById('fts').textContent='Demo: Feb 11 – May 11, 2026';
-  const t={chatgpt:{sessions:244,engaged:124,revenue:1999,ke:4},claude:{sessions:2,engaged:0,revenue:0,ke:0},perplexity:{sessions:0,engaged:0,revenue:0,ke:0},copilot:{sessions:0,engaged:0,revenue:0,ke:0},gemini:{sessions:0,engaged:0,revenue:0,ke:0}};
+  const t={chatgpt:{sessions:244,engaged:124,revenue:1999,ke:4,atc:9,checkout:4,purchase:2,form:3,call:1},claude:{sessions:2,engaged:0,revenue:0,ke:0,atc:0,checkout:0,purchase:0,form:0,call:0},perplexity:{sessions:0,engaged:0,revenue:0,ke:0,atc:0,checkout:0,purchase:0,form:0,call:0},copilot:{sessions:0,engaged:0,revenue:0,ke:0,atc:0,checkout:0,purchase:0,form:0,call:0},gemini:{sessions:0,engaged:0,revenue:0,ke:0,atc:0,checkout:0,purchase:0,form:0,call:0}};
   document.getElementById('ncg').textContent='244';document.getElementById('ncl').textContent='2';document.getElementById('npx').textContent='0';document.getElementById('ncp').textContent='0';document.getElementById('ngm').textContent='0';
   document.getElementById('stot').textContent='246';document.getElementById('srev').textContent='£1,999';document.getElementById('seng').textContent='50.4%';document.getElementById('sconv').textContent='1.63%';
   const mx=244;
-  document.getElementById('srcb').innerHTML=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions).map(([k,v])=>{const s=SOURCES[k],p=Math.round(v.sessions/246*100),e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="nm mu">${e}%</span></div>`;}).join('');
-  document.getElementById('pgb').innerHTML=`<div class="pr" style="opacity:0.4;font-size:10px;letter-spacing:0.1em;text-transform:uppercase"><span>Page</span><span style="text-align:right">Sess.</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">ATC</span><span style="text-align:right">Chkout</span><span style="text-align:right">Purch.</span><span style="text-align:right">Eng%</span></div>`+[{p:'/products/hybrid-infrared-4-person-2m-sauna',s:48,e:72,f:1,c:0,a:3,ch:1,pu:0},{p:'/collections/infrared-saunas',s:32,e:61,f:0,c:1,a:2,ch:0,pu:0},{p:'/products/chill-tubs-ice-bath...',s:28,e:68,f:0,c:0,a:1,ch:1,pu:1},{p:'/pages/best-saunas-uk-buyers-guide',s:21,e:75,f:2,c:0,a:0,ch:0,pu:0},{p:'/collections/gazebo-and-pergolas-uk',s:18,e:55,f:0,c:0,a:1,ch:0,pu:0}].map(r=>{const d=v=>v>0?v:'—';return`<div class="pr"><span class="pp">${r.p}</span><span class="nm">${r.s}</span><span class="nm">${d(r.f)}</span><span class="nm">${d(r.c)}</span><span class="nm">${d(r.a)}</span><span class="nm">${d(r.ch)}</span><span class="nm">${d(r.pu)}</span><span class="nm mu">${r.e}%</span></div>`;}).join('');
+  document.getElementById('srcb').innerHTML=Object.entries(t).filter(([,v])=>v.sessions>0).sort((a,b)=>b[1].sessions-a[1].sessions).map(([k,v])=>{const s=SOURCES[k],p=Math.round(v.sessions/246*100),e=v.sessions>0?(v.engaged/v.sessions*100).toFixed(1):0;return`<div class="srcr"><span class="srcn"><span class="sdot" style="background:${s.color}"></span>${s.label}</span><div><div style="display:flex;align-items:center;gap:8px"><div class="bbg" style="flex:1"><div class="bf" style="width:${Math.round(v.sessions/mx*100)}%;background:${s.color}"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:28px;text-align:right">${p}%</span></div></div><span class="nm">${v.sessions}</span><span class="nm gold">${v.revenue>0?'£'+v.revenue.toLocaleString():'—'}</span><span class="nm">${v.atc||'—'}</span><span class="nm">${v.checkout||'—'}</span><span class="nm">${v.purchase||'—'}</span><span class="nm">${v.form||'—'}</span><span class="nm">${v.call||'—'}</span><span class="nm mu">${e}%</span></div>`;}).join('');
+  pageRows=[{pg:'/products/hybrid-infrared-4-person-2m-sauna',sess:48,users:41,eng:0.72,form:1,call:0,atc:3,checkout:1,purchase:0},{pg:'/collections/infrared-saunas',sess:32,users:27,eng:0.61,form:0,call:1,atc:2,checkout:0,purchase:0},{pg:'/products/chill-tubs-ice-bath-pro',sess:28,users:24,eng:0.68,form:0,call:0,atc:1,checkout:1,purchase:1},{pg:'/pages/best-saunas-uk-buyers-guide',sess:21,users:18,eng:0.75,form:2,call:0,atc:0,checkout:0,purchase:0},{pg:'/collections/gazebo-and-pergolas-uk',sess:18,users:15,eng:0.55,form:0,call:0,atc:1,checkout:0,purchase:0}].map(r=>({...r,cvr:r.users>0?r.purchase/r.users:0}));
+  renderPages();
   const dbd={rows:[]};const st=new Date('2026-02-11');
   for(let i=0;i<90;i++){const d=new Date(st);d.setDate(d.getDate()+i);const ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;dbd.rows.push({dimensionValues:[{value:ds},{value:'chatgpt.com'}],metricValues:[{value:String(Math.floor(Math.random()*4+1))}]});if(Math.random()<0.02)dbd.rows.push({dimensionValues:[{value:ds},{value:'claude.ai'}],metricValues:[{value:'1'}]});}
   rTrend(dbd);rPie(t);rWeekly(dbd);
