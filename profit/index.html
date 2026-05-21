@@ -117,6 +117,10 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
 .cost-input.saved{border-color:var(--green)}
 .cost-input.empty{border-color:rgba(245,158,11,0.4)}
 .cost-saved-tick{display:inline-block;margin-left:4px;color:var(--green);font-size:11px;opacity:0;transition:opacity 0.4s}
+.fulfill-cell{display:flex;align-items:center;justify-content:flex-end;gap:5px}
+.ddp-toggle{display:inline-flex;align-items:center;gap:3px;font-size:9px;letter-spacing:0.05em;color:var(--dim);cursor:pointer;font-family:'DM Mono',monospace;user-select:none}
+.ddp-toggle.on{color:var(--gold)}
+.ddp-toggle input{width:11px;height:11px;cursor:pointer;accent-color:var(--gold);margin:0}
 .cost-saved-tick.show{opacity:1}
 
 .status-pill{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;font-family:'DM Mono',monospace;font-weight:500}
@@ -406,7 +410,7 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
         <input type="checkbox" id="vat-spend-inc" onchange="saveVatConfig()" style="width:16px;height:16px;cursor:pointer">
         Ad spend entered includes VAT
       </label>
-      <p class="help" style="margin-top:10px;margin-bottom:0">Revenue ex-VAT uses Shopify's actual tax field per order (accurate for multi-rate / zero-rated). Costs use the assumed rate above.</p>
+      <p class="help" style="margin-top:10px;margin-bottom:0">Revenue ex-VAT uses Shopify's actual tax field per order (accurate for multi-rate / zero-rated). Costs use the assumed rate above. Tick <strong>DDP</strong> on an order row to exclude that order from VAT stripping (e.g. Alibaba DDP — the supplier handles import VAT).</p>
     </div>
 
     <div class="drawer-section">
@@ -657,6 +661,9 @@ function getSpend(platform){return lsGet(`nuovo_shared_${platform}_spend`,{});}
 function setSpend(platform,obj){lsSet(`nuovo_shared_${platform}_spend`,obj);}
 function getOrderCosts(){return lsGet('nuovo_order_costs',{});}
 function setOrderCost(orderId,cost){const c=getOrderCosts();if(cost==null||cost==='')delete c[orderId];else c[orderId]=cost;lsSet('nuovo_order_costs',c);}
+// DDP orders (e.g. Alibaba DDP): the cost carries no reclaimable VAT, so VAT is never stripped from it.
+function getDdpFlags(){return lsGet('nuovo_order_ddp',{});}
+function setDdpFlag(orderId,on){const f=getDdpFlags();if(on)f[orderId]=true;else delete f[orderId];lsSet('nuovo_order_ddp',f);}
 function getFeeConfig(){return lsGet('nuovo_fee_config',{mode:'estimate',uk:{pct:1.5,fixed:0.25},int:{pct:2.5,fixed:0.25}});}
 function setFeeConfig(c){lsSet('nuovo_fee_config',c);}
 function getVatConfig(){return lsGet('nuovo_vat_config',{showExVat:true,vatRate:0.20,costsIncVat:true,spendIncVat:false});}
@@ -932,10 +939,10 @@ function displayedRevenue(o){
   const v=getVatConfig();
   return v.showExVat?o.grossRevExVat:o.grossRev;
 }
-function displayedFulfillment(rawCost){
+function displayedFulfillment(rawCost,isDdp){
   if(rawCost==null)return null;
   const v=getVatConfig();
-  return(v.showExVat&&v.costsIncVat)?rawCost/(1+v.vatRate):rawCost;
+  return(v.showExVat&&v.costsIncVat&&!isDdp)?rawCost/(1+v.vatRate):rawCost;
 }
 function displayedAdSpend(rawSpend){
   const v=getVatConfig();
@@ -949,7 +956,7 @@ function orderProfit(o,alloc){
   const costs=getOrderCosts();
   const rawFulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
   if(rawFulfillment==null||isNaN(rawFulfillment)||o.isUnpaid)return{profit:null,margin:null,fulfillment:null,alloc};
-  const fulfillment=displayedFulfillment(rawFulfillment);
+  const fulfillment=displayedFulfillment(rawFulfillment,getDdpFlags()[o.id]);
   const revenue=displayedRevenue(o);
   const profit=revenue-o.txFee-fulfillment;
   const margin=revenue>0?profit/revenue:0;
@@ -1269,14 +1276,16 @@ function filterAndSort(){
   const search=(document.getElementById('search')?.value||'').toLowerCase().trim();
   const allocs=computeAllocations();
   const costs=getOrderCosts();
+  const ddp=getDdpFlags();
   let rows=allOrders.map(o=>{
     const alloc=displayedAdSpend(allocs[o.id]||0);
     const rawFulfillment=costs[o.id]!=null?parseFloat(costs[o.id]):null;
-    const fulfillment=displayedFulfillment(rawFulfillment);
+    const isDdp=!!ddp[o.id];
+    const fulfillment=displayedFulfillment(rawFulfillment,isDdp);
     const revenue=displayedRevenue(o);
     const profit=fulfillment!=null&&!o.isUnpaid?revenue-o.txFee-fulfillment:null;
     const margin=profit!=null&&revenue>0?profit/revenue:null;
-    return{o,alloc,revenue,fulfillment,rawFulfillment,profit,margin};
+    return{o,alloc,revenue,fulfillment,rawFulfillment,profit,margin,isDdp};
   });
   if(search){
     rows=rows.filter(r=>{
@@ -1351,7 +1360,7 @@ function renderTable(){
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
       <td class="nm">${fmtGBP(r.revenue)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
       <td class="nm muted">${fmtGBP(o.txFee)}</td>
-      <td class="nm">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span></td>
+      <td class="nm"><div class="fulfill-cell">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span><label class="ddp-toggle${r.isDdp?' on':''}" title="Alibaba DDP — this cost has no reclaimable VAT, so VAT is not stripped from it"><input type="checkbox" data-order="${o.id}" ${r.isDdp?'checked':''} ${o.isUnpaid?'disabled':''} onchange="saveDdp(this)">DDP</label></div></td>
       <td class="nm ${profitCls}">${profitTxt}</td>
       <td class="nm">${marginHtml}</td>
       <td>${status}</td>
@@ -1399,7 +1408,8 @@ function saveCost(input){
     // If the input is showing ex-VAT (because mode = ex-VAT AND user entered values as inc-VAT),
     // convert back to the storage base (inc-VAT) before saving.
     const vc=getVatConfig();
-    if(vc.showExVat&&vc.costsIncVat)num=num*(1+vc.vatRate);
+    // DDP orders carry no reclaimable VAT — store the entered figure as-is.
+    if(vc.showExVat&&vc.costsIncVat&&!getDdpFlags()[orderId])num=num*(1+vc.vatRate);
     setOrderCost(orderId,num);
   }
   input.classList.add('saved');
@@ -1409,6 +1419,10 @@ function saveCost(input){
   // Recompute everything (debounce for performance on big tables)
   clearTimeout(window._recompute);
   window._recompute=setTimeout(()=>renderAll(),200);
+}
+function saveDdp(cb){
+  setDdpFlag(cb.dataset.order,cb.checked);
+  renderAll();
 }
 function costKeyNav(e,el){
   // Tab focuses next row's cost input automatically (browser default), but also Enter jumps next
@@ -1674,6 +1688,7 @@ function saveFeeConfig(){
 function resetFulfillment(){
   if(!confirm('Delete ALL manually entered fulfillment costs? This cannot be undone.'))return;
   localStorage.removeItem('nuovo_order_costs');
+  localStorage.removeItem('nuovo_order_ddp');
   renderAll();
 }
 function resetAdSpend(){
@@ -1685,6 +1700,7 @@ function resetAdSpend(){
 function exportData(){
   const data={
     order_costs:lsGet('nuovo_order_costs',{}),
+    order_ddp:lsGet('nuovo_order_ddp',{}),
     microsoft_spend:lsGet('nuovo_shared_microsoft_spend',{}),
     meta_spend:lsGet('nuovo_shared_meta_spend',{}),
     tiktok_spend:lsGet('nuovo_shared_tiktok_spend',{}),
@@ -1708,6 +1724,7 @@ function importData(e){
     try{
       const d=JSON.parse(r.result);
       if(d.order_costs)lsSet('nuovo_order_costs',d.order_costs);
+      if(d.order_ddp)lsSet('nuovo_order_ddp',d.order_ddp);
       if(d.microsoft_spend)lsSet('nuovo_shared_microsoft_spend',d.microsoft_spend);
       if(d.meta_spend)lsSet('nuovo_shared_meta_spend',d.meta_spend);
       if(d.tiktok_spend)lsSet('nuovo_shared_tiktok_spend',d.tiktok_spend);
