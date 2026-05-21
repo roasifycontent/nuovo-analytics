@@ -392,26 +392,22 @@ async function refresh(){
   if(!token){signOut();return;}
 
   const dr=[dateRange];
-  const aiRegex=AI_TERMS.join('|');
 
   // Helper: run query, return fallback on failure
   const safe=async(q,fb={rows:[]})=>{try{return await ga4(q);}catch(e){console.warn('Query failed:',e.message);if(isAuthError(e))throw e;return fb;}};
 
   try{
     // All queries run independently — none blocks another
-    const [chData, chFunnel, aiData, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
-      // Channel breakdown — single query, sessionDefaultChannelGroup works with these metrics
-      safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[
+    const [chData, chFunnel, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+      // Channel breakdown — split by source too, so AI traffic can be reclassified
+      // out of its GA4 default channel group instead of being double-counted.
+      safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'totalRevenue'},{name:'engagedSessions'},{name:'transactions'}
-      ],orderBys:[{metric:{metricName:'totalRevenue'},desc:true}]}),
-      // Funnel events by channel
-      safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'eventName'}],metrics:[
+      ]}),
+      // Funnel events by channel + source (source needed for the same AI reclassification)
+      safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'},{name:'eventName'}],metrics:[
         {name:'eventCount'}
       ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_calls','add_to_cart','begin_checkout','purchase']}}}}),
-      // AI channel
-      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[
-        {name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagedSessions'}
-      ],dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:aiRegex}}}}),
       // Daily revenue trend (14 days)
       safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
         {name:'totalRevenue'}
@@ -438,35 +434,35 @@ async function refresh(){
       ]})
     ]);
 
-    // Build channel map from single query
+    // Build channel map. AI-source traffic is reclassified out of its GA4 default
+    // channel group (usually Unassigned/Referral) into a dedicated "AI" channel,
+    // so every session and sale is counted in exactly one channel.
     const chMap={};
     const FUNNEL_EVENTS=['form_submit','phone_calls','add_to_cart','begin_checkout','purchase'];
     const emptyFunnel=()=>({form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0});
-    // metrics: 0=sessions, 1=totalRevenue, 2=engagedSessions, 3=transactions
+    const isAiSource=src=>{const s=(src||'').toLowerCase();return AI_TERMS.some(t=>s.includes(t));};
+    const chBucket=ch=>{if(!chMap[ch])chMap[ch]={sessions:0,revenue:0,engaged:0,txns:0,ke:0,funnel:emptyFunnel()};return chMap[ch];};
+    // chData metrics: 0=sessions, 1=totalRevenue, 2=engagedSessions, 3=transactions
     (chData.rows||[]).forEach(r=>{
-      const ch=r.dimensionValues[0].value;
-      chMap[ch]={
-        sessions:parseInt(r.metricValues[0].value||0),
-        revenue:parseFloat(r.metricValues[1].value||0),
-        engaged:parseInt(r.metricValues[2].value||0),
-        txns:parseInt(r.metricValues[3].value||0),
-        ke:0,funnel:emptyFunnel()
-      };
+      const ch=isAiSource(r.dimensionValues[1].value)?'AI':r.dimensionValues[0].value;
+      const c=chBucket(ch);
+      c.sessions+=parseInt(r.metricValues[0].value||0);
+      c.revenue+=parseFloat(r.metricValues[1].value||0);
+      c.engaged+=parseInt(r.metricValues[2].value||0);
+      c.txns+=parseInt(r.metricValues[3].value||0);
     });
-    // Merge in funnel events
+    // Merge in funnel events (same AI reclassification)
     (chFunnel.rows||[]).forEach(r=>{
-      const ch=r.dimensionValues[0].value;
-      const ev=r.dimensionValues[1].value;
+      const ch=isAiSource(r.dimensionValues[1].value)?'AI':r.dimensionValues[0].value;
+      const ev=r.dimensionValues[2].value;
       const count=parseInt(r.metricValues[0].value||0);
-      if(!chMap[ch])chMap[ch]={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:emptyFunnel()};
-      if(!chMap[ch].funnel)chMap[ch].funnel=emptyFunnel();
-      if(FUNNEL_EVENTS.includes(ev))chMap[ch].funnel[ev]+=count;
+      if(FUNNEL_EVENTS.includes(ev))chBucket(ch).funnel[ev]+=count;
     });
     // Sum ad spend from by-source rows
     const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
 
-    lastData={chMap,aiData,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend};
+    lastData={chMap,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -485,7 +481,7 @@ function recalcAll(){
 function renderAll(){
   const d=lastData;
   renderHero(d.chMap,d.gAdSpendTotal,d.newUsersTotal);
-  renderChannelTable(d.chMap,d.aiData,d.gAdSpendTotal);
+  renderChannelTable(d.chMap,d.gAdSpendTotal);
   renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
   renderProducts(d.products);
 }
@@ -525,7 +521,7 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
 // --- Channel table ---
 const CH_COLORS={'Paid Search':'#4285F4','Organic Search':'#10b981','Direct':'#d4a843','Organic Social':'#818cf8','Referral':'#e8a87c','Email':'#38bdf8','AI':'#10b981','Display':'#f472b6','Paid Shopping':'#4285F4','Organic Shopping':'#10b981','Unassigned':'#6b7280','Cross-network':'#9ca3af','Other':'#9ca3af'};
 
-function renderChannelTable(chMap,aiData,gAdSpendTotal){
+function renderChannelTable(chMap,gAdSpendTotal){
   const channels={};
   // Copy chMap so we can add ad spend without mutating
   Object.entries(chMap).forEach(([ch,d])=>{channels[ch]={...d,adCost:0};});
@@ -542,17 +538,6 @@ function renderChannelTable(chMap,aiData,gAdSpendTotal){
     else if(psh){psh.adCost=gAdSpend;}
     else{channels['Paid Search']={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:{form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0},adCost:gAdSpend};}
   }
-
-  // AI channel (aggregate)
-  let aiSess=0,aiRev=0,aiKE=0,aiEng=0;
-  const aiFunnel={form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0};
-  (aiData.rows||[]).forEach(r=>{
-    aiSess+=parseInt(r.metricValues[0].value||0);
-    aiRev+=parseFloat(r.metricValues[1].value||0);
-    aiKE+=parseInt(r.metricValues[2].value||0);
-    aiEng+=parseInt(r.metricValues[3].value||0);
-  });
-  if(aiSess>0)channels['AI']={sessions:aiSess,revenue:aiRev,ke:aiKE,engaged:aiEng,txns:0,funnel:aiFunnel,adCost:0};
 
   // Add MS spend to Paid Search
   const msSpend=getMsTotalSpend();
