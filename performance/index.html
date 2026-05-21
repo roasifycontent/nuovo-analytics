@@ -407,7 +407,7 @@ async function refresh(){
       // Funnel events by channel + source (source needed for the same AI reclassification)
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'},{name:'eventName'}],metrics:[
         {name:'eventCount'}
-      ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_calls','add_to_cart','begin_checkout','purchase']}}}}),
+      ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_call','add_to_cart','begin_checkout','purchase']}}}}),
       // Daily revenue trend (14 days)
       safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
         {name:'totalRevenue'}
@@ -438,8 +438,8 @@ async function refresh(){
     // channel group (usually Unassigned/Referral) into a dedicated "AI" channel,
     // so every session and sale is counted in exactly one channel.
     const chMap={};
-    const FUNNEL_EVENTS=['form_submit','phone_calls','add_to_cart','begin_checkout','purchase'];
-    const emptyFunnel=()=>({form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0});
+    const FUNNEL_EVENTS=['form_submit','phone_call','add_to_cart','begin_checkout','purchase'];
+    const emptyFunnel=()=>({form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0});
     const isAiSource=src=>{const s=(src||'').toLowerCase();return AI_TERMS.some(t=>s.includes(t));};
     const chBucket=ch=>{if(!chMap[ch])chMap[ch]={sessions:0,revenue:0,engaged:0,txns:0,ke:0,funnel:emptyFunnel()};return chMap[ch];};
     // chData metrics: 0=sessions, 1=totalRevenue, 2=engagedSessions, 3=transactions
@@ -494,7 +494,7 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
     totRev+=d.revenue;
     totTxns+=d.txns;
     const f=d.funnel||{};
-    totFunnel+=(f.form_submit||0)+(f.phone_calls||0)+(f.add_to_cart||0)+(f.begin_checkout||0)+(f.purchase||0);
+    totFunnel+=(f.form_submit||0)+(f.phone_call||0)+(f.add_to_cart||0)+(f.begin_checkout||0)+(f.purchase||0);
   });
   const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
@@ -536,7 +536,7 @@ function renderChannelTable(chMap,gAdSpendTotal){
       psh.adCost=gAdSpend*(psh.sessions/totalPaidSess);
     }else if(ps){ps.adCost=gAdSpend;}
     else if(psh){psh.adCost=gAdSpend;}
-    else{channels['Paid Search']={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:{form_submit:0,phone_calls:0,add_to_cart:0,begin_checkout:0,purchase:0},adCost:gAdSpend};}
+    else{channels['Paid Search']={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:{form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0},adCost:gAdSpend};}
   }
 
   // Add MS spend to Paid Search
@@ -567,7 +567,7 @@ function renderChannelTable(chMap,gAdSpendTotal){
         <span class="tnum${roas!=='—'?(parseFloat(roas)>=2?' green':parseFloat(roas)<1?' red':''):''}">${roas}</span>
         <span class="tnum mu">${pctRev}%</span>
         <span class="tnum">${fc(f.form_submit||0)}</span>
-        <span class="tnum">${fc(f.phone_calls||0)}</span>
+        <span class="tnum">${fc(f.phone_call||0)}</span>
         <span class="tnum">${fc(f.add_to_cart||0)}</span>
         <span class="tnum">${fc(f.begin_checkout||0)}</span>
         <span class="tnum">${fc(f.purchase||0)}</span>
