@@ -439,7 +439,7 @@ async function refresh(){
       ga4(url,{dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'keyEvents'},{name:'sessions'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'keyEvents'},desc:true}],limit:8}),
       ga4(url,{dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       ga4(url,{dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:fil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:10}),
-      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'pagePath'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[fil,{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_call','add_to_cart','begin_checkout','purchase']}}}]}},limit:500}).catch(()=>({rows:[]}))
+      ga4(url,{dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[fil,{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_call','add_to_cart','begin_checkout','purchase']}}}]}},limit:500}).catch(()=>({rows:[]}))
     ]);
     rPages(window._pendingBp, pageEvents);
     renderRevPages(revPages);
@@ -538,10 +538,12 @@ function rPie(t){
   charts.p=new Chart(document.getElementById('pc'),{type:'doughnut',data:{labels:e.map(([k])=>SOURCES[k].label),datasets:[{data:e.map(([,v])=>v.sessions),backgroundColor:e.map(([k])=>SOURCES[k].color),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:themeColor('--chart-tick'),font:{family:'Syne',size:11},boxWidth:8,padding:14}}}}});
 }
 function rPages(bp, pe){
-  // Build page→event map from pageEvents data
+  // Build landing-page → event map. Events are credited to the session's landing
+  // page (not the page they fired on), so purchases/checkouts — which fire on the
+  // thank-you/cart page — are attributed to the landing page that drove them.
   const pem={};
   (pe&&pe.rows||[]).forEach(r=>{
-    const path=(r.dimensionValues[0].value||'').replace('https://www.nuovoluxury.co.uk','');
+    const path=(r.dimensionValues[0].value||'').replace('https://www.nuovoluxury.co.uk','').split('?')[0];
     const evt=r.dimensionValues[1].value;
     const cnt=parseInt(r.metricValues[0].value||0);
     if(!pem[path])pem[path]={form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0};
