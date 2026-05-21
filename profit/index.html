@@ -333,11 +333,11 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
             <button class="chip" onclick="clearProductFilter()">Clear filter ✕</button>
           </div>
         </div>
-        <div class="chart-wrap small"><canvas id="product-chart"></canvas></div>
+        <div class="chart-wrap small" id="product-chart-wrap"><canvas id="product-chart"></canvas></div>
       </div>
       <div class="card">
         <div class="ct"><span>Margin distribution <span class="ct-sub">— orders with costs entered</span></span></div>
-        <div class="chart-wrap small"><canvas id="margin-chart"></canvas></div>
+        <div class="chart-wrap small" id="margin-chart-wrap"><canvas id="margin-chart"></canvas></div>
         <div id="margin-pending" style="text-align:center;font-size:11px;color:var(--dim);margin-top:8px;font-family:'DM Mono',monospace"></div>
       </div>
     </div>
@@ -1194,15 +1194,15 @@ function setTimelineMode(m){
 // ===== Product chart =====
 function renderProductChart(agg){
   const arr=Object.entries(agg.byProduct).map(([k,v])=>({name:k,profit:v.profit,rev:v.rev})).filter(p=>p.profit!==0).sort((a,b)=>b.profit-a.profit).slice(0,10);
-  const ctx=document.getElementById('product-chart');
+  const wrap=document.getElementById('product-chart-wrap');
   if(charts.product)charts.product.destroy();
   if(!arr.length){
-    if(ctx)ctx.parentElement.innerHTML='<div class="empty">No product profit data yet — enter fulfillment costs</div>';
+    if(wrap)wrap.innerHTML='<div class="empty">No product profit data yet — enter fulfillment costs</div>';
     return;
   }
-  // Re-attach canvas in case it was replaced
+  // Re-attach canvas in case the empty-state message replaced it
   if(!document.getElementById('product-chart')){
-    ctx.parentElement.innerHTML='<canvas id="product-chart"></canvas>';
+    wrap.innerHTML='<canvas id="product-chart"></canvas>';
   }
   const labels=arr.map(p=>p.name.length>26?p.name.slice(0,26)+'…':p.name);
   charts.product=new Chart(document.getElementById('product-chart'),{
@@ -1237,15 +1237,15 @@ function renderMarginChart(agg){
     else if(margin<0.6)buckets.b40++;
     else buckets.b60++;
   });
-  const ctx=document.getElementById('margin-chart');
+  const wrap=document.getElementById('margin-chart-wrap');
   if(charts.margin)charts.margin.destroy();
   document.getElementById('margin-pending').textContent=agg.missing>0?`+ ${agg.missing} orders pending costs`:'';
   if(!countWithCosts){
-    if(ctx)ctx.parentElement.innerHTML='<div class="empty">Enter fulfillment costs on orders to see margin distribution</div>';
+    if(wrap)wrap.innerHTML='<div class="empty">Enter fulfillment costs on orders to see margin distribution</div>';
     return;
   }
   if(!document.getElementById('margin-chart')){
-    ctx.parentElement.innerHTML='<canvas id="margin-chart"></canvas>';
+    wrap.innerHTML='<canvas id="margin-chart"></canvas>';
   }
   charts.margin=new Chart(document.getElementById('margin-chart'),{
     type:'doughnut',
