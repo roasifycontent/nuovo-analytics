@@ -47,7 +47,7 @@ body{min-height:100vh}
 .ch-spend-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:4px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;outline:none;width:120px}
 .ch-spend-input:focus{border-color:var(--gold)}
 .ch-spend-input::placeholder{color:var(--dim)}
-.ch-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.ch-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
 .ch-m{}
 .ch-m-lbl{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .ch-m-val{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;line-height:1}
@@ -183,6 +183,11 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
             <div class="ch-m-val" id="g-sessions">—</div>
           </div>
           <div class="ch-m">
+            <div class="ch-m-lbl">Spend</div>
+            <div class="ch-m-val red" id="g-spend">—</div>
+            <div class="ch-m-sub" id="g-spend-sub">enter spend</div>
+          </div>
+          <div class="ch-m">
             <div class="ch-m-lbl">Revenue</div>
             <div class="ch-m-val gold" id="g-revenue">—</div>
           </div>
@@ -211,6 +216,11 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
           <div class="ch-m">
             <div class="ch-m-lbl">Sessions</div>
             <div class="ch-m-val" id="b-sessions">—</div>
+          </div>
+          <div class="ch-m">
+            <div class="ch-m-lbl">Spend</div>
+            <div class="ch-m-val red" id="b-spend">—</div>
+            <div class="ch-m-sub" id="b-spend-sub">enter spend</div>
           </div>
           <div class="ch-m">
             <div class="ch-m-lbl">Revenue</div>
@@ -442,6 +452,8 @@ function setCustom(){
 function markManual(channel){
   const lbl=document.getElementById('lbl-'+channel);
   if(lbl) lbl.textContent='Spend (manual) £';
+  const inp=document.getElementById('spend-'+channel);
+  if(inp) inp.removeAttribute('data-auto');
 }
 
 function saveSpend(){
@@ -587,6 +599,14 @@ function renderSourceMetrics(data, funnelData){
 function recalc(){
   const gSpend=parseFloat(document.getElementById('spend-google').value)||0;
   const bSpend=parseFloat(document.getElementById('spend-bing').value)||0;
+  // Visible spend metric (mirror of the input box)
+  const fmtSpend=v=>v>0?'£'+v.toLocaleString('en-GB',{maximumFractionDigits:2}):'—';
+  document.getElementById('g-spend').textContent=fmtSpend(gSpend);
+  document.getElementById('b-spend').textContent=fmtSpend(bSpend);
+  const gAuto=document.getElementById('spend-google').getAttribute('data-auto')==='1';
+  const bAuto=document.getElementById('spend-bing').getAttribute('data-auto')==='1';
+  document.getElementById('g-spend-sub').textContent=gSpend>0?(gAuto?'auto from GA4':'manual entry'):'enter spend';
+  document.getElementById('b-spend-sub').textContent=bSpend>0?(bAuto?'auto from GA4':'manual entry'):'enter spend';
   // ROAS
   setRoasCpa('g',cache.google,gSpend);
   setRoasCpa('b',cache.bing,bSpend);
