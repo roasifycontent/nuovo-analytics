@@ -476,43 +476,64 @@ async function ga4(body){
 
 function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message);}
 
+// Preference order: domain property first (covers all subdomains/protocols), then URL prefixes
 const GSC_URLS=[
+  'sc-domain:nuovoluxury.co.uk',
   'https://www.nuovoluxury.co.uk/',
   'https://www.nuovoluxury.co.uk',
   'https://nuovoluxury.co.uk/',
-  'https://nuovoluxury.co.uk',
-  'sc-domain:nuovoluxury.co.uk'
+  'https://nuovoluxury.co.uk'
 ];
 let gscSiteUrl=null;
 
 async function gscFindSite(){
   if(gscSiteUrl) return gscSiteUrl;
-  // First try listing all sites the user has access to
+  // List the user's verified properties so we only probe ones they actually own
+  let candidates=null;
   try{
     const r=await fetch('https://www.googleapis.com/webmasters/v3/sites',{headers:{'Authorization':'Bearer '+token}});
     if(r.ok){
       const data=await r.json();
-      const sites=(data.siteEntry||[]).map(s=>s.siteUrl);
-      console.log('GSC sites found:',sites);
-      // Find the matching one
-      const match=sites.find(s=>s.includes('nuovoluxury'));
-      if(match){gscSiteUrl=match;console.log('Using GSC site:',match);return match;}
+      const verified=(data.siteEntry||[])
+        .filter(s=>(s.permissionLevel||'')!=='siteUnverifiedUser')
+        .map(s=>s.siteUrl)
+        .filter(s=>s.toLowerCase().includes('nuovoluxury'));
+      console.log('GSC verified properties for nuovoluxury:',verified);
+      if(verified.length){
+        // Sort by preference (sc-domain first), then any other variants we didn't anticipate
+        candidates=GSC_URLS.filter(p=>verified.includes(p)).concat(verified.filter(s=>!GSC_URLS.includes(s)));
+      }
     }
   }catch(e){console.warn('GSC list sites failed:',e);}
-  
-  // Fallback: try each URL format
-  for(const url of GSC_URLS){
+  if(!candidates) candidates=GSC_URLS;
+
+  // Probe each candidate with a real data query — a verified property with no data
+  // still answers 200 OK with an empty rows array, so reachability alone is not
+  // enough. Pick the first property that actually returns rows.
+  const probe=gscDates(28);
+  let firstReachable=null;
+  for(const url of candidates){
     try{
       const r=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(url)}/searchAnalytics/query`,{
         method:'POST',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify({startDate:'2026-05-01',endDate:'2026-05-10',dimensions:['query'],rowLimit:1})
+        body:JSON.stringify({startDate:probe.startDate,endDate:probe.endDate,dimensions:['query'],rowLimit:1})
       });
-      if(r.ok){gscSiteUrl=url;console.log('GSC working with:',url);return url;}
-      const e=await r.json();
-      console.log('GSC tried',url,'->',r.status,e.error?.message);
-    }catch(e){}
+      if(r.ok){
+        const data=await r.json();
+        const hasData=(data.rows||[]).length>0;
+        console.log('GSC probe',url,'→ OK · hasData:',hasData);
+        if(hasData){gscSiteUrl=url;return url;}
+        if(!firstReachable)firstReachable=url;
+      } else {
+        const e=await r.json();
+        console.log('GSC probe',url,'→',r.status,e.error?.message);
+      }
+    }catch(e){console.log('GSC probe error',url,e);}
   }
+  // No property had data — return the first reachable one so the rest of the page
+  // can still load (and the empty-state messages render honestly).
+  if(firstReachable){gscSiteUrl=firstReachable;console.log('GSC: no property has data, falling back to',firstReachable);return firstReachable;}
   throw new Error('GSC_NO_SITE');
 }
 
