@@ -249,8 +249,11 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="kpi"><div class="kpi-lbl">Cost per call</div><div class="kpi-val gold" id="k-cpc">—</div></div>
       <div class="kpi"><div class="kpi-lbl">WhatsApp</div><div class="kpi-val" id="k-whatsapp">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Chat</div><div class="kpi-val" id="k-chat">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">ATC</div><div class="kpi-val" id="k-atc">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Begin checkout</div><div class="kpi-val" id="k-begin">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Purchases</div><div class="kpi-val" id="k-purch">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Checkout → buy</div><div class="kpi-val green" id="k-ck-buy">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">CVR</div><div class="kpi-val green" id="k-cvr">—</div></div>
     </div>
 
     <!-- Conversion funnel -->
@@ -679,12 +682,17 @@ function recalc(){
   const totalCalls=contactTotals.calls;
   const totalBegin=cache.google.begin+cache.bing.begin;
   const totalTrans=cache.google.transactions+cache.bing.transactions;
+  const totalATC=cache.google.addCart+cache.bing.addCart;
+  const totalSessions=cache.google.sessions+cache.bing.sessions;
   const dash=v=>v>0?v:'—';
   document.getElementById('k-forms').textContent=totalForms;
   document.getElementById('k-calls').textContent=dash(totalCalls);
   document.getElementById('k-whatsapp').textContent=dash(contactTotals.whatsapp);
   document.getElementById('k-chat').textContent=dash(contactTotals.chat);
+  document.getElementById('k-atc').textContent=dash(totalATC);
   document.getElementById('k-begin').textContent=totalBegin;
+  document.getElementById('k-purch').textContent=dash(totalTrans);
+  document.getElementById('k-cvr').textContent=totalSessions>0?(totalTrans/totalSessions*100).toFixed(2)+'%':'—';
   document.getElementById('k-cpf').textContent=totalSpend>0&&totalForms>0?'£'+(totalSpend/totalForms).toFixed(2):'—';
   document.getElementById('k-cpc').textContent=totalSpend>0&&totalCalls>0?'£'+(totalSpend/totalCalls).toFixed(2):'—';
   document.getElementById('k-ck-buy').textContent=totalBegin>0?(totalTrans/totalBegin*100).toFixed(1)+'%':'—';
