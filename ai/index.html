@@ -258,6 +258,58 @@ const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot.microsoft','copilot.bing']},gemini:{label:'Gemini',color:'#c084fc',terms:['gemini.google','bard.google']}};
 let token=null,charts={};
+
+// ===== Silent token refresh via the GIS token client =====
+// Shared keys so a sign-in on any dashboard covers them all. The redirect
+// sign-in below stays as the manual fallback; this renews the token silently
+// before it expires so the user isn't logged out roughly every hour.
+const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',email:'nuovo_user_email',legacy:'nuovo_token'};
+const OAUTH_SCOPE='https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly';
+let _tokenClient=null,_refreshTimer=null,_refreshing=null;
+function storeToken(tok,expiresIn){
+  if(!tok)return;
+  token=tok;
+  localStorage.setItem(TK.tok,tok);
+  localStorage.setItem(TK.legacy,tok);
+  localStorage.setItem(TK.exp,String(Date.now()+((parseInt(expiresIn,10)||3600)*1000)));
+  scheduleTokenRefresh();
+}
+function tokenExpiry(){return parseInt(localStorage.getItem(TK.exp)||'0',10);}
+function getTokenClient(){
+  if(_tokenClient)return _tokenClient;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return null;
+  _tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:OAUTH_SCOPE,
+    callback:(resp)=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;
+      if(resp&&resp.access_token){storeToken(resp.access_token,resp.expires_in);cb&&cb(true);}else{cb&&cb(false);}},
+    error_callback:()=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;cb&&cb(false);}
+  });
+  return _tokenClient;
+}
+// Silent token request (no popup). Resolves true if a fresh token was obtained.
+function silentRefresh(){
+  if(_refreshing)return _refreshing;
+  const tc=getTokenClient();
+  if(!tc)return Promise.resolve(false);
+  _refreshing=new Promise(res=>{tc.__cb=(ok)=>{_refreshing=null;res(ok);};
+    try{const hint=localStorage.getItem(TK.email);tc.requestAccessToken(hint?{prompt:'',login_hint:hint}:{prompt:''});}
+    catch(e){_refreshing=null;res(false);}});
+  return _refreshing;
+}
+function scheduleTokenRefresh(){
+  if(_refreshTimer)clearTimeout(_refreshTimer);
+  const exp=tokenExpiry();if(!exp)return;
+  _refreshTimer=setTimeout(()=>silentRefresh(),Math.max(10000,exp-Date.now()-5*60*1000));
+}
+// On load: reuse a valid cached token, else attempt a silent refresh before showing sign-in.
+async function ensureFreshToken(){
+  const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
+  if(cached)token=cached;
+  const exp=tokenExpiry();
+  if(cached&&exp&&exp-Date.now()>5*60*1000){scheduleTokenRefresh();return true;}
+  const ok=await silentRefresh();
+  return ok||!!token;
+}
 let pageRows=[],pageSort={col:'sess',dir:-1};
 const PAGE_COLS=[{k:'pg',l:'Page'},{k:'sess',l:'Sess.'},{k:'form',l:'Forms'},{k:'call',l:'Calls'},{k:'atc',l:'ATC'},{k:'checkout',l:'Chkout'},{k:'purchase',l:'Purch.'},{k:'cvr',l:'CVR'},{k:'eng',l:'Eng%'}];
 
@@ -291,8 +343,10 @@ function toggleTheme(){
 
 window.addEventListener('load',()=>{
   restoreDateRange();
-  const saved=localStorage.getItem('nuovo_token');
-  if(saved){token=saved;launch();return;}
+  if(window.location.hash.includes('access_token'))return; // OAuth redirect callback handler takes over
+  const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();ensureFreshToken();return;}
+  ensureFreshToken().then(ok=>{if(ok&&token)launch();});
 });
 
 function handleCredential(response){
@@ -340,8 +394,7 @@ function hideReauth(){
 window.addEventListener('load',()=>{
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
-    token=hash.get('access_token');
-    localStorage.setItem('nuovo_token',token);
+    storeToken(hash.get('access_token'),hash.get('expires_in'));
     const state=hash.get('state');
     window.history.replaceState(null,'',window.location.pathname);
 
@@ -366,7 +419,7 @@ window.addEventListener('load',()=>{
   }
 });
 
-function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+function signOut(){token=null;['nuovo_token','nuovo_access_token','nuovo_token_expiry'].forEach(k=>localStorage.removeItem(k));document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
 function showErr(m){const e=document.getElementById('err');e.textContent=m;e.style.display='block';}
 function launch(){document.getElementById('setup').style.display='none';document.getElementById('dashboard').style.display='block';loadAlerts();refresh();setInterval(refresh,30*60*1000);}
 
@@ -488,13 +541,17 @@ function withCountryFilter(body){
   return b;
 }
 async function ga4(url,body){
-  const hdrs={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
-  let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
+  const hdrs=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+  let r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(withCountryFilter(body))});
+  // Token expired mid-session? try ONE silent refresh and retry before surfacing the error.
+  if((r.status===401||r.status===403)&&await silentRefresh()){
+    r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(withCountryFilter(body))});
+  }
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
     const msg=e.error?.message||'';
     if(/remove country|incompatible/i.test(msg)){
-      r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(body)});
       if(r.ok)return r.json();
       const e2=await r.json().catch(()=>({}));const err2=new Error(e2.error?.message||'API '+r.status);err2.status=r.status;throw err2;
     }
