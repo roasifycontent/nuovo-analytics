@@ -483,8 +483,8 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
     <div class="drawer-section">
       <h4>Data management</h4>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="drawer-btn" onclick="exportData()">↓ Export all data as JSON</button>
-        <button class="drawer-btn" onclick="document.getElementById('import-file').click()">↑ Import from JSON</button>
+        <button class="drawer-btn" onclick="exportData()">↓ Export costs (backup)</button>
+        <button class="drawer-btn" onclick="document.getElementById('import-file').click()">↑ Restore costs</button>
         <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
         <button class="drawer-btn danger" onclick="resetFulfillment()">Reset all fulfillment costs</button>
         <button class="drawer-btn danger" onclick="resetAdSpend()">Reset all manual ad spend</button>
@@ -816,16 +816,20 @@ async function fetchShopifyOrders(start,end){
 }
 
 async function fetchGoogleAdSpend(start,end){
-  return safe({
-    dateRanges:[{startDate:start,endDate:end}],
-    dimensions:[{name:'date'}],
-    metrics:[{name:'advertiserAdCost'}],
-    dimensionFilter:{andGroup:{expressions:[
-      {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
-      {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
-    ]}},
-    orderBys:[{dimension:{dimensionName:'date'}}]
-  });
+  // advertiserAdCost has restricted compatibility in GA4: it must be queried with
+  // `date` as the ONLY dimension and NO dimensionFilter — not a channel/event filter,
+  // and not even the shared country-exclusion filter — otherwise GA4 returns
+  // 400 INVALID_ARGUMENT ("remove advertiserAdCost ... incompatible"). So hit
+  // runReport directly here, bypassing the ga4()/safe() wrappers that auto-attach
+  // the country filter. (Only Google Ads is linked, so advertiserAdCost by date IS
+  // the daily Google Ads spend — the old sessionSource/medium filter was redundant.)
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({dateRanges:[{startDate:start,endDate:end}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],orderBys:[{dimension:{dimensionName:'date'}}]})});
+    if(r.ok)return await r.json();
+  }catch(e){}
+  return {rows:[]};
 }
 
 // ===== Order normalisation =====
@@ -1697,24 +1701,28 @@ function resetAdSpend(){
   refresh();
 }
 
+// Identifies every localStorage key that holds manually-entered cost data, across
+// ALL dashboards (localStorage is shared on this origin). Used by both export and the
+// "never wipe costs" guard. Token/date/theme/alert keys are deliberately excluded.
+function isCostKey(k){
+  if(!k)return false;
+  if(['nuovo_order_costs','nuovo_order_ddp','nuovo_operating_costs','nuovo_fee_config','nuovo_vat_config','nuovo_other_label','nuovo_value_per_click'].includes(k))return true;
+  if(/^nuovo_shared_.*_spend$/.test(k))return true;        // manual ad spend per platform (profit)
+  if(k.indexOf('nuovo_spend_mode_')===0)return true;        // spend entry mode
+  if(k.indexOf('nuovo_microsoft_spend_')===0)return true;   // MS Spend (performance)
+  if(/^spend_/.test(k))return true;                          // manual Google/Bing spend per range (paid)
+  return false;
+}
+// Export EVERY cost key verbatim (key -> raw string), so paid spend_* and performance
+// MS-spend keys are captured too, and any future cost key auto-included.
 function exportData(){
-  const data={
-    order_costs:lsGet('nuovo_order_costs',{}),
-    order_ddp:lsGet('nuovo_order_ddp',{}),
-    microsoft_spend:lsGet('nuovo_shared_microsoft_spend',{}),
-    meta_spend:lsGet('nuovo_shared_meta_spend',{}),
-    tiktok_spend:lsGet('nuovo_shared_tiktok_spend',{}),
-    other_spend:lsGet('nuovo_shared_other_spend',{}),
-    other_label:getOtherLabel(),
-    fee_config:getFeeConfig(),
-    vat_config:getVatConfig(),
-    operating_costs:getOperatingCosts(),
-    exported_at:new Date().toISOString()
-  };
+  const keys={};
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(isCostKey(k))keys[k]=localStorage.getItem(k);}
+  const data={__nuovo_costs_backup:1,version:2,exported_at:new Date().toISOString(),keys};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`nuovo-profit-backup-${fmtDate(new Date())}.json`;
+  a.download=`nuovo-costs-backup-${fmtDate(new Date())}.json`;
   a.click();
 }
 function importData(e){
@@ -1723,17 +1731,16 @@ function importData(e){
   r.onload=()=>{
     try{
       const d=JSON.parse(r.result);
-      if(d.order_costs)lsSet('nuovo_order_costs',d.order_costs);
-      if(d.order_ddp)lsSet('nuovo_order_ddp',d.order_ddp);
-      if(d.microsoft_spend)lsSet('nuovo_shared_microsoft_spend',d.microsoft_spend);
-      if(d.meta_spend)lsSet('nuovo_shared_meta_spend',d.meta_spend);
-      if(d.tiktok_spend)lsSet('nuovo_shared_tiktok_spend',d.tiktok_spend);
-      if(d.other_spend)lsSet('nuovo_shared_other_spend',d.other_spend);
-      if(d.other_label)localStorage.setItem('nuovo_other_label',d.other_label);
-      if(d.fee_config)setFeeConfig(d.fee_config);
-      if(d.vat_config)setVatConfig(d.vat_config);
-      if(d.operating_costs)setOperatingCosts(d.operating_costs);
-      alert('Imported successfully');
+      let restored=0;
+      if(d&&d.keys&&typeof d.keys==='object'){
+        // v2 backup: raw key -> value map (restore only recognised cost keys)
+        Object.entries(d.keys).forEach(([k,v])=>{if(isCostKey(k)&&v!=null){localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v));restored++;}});
+      }else if(d){
+        // legacy v1 backup: named fields
+        const map={order_costs:'nuovo_order_costs',order_ddp:'nuovo_order_ddp',microsoft_spend:'nuovo_shared_microsoft_spend',meta_spend:'nuovo_shared_meta_spend',tiktok_spend:'nuovo_shared_tiktok_spend',other_spend:'nuovo_shared_other_spend',other_label:'nuovo_other_label',fee_config:'nuovo_fee_config',vat_config:'nuovo_vat_config',operating_costs:'nuovo_operating_costs'};
+        Object.entries(map).forEach(([fld,k])=>{if(d[fld]!=null){localStorage.setItem(k,typeof d[fld]==='string'?d[fld]:JSON.stringify(d[fld]));restored++;}});
+      }
+      alert('Restored '+restored+' cost item'+(restored===1?'':'s')+' from backup.');
       refresh();renderDrawer();
     }catch(err){alert('Invalid JSON: '+err.message);}
   };

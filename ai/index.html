@@ -304,9 +304,13 @@ function scheduleTokenRefresh(){
 // On load: reuse a valid cached token, else attempt a silent refresh before showing sign-in.
 async function ensureFreshToken(){
   const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
-  if(cached)token=cached;
   const exp=tokenExpiry();
-  if(cached&&exp&&exp-Date.now()>5*60*1000){scheduleTokenRefresh();return true;}
+  if(cached&&exp&&exp-Date.now()>5*60*1000){token=cached;scheduleTokenRefresh();return true;}
+  // No prior token → never signed in. Do NOT call the token client here, or its popup
+  // gets blocked (no user gesture). Show the sign-in screen; the silent path only runs
+  // when there's an existing session to renew.
+  if(!cached)return false;
+  token=cached;
   const ok=await silentRefresh();
   return ok||!!token;
 }
