@@ -66,12 +66,12 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .section-title::after{content:'';flex:1;height:0.5px;background:var(--border)}
 /* Product table */
 .tbl-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
-.tbl-header{display:grid;grid-template-columns:minmax(180px,2fr) repeat(11,1fr);padding:12px 20px;border-bottom:0.5px solid var(--border);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);font-family:'DM Mono',monospace;background:var(--bg2);z-index:5;cursor:pointer;user-select:none}
+.tbl-header{display:grid;grid-template-columns:minmax(180px,2fr) repeat(13,1fr);padding:12px 20px;border-bottom:0.5px solid var(--border);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);font-family:'DM Mono',monospace;background:var(--bg2);z-index:5;cursor:pointer;user-select:none}
 .tbl-header span:hover{color:var(--text)}
 .tbl-header span.sort-active{color:var(--gold)}
 .tbl-header span.sort-active::after{content:' \25B2';font-size:8px}
 .tbl-header span.sort-active.desc::after{content:' \25BC'}
-.tbl-row{display:grid;grid-template-columns:minmax(180px,2fr) repeat(11,1fr);padding:11px 20px;border-bottom:0.5px solid var(--border);font-size:13px;font-family:'DM Mono',monospace;font-feature-settings:'tnum';transition:background 0.15s;cursor:pointer;align-items:center}
+.tbl-row{display:grid;grid-template-columns:minmax(180px,2fr) repeat(13,1fr);padding:11px 20px;border-bottom:0.5px solid var(--border);font-size:13px;font-family:'DM Mono',monospace;font-feature-settings:'tnum';transition:background 0.15s;cursor:pointer;align-items:center}
 .tbl-row:last-child{border-bottom:none}
 .tbl-row:hover{background:var(--bg3)}
 .tbl-row.top-row{border-left:3px solid var(--gold)}
@@ -215,6 +215,8 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
         <span data-col="checkout" data-type="num" style="text-align:right">Checkout</span>
         <span data-col="checkoutRate" data-type="num" style="text-align:right">Chk %</span>
         <span data-col="calls" data-type="num" style="text-align:right">Calls</span>
+        <span data-col="whatsapp" data-type="num" style="text-align:right">WhatsApp</span>
+        <span data-col="chat" data-type="num" style="text-align:right">Chat</span>
         <span data-col="forms" data-type="num" style="text-align:right">Forms</span>
         <span data-col="purchases" data-type="num" style="text-align:right">Purch.</span>
         <span data-col="cvr" data-type="num" style="text-align:right">CVR</span>
@@ -272,6 +274,14 @@ const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleuserco
 let token=null;
 let dateRange={startDate:'28daysAgo',endDate:'today'};
 let allProducts=[];
+// Contact metrics — unique people (totalUsers) per eventName, attributed to a product by URL path.
+const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+async function fetchContactsByPage(){
+  const q=m=>({dateRanges:[dateRange],dimensions:[{name:'pagePath'},{name:'eventName'}],metrics:[{name:m}],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}},limit:1000});
+  try{return await ga4(q('totalUsers'));}
+  catch(e){if(isAuthError(e)){showReauth();throw e;}try{return await ga4(q('activeUsers'));}catch(e2){if(isAuthError(e2)){showReauth();throw e2;}return{rows:[]};}}
+}
 let showAll=false;
 let sortCol='revenue',sortDesc=true;
 const channelCache={};
@@ -406,7 +416,7 @@ async function refresh(){
 
   try{
     // Query 1: Main product table
-    const [productData, keyEventsData] = await Promise.all([
+    const [productData, keyEventsData, contactData] = await Promise.all([
       safe({
         dateRanges:dr,
         dimensions:[{name:'itemName'}],
@@ -425,9 +435,11 @@ async function refresh(){
         dateRanges:dr,
         dimensions:[{name:'pagePath'},{name:'eventName'}],
         metrics:[{name:'eventCount'}],
-        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_call','generate_lead','form_submit','contact_form_submit']}}},
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['generate_lead','form_submit','contact_form_submit']}}},
         limit:500
-      })
+      }),
+      // Query 3: Contact events (Calls / WhatsApp / Chat) by page — unique people via totalUsers
+      fetchContactsByPage()
     ]);
 
     // Build product map
@@ -448,7 +460,7 @@ async function refresh(){
         checkoutRate:sessions>0?checkout/sessions:0,
         cvr:sessions>0?purchases/sessions:0,
         aov:purchases>0?revenue/purchases:0,
-        calls:0,forms:0
+        calls:0,whatsapp:0,chat:0,forms:0
       };
       products.push(p);
       slugMap[slug]=p;
@@ -462,13 +474,20 @@ async function refresh(){
       // Find matching product slug in path
       for(const slug of Object.keys(slugMap)){
         if(slug.length>3&&path.includes(slug)){
-          if(evt==='phone_call'){
-            slugMap[slug].calls+=count;
-          } else {
-            slugMap[slug].forms+=count;
-          }
+          slugMap[slug].forms+=count;
           break;
         }
+      }
+    });
+
+    // Attribute contact events (Calls / WhatsApp / Chat) to products by URL path — unique people
+    (contactData.rows||[]).forEach(r=>{
+      const path=(r.dimensionValues[0].value||'').toLowerCase();
+      const ck=contactKey(r.dimensionValues[1].value);
+      if(!ck)return;
+      const count=parseInt(r.metricValues[0].value||0);
+      for(const slug of Object.keys(slugMap)){
+        if(slug.length>3&&path.includes(slug)){slugMap[slug][ck]+=count;break;}
       }
     });
 
@@ -495,7 +514,7 @@ function renderHero(products){
   const active=products.filter(p=>p.sessions>0).length;
   const totalRev=products.reduce((a,p)=>a+p.revenue,0);
   const top=products[0];
-  const totalEvents=products.reduce((a,p)=>a+p.calls+p.forms+p.purchases,0);
+  const totalEvents=products.reduce((a,p)=>a+p.calls+p.whatsapp+p.chat+p.forms+p.purchases,0);
 
   document.getElementById('h-active').textContent=active>0?active:'—';
   document.getElementById('h-rev').textContent=totalRev>0?fmtGBP(totalRev):'—';
@@ -544,6 +563,8 @@ function renderTable(){
       <span class="nm">${fmtInt(p.checkout)}</span>
       <span class="nm">${p.sessions>0?fmtPct(p.checkoutRate):'—'}</span>
       <span class="nm">${p.calls>0?p.calls:'—'}</span>
+      <span class="nm">${p.whatsapp>0?p.whatsapp:'—'}</span>
+      <span class="nm">${p.chat>0?p.chat:'—'}</span>
       <span class="nm">${p.forms>0?p.forms:'—'}</span>
       <span class="nm">${fmtInt(p.purchases)}</span>
       <span class="nm">${p.sessions>0?fmtPct(p.cvr):'—'}${cvrDot}${leakDot}</span>
@@ -630,7 +651,7 @@ async function toggleExpand(row,productName,slug){
         dateRanges:[dateRange],
         dimensions:[{name:'sessionDefaultChannelGroup'},{name:'pagePath'},{name:'eventName'}],
         metrics:[{name:'eventCount'}],
-        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_call','generate_lead','form_submit','contact_form_submit']}}},
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','generate_lead','form_submit','contact_form_submit']}}},
         limit:1000
       }):Promise.resolve({rows:[]})
     ]);
@@ -659,7 +680,7 @@ async function toggleExpand(row,productName,slug){
         const count=parseInt(r.metricValues[0].value||0);
         if(!path.includes(slug))return;
         if(!chMap[ch])chMap[ch]={ch,sess:0,atc:0,purch:0,rev:0,calls:0,forms:0};
-        if(evt==='phone_call')chMap[ch].calls+=count;
+        if(evt==='click_to_call_ga4')chMap[ch].calls+=count;
         else chMap[ch].forms+=count;
       });
     }

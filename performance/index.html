@@ -66,7 +66,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .tbl-row{display:grid;gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .tbl-row:last-child{border-bottom:none}
 .tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
-.tbl-row.ch{grid-template-columns:140px 65px 80px 80px 65px 55px 55px 50px 50px 65px 65px}
+.tbl-row.ch{grid-template-columns:128px 56px 74px 74px 54px 44px 46px 44px 64px 44px 44px 56px 58px}
 .tbl-row.prod{grid-template-columns:1fr 90px 70px 80px 80px}
 .tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tnum{font-family:'DM Mono',monospace;text-align:right;font-size:13px}
@@ -170,7 +170,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="stat green-bar"><div class="slbl">New Users</div><div class="snum" id="h-new">—</div><div class="ssub">first-time visitors</div></div>
       <div class="stat"><div class="slbl">Conv. Rate</div><div class="snum" id="h-cvr">—</div><div class="ssub">transactions / sessions</div></div>
       <div class="stat"><div class="slbl">Sessions</div><div class="snum" id="h-sess">—</div><div class="ssub">all channels</div></div>
-      <div class="stat"><div class="slbl">Funnel Events</div><div class="snum" id="h-ke">—</div><div class="ssub">forms + calls + ATC + checkout + purchase</div></div>
+      <div class="stat"><div class="slbl">Funnel Events</div><div class="snum" id="h-ke">—</div><div class="ssub">forms + purchases + calls + WhatsApp + chat</div></div>
     </div>
 
     <!-- Channel Attribution Table -->
@@ -237,6 +237,15 @@ function themeColor(v){return getComputedStyle(document.documentElement).getProp
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const AI_TERMS=['chatgpt','claude','perplexity','copilot.microsoft','copilot.bing'];
+// Contact metrics — tracked as unique people (totalUsers) per eventName, shown as 3 separate metrics.
+const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+async function fetchChannelContacts(){
+  const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
+  const q=m=>({dateRanges:[dateRange],dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'},{name:'eventName'}],metrics:[{name:m}],dimensionFilter:evFil});
+  try{return await ga4(q('totalUsers'));}
+  catch(e){if(isAuthError(e))throw e;try{return await ga4(q('activeUsers'));}catch(_){return{rows:[]};}}
+}
 
 let token=null, charts={};
 let dateRange={startDate:'28daysAgo',endDate:'today'};
@@ -398,7 +407,7 @@ async function refresh(){
 
   try{
     // All queries run independently — none blocks another
-    const [chData, chFunnel, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+    const [chData, chFunnel, contacts, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
       // Channel breakdown — split by source too, so AI traffic can be reclassified
       // out of its GA4 default channel group instead of being double-counted.
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'}],metrics:[
@@ -407,7 +416,9 @@ async function refresh(){
       // Funnel events by channel + source (source needed for the same AI reclassification)
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'},{name:'eventName'}],metrics:[
         {name:'eventCount'}
-      ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','phone_call','add_to_cart','begin_checkout','purchase']}}}}),
+      ],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['form_submit','add_to_cart','begin_checkout','purchase']}}}}),
+      // Contact events (Calls / WhatsApp / Chat) — unique people via totalUsers, by channel + source
+      fetchChannelContacts(),
       // Daily revenue trend (14 days)
       safe({dateRanges:[{startDate:'14daysAgo',endDate:'today'}],dimensions:[{name:'date'}],metrics:[
         {name:'totalRevenue'}
@@ -438,10 +449,10 @@ async function refresh(){
     // channel group (usually Unassigned/Referral) into a dedicated "AI" channel,
     // so every session and sale is counted in exactly one channel.
     const chMap={};
-    const FUNNEL_EVENTS=['form_submit','phone_call','add_to_cart','begin_checkout','purchase'];
-    const emptyFunnel=()=>({form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0});
+    const FUNNEL_EVENTS=['form_submit','add_to_cart','begin_checkout','purchase'];
+    const emptyFunnel=()=>({form_submit:0,add_to_cart:0,begin_checkout:0,purchase:0});
     const isAiSource=src=>{const s=(src||'').toLowerCase();return AI_TERMS.some(t=>s.includes(t));};
-    const chBucket=ch=>{if(!chMap[ch])chMap[ch]={sessions:0,revenue:0,engaged:0,txns:0,ke:0,funnel:emptyFunnel()};return chMap[ch];};
+    const chBucket=ch=>{if(!chMap[ch])chMap[ch]={sessions:0,revenue:0,engaged:0,txns:0,ke:0,funnel:emptyFunnel(),calls:0,whatsapp:0,chat:0};return chMap[ch];};
     // chData metrics: 0=sessions, 1=totalRevenue, 2=engagedSessions, 3=transactions
     (chData.rows||[]).forEach(r=>{
       const ch=isAiSource(r.dimensionValues[1].value)?'AI':r.dimensionValues[0].value;
@@ -457,6 +468,12 @@ async function refresh(){
       const ev=r.dimensionValues[2].value;
       const count=parseInt(r.metricValues[0].value||0);
       if(FUNNEL_EVENTS.includes(ev))chBucket(ch).funnel[ev]+=count;
+    });
+    // Contact events (Calls / WhatsApp / Chat) — totalUsers per channel, AI reclassified
+    (contacts.rows||[]).forEach(r=>{
+      const ch=isAiSource(r.dimensionValues[1].value)?'AI':r.dimensionValues[0].value;
+      const k=contactKey(r.dimensionValues[2].value);
+      if(k)chBucket(ch)[k]+=parseInt(r.metricValues[0].value||0);
     });
     // Sum ad spend from by-source rows
     const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
@@ -494,7 +511,7 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
     totRev+=d.revenue;
     totTxns+=d.txns;
     const f=d.funnel||{};
-    totFunnel+=(f.form_submit||0)+(f.phone_call||0)+(f.add_to_cart||0)+(f.begin_checkout||0)+(f.purchase||0);
+    totFunnel+=(f.form_submit||0)+(f.purchase||0)+(d.calls||0)+(d.whatsapp||0)+(d.chat||0);
   });
   const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
@@ -536,7 +553,7 @@ function renderChannelTable(chMap,gAdSpendTotal){
       psh.adCost=gAdSpend*(psh.sessions/totalPaidSess);
     }else if(ps){ps.adCost=gAdSpend;}
     else if(psh){psh.adCost=gAdSpend;}
-    else{channels['Paid Search']={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:{form_submit:0,phone_call:0,add_to_cart:0,begin_checkout:0,purchase:0},adCost:gAdSpend};}
+    else{channels['Paid Search']={sessions:0,engaged:0,revenue:0,ke:0,txns:0,funnel:{form_submit:0,add_to_cart:0,begin_checkout:0,purchase:0},calls:0,whatsapp:0,chat:0,adCost:gAdSpend};}
   }
 
   // Add MS spend to Paid Search
@@ -551,7 +568,7 @@ function renderChannelTable(chMap,gAdSpendTotal){
   const el=document.getElementById('ch-table');
   if(!sorted.length){el.innerHTML='<div class="ld">No data</div>';return;}
 
-  const hdr=`<div class="tbl-row tbl-hdr ch"><span>Channel</span><span style="text-align:right">Sessions</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">% Rev</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">ATC</span><span style="text-align:right">Checkout</span><span style="text-align:right">Purchase</span></div>`;
+  const hdr=`<div class="tbl-row tbl-hdr ch"><span>Channel</span><span style="text-align:right">Sessions</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">% Rev</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">WhatsApp</span><span style="text-align:right">Chat</span><span style="text-align:right">ATC</span><span style="text-align:right">Checkout</span><span style="text-align:right">Purchase</span></div>`;
   el.innerHTML=hdr+sorted.map(([ch,d],i)=>{
       const pctRev=Math.round(d.revenue/totRev*100);
       const roas=d.adCost>0?(d.revenue/d.adCost).toFixed(2)+'x':'—';
@@ -567,7 +584,9 @@ function renderChannelTable(chMap,gAdSpendTotal){
         <span class="tnum${roas!=='—'?(parseFloat(roas)>=2?' green':parseFloat(roas)<1?' red':''):''}">${roas}</span>
         <span class="tnum mu">${pctRev}%</span>
         <span class="tnum">${fc(f.form_submit||0)}</span>
-        <span class="tnum">${fc(f.phone_call||0)}</span>
+        <span class="tnum">${fc(d.calls||0)}</span>
+        <span class="tnum">${fc(d.whatsapp||0)}</span>
+        <span class="tnum">${fc(d.chat||0)}</span>
         <span class="tnum">${fc(f.add_to_cart||0)}</span>
         <span class="tnum">${fc(f.begin_checkout||0)}</span>
         <span class="tnum">${fc(f.purchase||0)}</span>

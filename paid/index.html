@@ -246,6 +246,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="kpi"><div class="kpi-lbl">Cost per form</div><div class="kpi-val gold" id="k-cpf">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Phone calls</div><div class="kpi-val" id="k-calls">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Cost per call</div><div class="kpi-val gold" id="k-cpc">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">WhatsApp</div><div class="kpi-val" id="k-whatsapp">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Chat</div><div class="kpi-val" id="k-chat">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Begin checkout</div><div class="kpi-val" id="k-begin">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Checkout → buy</div><div class="kpi-val green" id="k-ck-buy">—</div></div>
     </div>
@@ -335,6 +337,17 @@ const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleuserco
 
 let token=null, charts={}, dateRange={startDate:'28daysAgo',endDate:'today'};
 let cache={google:{},bing:{}};
+// Contact metrics — unique people (totalUsers) per eventName: Calls / WhatsApp / Chat (shown separately)
+const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+let contactTotals={calls:0,whatsapp:0,chat:0};
+function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+async function fetchContacts(baseFil){
+  const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
+  const dimensionFilter={andGroup:{expressions:[baseFil,evFil]}};
+  const q=m=>({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:m}],dimensionFilter});
+  try{return await ga4(q('totalUsers'));}
+  catch(e){try{return await ga4(q('activeUsers'));}catch(_){return{rows:[]};}}
+}
 
 // OAuth callback handling
 (function(){
@@ -508,7 +521,7 @@ async function refresh(){
   ]}};
 
   try{
-    const [bySource, byDate, byCampaign, byPage, byPageConv, byDevice, byCountry, funnelData] = await Promise.all([
+    const [bySource, byDate, byCampaign, byPage, byPageConv, byDevice, byCountry, funnelData, contacts] = await Promise.all([
       // By source breakdown
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
@@ -528,8 +541,13 @@ async function refresh(){
       // Countries
       ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
       // Funnel events
-      ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','phone_calls']}}}]}}})
+      ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','click_to_call_ga4']}}}]}}}),
+      // Contact events (Calls / WhatsApp / Chat) — unique people via totalUsers
+      fetchContacts(paidFil)
     ]);
+
+    contactTotals={calls:0,whatsapp:0,chat:0};
+    (contacts.rows||[]).forEach(r=>{const ck=contactKey(r.dimensionValues[0].value);if(ck)contactTotals[ck]+=parseInt(r.metricValues[0].value||0);});
 
     renderSourceMetrics(bySource, funnelData);
     renderKPIs(bySource, funnelData);
@@ -613,11 +631,14 @@ function recalc(){
   // KPIs
   const totalSpend=gSpend+bSpend;
   const totalForms=cache.google.forms+cache.bing.forms;
-  const totalCalls=cache.google.calls+cache.bing.calls;
+  const totalCalls=contactTotals.calls;
   const totalBegin=cache.google.begin+cache.bing.begin;
   const totalTrans=cache.google.transactions+cache.bing.transactions;
+  const dash=v=>v>0?v:'—';
   document.getElementById('k-forms').textContent=totalForms;
-  document.getElementById('k-calls').textContent=totalCalls;
+  document.getElementById('k-calls').textContent=dash(totalCalls);
+  document.getElementById('k-whatsapp').textContent=dash(contactTotals.whatsapp);
+  document.getElementById('k-chat').textContent=dash(contactTotals.chat);
   document.getElementById('k-begin').textContent=totalBegin;
   document.getElementById('k-cpf').textContent=totalSpend>0&&totalForms>0?'£'+(totalSpend/totalForms).toFixed(2):'—';
   document.getElementById('k-cpc').textContent=totalSpend>0&&totalCalls>0?'£'+(totalSpend/totalCalls).toFixed(2):'—';

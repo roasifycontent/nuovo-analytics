@@ -216,6 +216,8 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
       <div class="kpi"><div class="kpi-lbl">Key events</div><div class="kpi-val" id="k-ke">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Form submits</div><div class="kpi-val" id="k-forms">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Phone calls</div><div class="kpi-val" id="k-calls">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">WhatsApp</div><div class="kpi-val" id="k-whatsapp">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Chat</div><div class="kpi-val" id="k-chat">—</div></div>
       <div class="kpi"><div class="kpi-lbl">Avg. position (GSC)</div><div class="kpi-val" id="k-pos">—</div></div>
       <div class="kpi"><div class="kpi-lbl">CTR (GSC)</div><div class="kpi-val green" id="k-ctr">—</div></div>
     </div>
@@ -558,6 +560,17 @@ function gscDates(days){
   return {startDate:fmt(start),endDate:fmt(end)};
 }
 
+// Contact metrics — unique people (totalUsers) per eventName, shown as 3 separate cards.
+const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+async function fetchContacts(baseFil){
+  const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
+  const dimensionFilter=baseFil?{andGroup:{expressions:[baseFil,evFil]}}:evFil;
+  const q=m=>({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:m}],dimensionFilter});
+  try{return await ga4(q('totalUsers'));}
+  catch(e){try{return await ga4(q('activeUsers'));}catch(_){return{rows:[]};}}
+}
+
 async function refresh(){
   document.getElementById('fst').textContent='Fetching...';
   if(!token){signOut();return;}
@@ -569,9 +582,10 @@ async function refresh(){
 
   try{
     // Parallel - GA4 queries
-    const [bySource, kpiData, byPage, byCountry, byDevice, byDate, blogPages] = await Promise.all([
+    const [bySource, kpiData, contacts, byPage, byCountry, byDevice, byDate, blogPages] = await Promise.all([
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
-      ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:form_submit'},{name:'keyEvents:phone_calls'}],dimensionFilter:orgFil}),
+      ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:form_submit'}],dimensionFilter:orgFil}),
+      fetchContacts(orgFil),
       ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'transactions'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'},{name:'engagementRate'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
@@ -580,7 +594,7 @@ async function refresh(){
     ]);
 
     renderHero(bySource);
-    renderKPIs(kpiData);
+    renderKPIs(kpiData, contacts);
     renderTopPages(byPage);
     renderCountries(byCountry);
     renderDevices(byDevice);
@@ -640,17 +654,23 @@ function renderHero(data){
   document.getElementById('h-total').textContent=total.toLocaleString();
 }
 
-function renderKPIs(data){
+function renderKPIs(data, contacts){
   const row=(data.rows||[])[0];
-  if(!row){return;}
-  const rev=parseFloat(row.metricValues[0].value||0);
-  const ke=parseInt(row.metricValues[1].value||0);
-  const forms=parseInt(row.metricValues[2]?.value||0);
-  const calls=parseInt(row.metricValues[3]?.value||0);
-  document.getElementById('k-rev').textContent='£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0});
-  document.getElementById('k-ke').textContent=ke;
-  document.getElementById('k-forms').textContent=forms;
-  document.getElementById('k-calls').textContent=calls;
+  if(row){
+    const rev=parseFloat(row.metricValues[0].value||0);
+    const ke=parseInt(row.metricValues[1].value||0);
+    const forms=parseInt(row.metricValues[2]?.value||0);
+    document.getElementById('k-rev').textContent='£'+rev.toLocaleString('en-GB',{maximumFractionDigits:0});
+    document.getElementById('k-ke').textContent=ke;
+    document.getElementById('k-forms').textContent=forms;
+  }
+  // Contact metrics — unique people (totalUsers): Calls / WhatsApp / Chat, shown separately
+  const c={calls:0,whatsapp:0,chat:0};
+  ((contacts&&contacts.rows)||[]).forEach(r=>{const ck=contactKey(r.dimensionValues[0].value);if(ck)c[ck]+=parseInt(r.metricValues[0].value||0);});
+  const dash=v=>v>0?v:'—';
+  document.getElementById('k-calls').textContent=dash(c.calls);
+  document.getElementById('k-whatsapp').textContent=dash(c.whatsapp);
+  document.getElementById('k-chat').textContent=dash(c.chat);
 }
 
 function updateAvgPosCTR(kwData){
