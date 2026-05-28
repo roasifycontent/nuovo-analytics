@@ -6,6 +6,7 @@
 <title>Products — Nuovo Luxury</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>N</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--gold:#d4a843;--red:#f87171;--green:#10b981;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
@@ -272,6 +273,52 @@ function toggleTheme(){
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 let token=null;
+// ===== Silent token refresh via the GIS token client =====
+const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',email:'nuovo_user_email',legacy:'nuovo_token'};
+const OAUTH_SCOPE='https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly';
+let _tokenClient=null,_refreshTimer=null,_refreshing=null;
+function storeToken(tok,expiresIn){
+  if(!tok)return;
+  token=tok;
+  localStorage.setItem(TK.tok,tok);
+  localStorage.setItem(TK.legacy,tok);
+  localStorage.setItem(TK.exp,String(Date.now()+((parseInt(expiresIn,10)||3600)*1000)));
+  scheduleTokenRefresh();
+}
+function tokenExpiry(){return parseInt(localStorage.getItem(TK.exp)||'0',10);}
+function getTokenClient(){
+  if(_tokenClient)return _tokenClient;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return null;
+  _tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:OAUTH_SCOPE,
+    callback:(resp)=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;
+      if(resp&&resp.access_token){storeToken(resp.access_token,resp.expires_in);cb&&cb(true);}else{cb&&cb(false);}},
+    error_callback:()=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;cb&&cb(false);}
+  });
+  return _tokenClient;
+}
+function silentRefresh(){
+  if(_refreshing)return _refreshing;
+  const tc=getTokenClient();
+  if(!tc)return Promise.resolve(false);
+  _refreshing=new Promise(res=>{tc.__cb=(ok)=>{_refreshing=null;res(ok);};
+    try{const hint=localStorage.getItem(TK.email);tc.requestAccessToken(hint?{prompt:'',login_hint:hint}:{prompt:''});}
+    catch(e){_refreshing=null;res(false);}});
+  return _refreshing;
+}
+function scheduleTokenRefresh(){
+  if(_refreshTimer)clearTimeout(_refreshTimer);
+  const exp=tokenExpiry();if(!exp)return;
+  _refreshTimer=setTimeout(()=>silentRefresh(),Math.max(10000,exp-Date.now()-5*60*1000));
+}
+async function ensureFreshToken(){
+  const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
+  if(cached)token=cached;
+  const exp=tokenExpiry();
+  if(cached&&exp&&exp-Date.now()>5*60*1000){scheduleTokenRefresh();return true;}
+  const ok=await silentRefresh();
+  return ok||!!token;
+}
 let dateRange={startDate:'28daysAgo',endDate:'today'};
 let allProducts=[];
 // Contact metrics — unique people (totalUsers) per eventName, attributed to a product by URL path.
@@ -291,8 +338,7 @@ const channelCache={};
   const hash=new URLSearchParams(window.location.hash.slice(1));
   const state=hash.get('state');
   if(hash.get('access_token')){
-    token=hash.get('access_token');
-    localStorage.setItem('nuovo_token',token);
+    storeToken(hash.get('access_token'),hash.get('expires_in'));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
     window.history.replaceState(null,'',window.location.pathname);
     if(state==='reauth'){
@@ -311,7 +357,7 @@ function startOAuth(mode){
     client_id:CLIENT_ID,
     redirect_uri:window.location.origin+'/product',
     response_type:'token',
-    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
     include_granted_scopes:'true',
     state:mode||'sign-in'
   });
@@ -321,7 +367,7 @@ function startOAuth(mode){
 function reconnect(){startOAuth('reauth');}
 function showReauth(){document.getElementById('reauth-modal').classList.add('show');}
 function hideReauth(){document.getElementById('reauth-modal').classList.remove('show');}
-function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+function signOut(){token=null;['nuovo_token','nuovo_access_token','nuovo_token_expiry'].forEach(k=>localStorage.removeItem(k));document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
 
 function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message);}
 
@@ -342,13 +388,17 @@ function withCountryFilter(body){
 }
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const hdrs={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
-  let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
+  const hdrs=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+  let r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(withCountryFilter(body))});
+  // Token expired mid-session? try ONE silent refresh and retry before surfacing the error.
+  if((r.status===401||r.status===403)&&await silentRefresh()){
+    r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(withCountryFilter(body))});
+  }
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
     const msg=e.error?.message||'';
     if(/remove country|incompatible/i.test(msg)){
-      r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(body)});
       if(r.ok)return r.json();
       const e2=await r.json().catch(()=>({}));const err2=new Error(e2.error?.message||'API '+r.status);err2.status=r.status;throw err2;
     }
@@ -842,8 +892,10 @@ function renderLeaks(products){
 // --- Init ---
 window.addEventListener('load',()=>{
   applySharedDateRange();
-  const saved=localStorage.getItem('nuovo_token');
-  if(saved){token=saved;launch();}
+  if(window.location.hash.includes('access_token'))return; // OAuth redirect callback handler takes over
+  const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();ensureFreshToken();return;}
+  ensureFreshToken().then(ok=>{if(ok&&token)launch();});
 });
 </script>
 </body>
