@@ -385,6 +385,12 @@ function launch(){
 // --- GA4 API ---
 const EXCLUDE_COUNTRY={notExpression:{filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam'}}}};
 function withCountryFilter(body){
+  // The Vietnam exclusion is a `country` dimensionFilter, which GA4 rejects (400
+  // INVALID_ARGUMENT) on cost metrics (advertiserAd*, returnOnAdSpend) and item-scoped
+  // queries (itemName/itemRevenue/items*). Skip it for those so the FIRST request is
+  // compatible instead of relying on a retry that still shows a 400 in the Network tab.
+  const names=[...(body.metrics||[]),...(body.dimensions||[])].map(x=>(x&&x.name)||'');
+  if(names.some(n=>/advertiserAd|returnOnAdSpend/.test(n)||n.indexOf('item')===0))return body;
   const b={...body};
   if(!b.dimensionFilter)b.dimensionFilter=EXCLUDE_COUNTRY;
   else b.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,b.dimensionFilter]}};
@@ -400,7 +406,7 @@ async function ga4(body){
   }
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
-    const msg=e.error?.message||'';
+    const msg=e.error?.message||'';if(msg)console.error('[GA4]',r.status,msg);
     if(/remove country|incompatible/i.test(msg)){
       r=await fetch(url,{method:'POST',headers:hdrs(),body:JSON.stringify(body)});
       if(r.ok)return r.json();
