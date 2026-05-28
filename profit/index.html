@@ -822,18 +822,28 @@ async function fetchShopifyOrders(start,end){
 }
 
 async function fetchGoogleAdSpend(start,end){
-  // advertiserAdCost has restricted compatibility in GA4: it must be queried with
-  // `date` as the ONLY dimension and NO dimensionFilter — not a channel/event filter,
-  // and not even the shared country-exclusion filter — otherwise GA4 returns
-  // 400 INVALID_ARGUMENT ("remove advertiserAdCost ... incompatible"). So hit
-  // runReport directly here, bypassing the ga4()/safe() wrappers that auto-attach
-  // the country filter. (Only Google Ads is linked, so advertiserAdCost by date IS
-  // the daily Google Ads spend — the old sessionSource/medium filter was redundant.)
+  // advertiserAdCost only surfaces a value when the query is scoped to the Google Ads
+  // traffic source — querying `date` ALONE returns 0 in this property. So we KEEP the
+  // sessionSource=google / sessionMedium=cpc dimensionFilter (which IS compatible with
+  // advertiserAdCost — it returns the daily spend) but issue it as a RAW runReport that
+  // bypasses the ga4()/safe() wrapper. The wrapper auto-attaches the Vietnam `country`
+  // dimensionFilter, and THAT (not the source/medium filter) is what made GA4 return
+  // 400 INVALID_ARGUMENT for this cost-metric query.
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
   try{
     const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({dateRanges:[{startDate:start,endDate:end}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],orderBys:[{dimension:{dimensionName:'date'}}]})});
+      body:JSON.stringify({
+        dateRanges:[{startDate:start,endDate:end}],
+        dimensions:[{name:'date'}],
+        metrics:[{name:'advertiserAdCost'}],
+        dimensionFilter:{andGroup:{expressions:[
+          {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+          {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
+        ]}},
+        orderBys:[{dimension:{dimensionName:'date'}}]
+      })});
     if(r.ok)return await r.json();
+    const e=await r.json().catch(()=>({}));console.error('[GA4]',r.status,e.error?.message||'');
   }catch(e){}
   return {rows:[]};
 }
