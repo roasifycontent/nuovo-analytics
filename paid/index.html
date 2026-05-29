@@ -365,14 +365,26 @@ function getTokenClient(){
   });
   return _tokenClient;
 }
+// Refresh the access token SERVER-SIDE via the httpOnly refresh cookie (set during the
+// code exchange). No popup, no GIS token client, no third-party iframe — works
+// regardless of browser cookie policy or Google JS-origin config.
 function silentRefresh(){
   if(_refreshing)return _refreshing;
-  const tc=getTokenClient();
-  if(!tc)return Promise.resolve(false);
-  _refreshing=new Promise(res=>{tc.__cb=(ok)=>{_refreshing=null;res(ok);};
-    try{const hint=localStorage.getItem(TK.email);tc.requestAccessToken(hint?{prompt:'',login_hint:hint}:{prompt:''});}
-    catch(e){_refreshing=null;res(false);}});
+  _refreshing=fetch('/api/google-token?action=refresh',{method:'POST'})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{if(d&&d.access_token){storeToken(d.access_token,d.expires_in);return true;}return false;})
+    .catch(()=>false)
+    .finally(()=>{_refreshing=null;});
   return _refreshing;
+}
+// Exchange the OAuth authorization code for tokens (server sets the refresh cookie).
+async function exchangeCode(code){
+  try{
+    const r=await fetch('/api/google-token?action=exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,redirect_uri:window.location.origin+'/paid'})});
+    if(r.ok){const d=await r.json();if(d&&d.access_token){storeToken(d.access_token,d.expires_in);return true;}}
+    else{const e=await r.json().catch(()=>({}));console.error('[auth] code exchange failed',r.status,e.error||'');}
+  }catch(e){console.error('[auth] code exchange error',e.message);}
+  return false;
 }
 function scheduleTokenRefresh(){
   if(_refreshTimer)clearTimeout(_refreshTimer);
@@ -383,13 +395,13 @@ async function ensureFreshToken(){
   const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
   const exp=tokenExpiry();
   if(cached&&exp&&exp-Date.now()>5*60*1000){token=cached;scheduleTokenRefresh();return true;}
-  // No prior token → never signed in. Do NOT call the token client here, or its popup
-  // gets blocked (no user gesture). Show the sign-in screen; the silent path only runs
-  // when there's an existing session to renew.
-  if(!cached)return false;
-  token=cached;
+  // Server-side refresh via the httpOnly cookie — safe on cold load (no popup) and it
+  // silently re-signs-in a returning visitor whose access token expired but whose
+  // refresh cookie is still valid.
   const ok=await silentRefresh();
-  return ok||!!token;
+  if(ok)return true;
+  if(cached){token=cached;return true;}
+  return false;
 }
 
 let cache={google:{},bing:{}};
@@ -405,27 +417,21 @@ async function fetchContacts(baseFil){
   catch(e){try{return await ga4(q('activeUsers'));}catch(_){return{rows:[]};}}
 }
 
-// OAuth callback handling
-(function(){
-  const hash=new URLSearchParams(window.location.hash.slice(1));
-  if(hash.get('access_token')){
-    storeToken(hash.get('access_token'),hash.get('expires_in'));
-    window.history.replaceState(null,'',window.location.pathname);
-  }
-})();
-
+// --- OAuth (authorization-code flow; the ?code= callback is handled in the load listener) ---
 function startOAuth(){
   const base='https://accounts.google.com/o/oauth2/v2/auth';
   const params=new URLSearchParams({
     client_id:CLIENT_ID,
     redirect_uri:window.location.origin+'/paid',
-    response_type:'token',
+    response_type:'code',
+    access_type:'offline',
+    prompt:'consent',
     scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly'
   });
   window.location.href=base+'?'+params.toString();
 }
 
-function signOut(){token=null;['nuovo_token','nuovo_access_token','nuovo_token_expiry'].forEach(k=>localStorage.removeItem(k));document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+function signOut(){token=null;['nuovo_token','nuovo_access_token','nuovo_token_expiry'].forEach(k=>localStorage.removeItem(k));try{fetch('/api/google-token?action=logout',{method:'POST'});}catch(e){}document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
 
 function loadSharedDateRange(){
   try{ const s=JSON.parse(localStorage.getItem('nuovo_date_range')); if(s&&s.preset) return s; }catch(e){}
@@ -449,7 +455,7 @@ function restoreDateRange(){
   }
 }
 
-window.addEventListener('load',()=>{
+window.addEventListener('load',async ()=>{
   const today=new Date();
   const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   document.getElementById('date-to').value=fmt(today);
@@ -457,10 +463,19 @@ window.addEventListener('load',()=>{
   document.getElementById('date-from').value=fmt(d28);
   restoreDateRange();
   loadSpend();
-  if(window.location.hash.includes('access_token'))return; // OAuth redirect callback handler takes over
+  // OAuth code-flow callback: exchange ?code= for tokens server-side.
+  const qs=new URLSearchParams(window.location.search);
+  const code=qs.get('code');
+  if(code){
+    window.history.replaceState(null,'',window.location.pathname);
+    const ok=await exchangeCode(code);
+    if(ok&&token){restoreDateRange();launch();}
+    return;
+  }
   const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
   if(saved){token=saved;restoreDateRange();launch();ensureFreshToken();return;}
-  ensureFreshToken().then(ok=>{if(ok&&token){restoreDateRange();launch();}});
+  const ok=await ensureFreshToken();
+  if(ok&&token){restoreDateRange();launch();}
 });
 
 function launch(){
