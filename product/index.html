@@ -87,7 +87,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .expand-row.open{display:block}
 .expand-inner{padding:16px;border-radius:8px}
 .expand-title{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-family:'DM Mono',monospace}
-.ch-grid{display:grid;grid-template-columns:130px repeat(7,1fr);gap:0;font-size:12px;font-family:'DM Mono',monospace}
+.ch-grid{display:grid;grid-template-columns:130px repeat(9,1fr);gap:0;font-size:12px;font-family:'DM Mono',monospace}
 .ch-grid .ch-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding:6px 0;border-bottom:0.5px solid var(--border)}
 .ch-grid .ch-cell{padding:8px 0;border-bottom:0.5px solid var(--border);color:var(--muted)}
 .ch-grid .ch-cell:first-child{color:var(--text);font-family:'Syne',sans-serif}
@@ -721,7 +721,7 @@ async function toggleExpand(row,productName,slug){
         dateRanges:[dateRange],
         dimensions:[{name:'sessionDefaultChannelGroup'},{name:'pagePath'},{name:'eventName'}],
         metrics:[{name:'eventCount'}],
-        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','generate_lead','form_submit','contact_form_submit']}}},
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started','generate_lead','form_submit','contact_form_submit']}}},
         limit:1000
       }):Promise.resolve({rows:[]})
     ]);
@@ -737,6 +737,8 @@ async function toggleExpand(row,productName,slug){
         purch:parseInt(r.metricValues[2].value||0),
         rev:parseFloat(r.metricValues[3].value||0),
         calls:0,
+        whatsapp:0,
+        chat:0,
         forms:0
       };
     });
@@ -749,8 +751,9 @@ async function toggleExpand(row,productName,slug){
         const evt=r.dimensionValues[2].value;
         const count=parseInt(r.metricValues[0].value||0);
         if(!path.includes(slug))return;
-        if(!chMap[ch])chMap[ch]={ch,sess:0,atc:0,purch:0,rev:0,calls:0,forms:0};
-        if(evt==='click_to_call_ga4')chMap[ch].calls+=count;
+        if(!chMap[ch])chMap[ch]={ch,sess:0,atc:0,purch:0,rev:0,calls:0,whatsapp:0,chat:0,forms:0};
+        const ck=contactKey(evt);
+        if(ck)chMap[ch][ck]+=count;
         else chMap[ch].forms+=count;
       });
     }
@@ -776,6 +779,8 @@ function renderChannelBreakdown(idx,channels){
     +'<div class="ch-hdr" style="text-align:right">Sessions</div>'
     +'<div class="ch-hdr" style="text-align:right">ATC</div>'
     +'<div class="ch-hdr" style="text-align:right">Calls</div>'
+    +'<div class="ch-hdr" style="text-align:right">WhatsApp</div>'
+    +'<div class="ch-hdr" style="text-align:right">Chat</div>'
     +'<div class="ch-hdr" style="text-align:right">Forms</div>'
     +'<div class="ch-hdr" style="text-align:right">Purchases</div>'
     +'<div class="ch-hdr" style="text-align:right">Revenue</div>'
@@ -785,6 +790,8 @@ function renderChannelBreakdown(idx,channels){
     html+=`<div class="ch-cell num">${fmtInt(c.sess)}</div>`;
     html+=`<div class="ch-cell num">${fmtInt(c.atc)}</div>`;
     html+=`<div class="ch-cell num">${c.calls>0?c.calls:'—'}</div>`;
+    html+=`<div class="ch-cell num">${c.whatsapp>0?c.whatsapp:'—'}</div>`;
+    html+=`<div class="ch-cell num">${c.chat>0?c.chat:'—'}</div>`;
     html+=`<div class="ch-cell num">${c.forms>0?c.forms:'—'}</div>`;
     html+=`<div class="ch-cell num">${fmtInt(c.purch)}</div>`;
     html+=`<div class="ch-cell num">${c.rev>0?fmtGBP(c.rev):'—'}</div>`;
