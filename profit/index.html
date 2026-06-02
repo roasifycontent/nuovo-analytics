@@ -515,49 +515,6 @@ const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleuserco
 const STORE_BASE='nuovoluxury.co.uk';
 const ADMIN_BASE='https://admin.shopify.com/store/nuovo-luxury';
 let token=null;
-// ===== Auth token manager (server-side refresh-token flow via /api/google-token) =====
-const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',legacy:'nuovo_token'};
-let _refreshing=null,_refreshTimer=null;
-function tokenExpiry(){return parseInt(localStorage.getItem(TK.exp)||'0',10);}
-function storeToken(tok,expiresIn){
-  if(!tok)return;
-  token=tok;
-  localStorage.setItem(TK.tok,tok);
-  localStorage.setItem(TK.legacy,tok);
-  localStorage.setItem(TK.exp,String(Date.now()+((parseInt(expiresIn,10)||3600)*1000)));
-  scheduleTokenRefresh();
-}
-function silentRefresh(){
-  if(_refreshing)return _refreshing;
-  _refreshing=fetch('/api/google-token?action=refresh',{method:'POST'})
-    .then(r=>r.ok?r.json():null)
-    .then(d=>{if(d&&d.access_token){storeToken(d.access_token,d.expires_in);return true;}return false;})
-    .catch(()=>false)
-    .finally(()=>{_refreshing=null;});
-  return _refreshing;
-}
-async function exchangeCode(code){
-  try{
-    const r=await fetch('/api/google-token?action=exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,redirect_uri:window.location.origin+'/profit'})});
-    if(r.ok){const d=await r.json();if(d&&d.access_token){storeToken(d.access_token,d.expires_in);return true;}}
-    else{const e=await r.json().catch(()=>({}));console.error('[auth] code exchange failed',r.status,e.error||'');}
-  }catch(e){console.error('[auth] code exchange error',e.message);}
-  return false;
-}
-function scheduleTokenRefresh(){
-  if(_refreshTimer)clearTimeout(_refreshTimer);
-  const exp=tokenExpiry();if(!exp)return;
-  _refreshTimer=setTimeout(()=>silentRefresh(),Math.max(10000,exp-Date.now()-5*60*1000));
-}
-async function ensureFreshToken(){
-  const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
-  const exp=tokenExpiry();
-  if(cached&&exp&&exp-Date.now()>5*60*1000){token=cached;scheduleTokenRefresh();return true;}
-  const ok=await silentRefresh();
-  if(ok)return true;
-  if(cached){token=cached;return true;}
-  return false;
-}
 let dateRange={startDate:'28daysAgo',endDate:'today'};
 let allOrders=[];
 let dailyAdSpend={}; // { 'YYYY-MM-DD': { google: x, microsoft: y, meta: z, tiktok: w, other: v, total } }
@@ -567,15 +524,23 @@ let productFilter=null;
 let activeChips={missing:false,profitable:false,loss:false,refunded:false,unfulfilled:false};
 let sortCol='date',sortDesc=true;
 
-// ===== OAuth (authorization-code flow; the ?code= callback is handled in the load listener) =====
+// ===== OAuth =====
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    token=hash.get('access_token');
+    localStorage.setItem('nuovo_token',token);
+    localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
 function startOAuth(state){
   const params=new URLSearchParams({
     client_id:CLIENT_ID,
     redirect_uri:window.location.origin+'/profit',
-    response_type:'code',
-    access_type:'offline',
-    prompt:'consent',
-    scope:'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    include_granted_scopes:'true',
     state:state||'sign-in'
   });
   window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
@@ -583,7 +548,7 @@ function startOAuth(state){
 function reconnect(){startOAuth('reauth');}
 function showReauth(){document.getElementById('reauth-modal').classList.add('show');}
 function hideReauth(){document.getElementById('reauth-modal').classList.remove('show');}
-function signOut(){token=null;['nuovo_token','nuovo_access_token','nuovo_token_expiry'].forEach(k=>localStorage.removeItem(k));try{fetch('/api/google-token?action=logout',{method:'POST'});}catch(e){}document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
+function signOut(){token=null;localStorage.removeItem('nuovo_token');document.getElementById('dashboard').style.display='none';document.getElementById('setup').style.display='flex';}
 function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message||'');}
 
 function launch(){
@@ -865,11 +830,18 @@ async function fetchGoogleAdSpend(start,end){
   // dimensionFilter, and THAT (not the source/medium filter) is what made GA4 return
   // 400 INVALID_ARGUMENT for this cost-metric query.
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const reqBody=JSON.stringify({dateRanges:[{startDate:start,endDate:end}],dimensions:[{name:'date'}],metrics:[{name:'advertiserAdCost'}],dimensionFilter:{andGroup:{expressions:[{filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}]}},orderBys:[{dimension:{dimensionName:'date'}}]});
-  const doFetch=()=>fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:reqBody});
   try{
-    let r=await doFetch();
-    if((r.status===401||r.status===403)&&await silentRefresh())r=await doFetch();
+    const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({
+        dateRanges:[{startDate:start,endDate:end}],
+        dimensions:[{name:'date'}],
+        metrics:[{name:'advertiserAdCost'}],
+        dimensionFilter:{andGroup:{expressions:[
+          {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+          {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
+        ]}},
+        orderBys:[{dimension:{dimensionName:'date'}}]
+      })});
     if(r.ok)return await r.json();
     const e=await r.json().catch(()=>({}));console.error('[GA4]',r.status,e.error?.message||'');
   }catch(e){}
@@ -1821,21 +1793,11 @@ function exportCSV(){
 }
 
 // ===== Init =====
-window.addEventListener('load',async ()=>{
+window.addEventListener('load',()=>{
   restoreDateRange();
   updateVatPill();
-  const qs=new URLSearchParams(window.location.search);
-  const code=qs.get('code');
-  if(code){
-    window.history.replaceState(null,'',window.location.pathname);
-    const ok=await exchangeCode(code);
-    if(ok&&token)launch();
-    return;
-  }
-  const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
-  if(saved){token=saved;launch();ensureFreshToken();return;}
-  const ok=await ensureFreshToken();
-  if(ok&&token)launch();
+  const saved=localStorage.getItem('nuovo_token');
+  if(saved){token=saved;launch();}
 });
 </script>
 </body>
