@@ -569,7 +569,7 @@ async function refresh(){
   ]}};
 
   try{
-    const [bySource, byDate, byCampaign, byPage, byPageConv, byDevice, byCountry, funnelData, contacts] = await Promise.all([
+    const [bySource, byDate, byCampaign, byPage, byPageConv, byDevice, byCountry, funnelData, contacts, campaignEvents] = await Promise.all([
       // By source breakdown
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'sessions'},{name:'engagedSessions'},{name:'totalRevenue'},{name:'transactions'},{name:'keyEvents'},
@@ -591,17 +591,30 @@ async function refresh(){
       // Funnel events
       ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','click_to_call_ga4']}}}]}}}),
       // Contact events (Calls / WhatsApp / Chat) — unique people via totalUsers
-      fetchContacts(paidFil)
+      fetchContacts(paidFil),
+      // Per-campaign event breakdown — so the "Key ev." total can be shown as ATC /
+      // Chkout / Purch / Forms / Calls / WhatsApp / Chat per campaign.
+      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'},{name:'sessionCampaignName'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['add_to_cart','begin_checkout','purchase','form_submit','click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}]}},limit:500})
     ]);
 
     contactTotals={calls:0,whatsapp:0,chat:0};
     (contacts.rows||[]).forEach(r=>{const ck=contactKey(r.dimensionValues[0].value);if(ck)contactTotals[ck]+=parseInt(r.metricValues[0].value||0);});
 
+    // Build per-campaign event breakdown: source__campaign -> {atc, checkout, purchase, form, calls, whatsapp, chat}
+    const EV_LABEL={add_to_cart:'atc',begin_checkout:'checkout',purchase:'purchase',form_submit:'form',click_to_call_ga4:'calls',whatsapp_click:'whatsapp',tidio_conversation_started:'chat'};
+    const campEvMap={};
+    (campaignEvents.rows||[]).forEach(r=>{
+      const ev=EV_LABEL[r.dimensionValues[2].value];if(!ev)return;
+      const key=r.dimensionValues[0].value+'__'+r.dimensionValues[1].value;
+      if(!campEvMap[key])campEvMap[key]={atc:0,checkout:0,purchase:0,form:0,calls:0,whatsapp:0,chat:0};
+      campEvMap[key][ev]+=parseInt(r.metricValues[0].value||0);
+    });
+
     renderSourceMetrics(bySource, funnelData);
     renderKPIs(bySource, funnelData);
     renderFunnel(funnelData, bySource);
     renderTrend(byDate);
-    renderCampaigns(byCampaign);
+    renderCampaigns(byCampaign, campEvMap);
     renderRevPages(byPage);
     renderConvPages(byPageConv);
     renderDevices(byDevice);
@@ -782,24 +795,34 @@ function renderTrend(byDate){
   });
 }
 
-function renderCampaigns(data){
+function renderCampaigns(data, evMap){
   const rows=(data.rows||[]).filter(r=>r.dimensionValues[1].value!=='(not set)');
   const el=document.getElementById('campaigns');
   if(!rows.length){el.innerHTML='<div class="ld">No campaign data — make sure UTM tracking is enabled</div>';return;}
-  el.innerHTML=`<div class="tbl-row tbl-hdr" style="grid-template-columns:80px 1fr 70px 80px 70px 70px 70px">
-    <span>Source</span><span>Campaign</span><span>Sessions</span><span>Revenue</span><span>Key ev.</span><span>Forms</span><span>Calls</span>
+  // The "Key ev." total breaks down into the seven event columns to its right,
+  // so you can see what the configured key events actually are per campaign.
+  const cols='70px 1fr 56px 64px 50px 44px 52px 50px 44px 44px 58px 44px';
+  const dash=v=>v>0?v:'—';
+  el.innerHTML=`<div class="tbl-row tbl-hdr" style="grid-template-columns:${cols}">
+    <span>Source</span><span>Campaign</span><span>Sessions</span><span>Revenue</span><span>Key ev.</span><span>ATC</span><span>Chkout</span><span>Purch.</span><span>Forms</span><span>Calls</span><span>WhatsApp</span><span>Chat</span>
   </div>`+rows.map(r=>{
     const src=r.dimensionValues[0].value;
     const name=r.dimensionValues[1].value;
     const dot=src==='google'?'#4285F4':'#0078d4';
-    return`<div class="tbl-row" style="grid-template-columns:80px 1fr 70px 80px 70px 70px 70px;font-size:12px">
+    const ev=(evMap&&evMap[src+'__'+name])||{atc:0,checkout:0,purchase:0,form:0,calls:0,whatsapp:0,chat:0};
+    return`<div class="tbl-row" style="grid-template-columns:${cols};font-size:12px">
       <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${dot}"></span><span style="font-size:11px;color:var(--muted)">${src}</span></span>
       <span class="tpath" title="${name}">${name.slice(0,40)}</span>
       <span class="tnum">${r.metricValues[0].value}</span>
       <span class="tnum gold">£${parseFloat(r.metricValues[1].value||0).toLocaleString('en-GB',{maximumFractionDigits:0})}</span>
       <span class="tnum">${r.metricValues[2].value}</span>
-      <span class="tnum">${r.metricValues[3]?.value||0}</span>
-      <span class="tnum">${r.metricValues[4]?.value||0}</span>
+      <span class="tnum">${dash(ev.atc)}</span>
+      <span class="tnum">${dash(ev.checkout)}</span>
+      <span class="tnum">${dash(ev.purchase)}</span>
+      <span class="tnum">${dash(ev.form)}</span>
+      <span class="tnum">${dash(ev.calls)}</span>
+      <span class="tnum">${dash(ev.whatsapp)}</span>
+      <span class="tnum">${dash(ev.chat)}</span>
     </div>`;
   }).join('');
 }
