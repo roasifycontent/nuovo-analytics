@@ -33,6 +33,19 @@ query GetOrders($first: Int!, $after: String, $q: String!) {
         displayFinancialStatus
         displayFulfillmentStatus
         currencyCode
+        tags
+        customerJourneySummary {
+          firstVisit {
+            source
+            sourceType
+            referrerUrl
+            utmParameters {
+              source
+              medium
+              campaign
+            }
+          }
+        }
         customer { firstName lastName email }
         currentTotalPriceSet { shopMoney { amount currencyCode } }
         currentSubtotalPriceSet { shopMoney { amount currencyCode } }

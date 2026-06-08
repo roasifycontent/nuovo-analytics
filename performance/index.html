@@ -68,6 +68,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .tbl-row:last-child{border-bottom:none}
 .tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
 .tbl-row.ch{grid-template-columns:128px 56px 74px 74px 54px 44px 46px 44px 64px 44px 44px 56px 58px}
+.tbl-row.sh{grid-template-columns:1fr 90px 110px 70px 100px}
 .tbl-row.prod{grid-template-columns:1fr 90px 70px 80px 80px}
 .tpath{font-family:'DM Mono',monospace;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tnum{font-family:'DM Mono',monospace;text-align:right;font-size:13px}
@@ -106,7 +107,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
 .ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
 
-@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.tbl-row.ch{grid-template-columns:100px 55px 70px 70px 55px 50px}.tbl-row.ch>*:nth-child(n+7){display:none}.tbl-row.prod{grid-template-columns:1fr 70px 55px 65px}.tbl-row.prod>*:nth-child(5){display:none}.pnl-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
+@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.tbl-row.ch{grid-template-columns:100px 55px 70px 70px 55px 50px}.tbl-row.ch>*:nth-child(n+7){display:none}.tbl-row.sh{grid-template-columns:1fr 60px 80px 50px 70px}.tbl-row.prod{grid-template-columns:1fr 70px 55px 65px}.tbl-row.prod>*:nth-child(5){display:none}.pnl-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -174,10 +175,16 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="stat"><div class="slbl">Funnel Events</div><div class="snum" id="h-ke">—</div><div class="ssub">forms + purchases + calls + WhatsApp + chat</div></div>
     </div>
 
-    <!-- Channel Attribution Table -->
+    <!-- GA4 Attribution Table — GA4 sessionDefaultChannelGroup breakdown -->
     <div class="card">
-      <div class="ct"><span>Channel attribution</span><span class="ct-tip">All traffic sources</span></div>
+      <div class="ct"><span>GA4 attribution</span><span class="ct-tip">Sessions, events &amp; revenue from GA4 channel groups</span></div>
       <div id="ch-table"><div class="ld"><span class="sp"></span>Loading...</div></div>
+    </div>
+
+    <!-- Shopify Attribution Table — true source from Shopify customer journey -->
+    <div class="card">
+      <div class="ct"><span>Shopify attribution</span><span class="ct-tip">Real revenue by true source (overrides GA4 Direct / Unassigned bucket)</span></div>
+      <div id="shopify-ch-table"><div class="ld"><span class="sp"></span>Loading...</div></div>
     </div>
 
     <!-- Daily P&L -->
@@ -483,8 +490,10 @@ async function refresh(){
   const safe=async(q,fb={rows:[]})=>{try{return await ga4(q);}catch(e){console.warn('Query failed:',e.message);if(isAuthError(e))throw e;return fb;}};
 
   try{
-    // All queries run independently — none blocks another
-    const [chData, chFunnel, contacts, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend] = await Promise.all([
+    // All queries run independently — none blocks another. The Shopify attribution
+    // fetch hits our serverless endpoint (not GA4) and is wrapped in its own
+    // try/catch so a Shopify outage doesn't break the GA4 rendering.
+    const [chData, chFunnel, contacts, dailyTrend, products, todayData, newUsersTotal, adSpendBySource, dailyAdSpend, todayAdSpend, shopifyAttr] = await Promise.all([
       // Channel breakdown — split by source too, so AI traffic can be reclassified
       // out of its GA4 default channel group instead of being double-counted.
       safe({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'}],metrics:[
@@ -519,7 +528,9 @@ async function refresh(){
       // Today ad spend by source
       safe({dateRanges:[{startDate:'today',endDate:'today'}],dimensions:[{name:'sessionSource'}],metrics:[
         {name:'advertiserAdCost'}
-      ]})
+      ]}),
+      // Shopify orders for true-source attribution (server-side endpoint, not GA4)
+      fetchShopifyAttribution()
     ]);
 
     // Build channel map. AI-source traffic is reclassified out of its GA4 default
@@ -556,7 +567,7 @@ async function refresh(){
     const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
 
-    lastData={chMap,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend};
+    lastData={chMap,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend,shopifyAttr};
     renderAll();
 
     document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -576,6 +587,7 @@ function renderAll(){
   const d=lastData;
   renderHero(d.chMap,d.gAdSpendTotal,d.newUsersTotal);
   renderChannelTable(d.chMap,d.gAdSpendTotal);
+  renderShopifyAttribution(d.shopifyAttr);
   renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
   renderProducts(d.products);
 }
@@ -669,6 +681,127 @@ function renderChannelTable(chMap,gAdSpendTotal){
         <span class="tnum">${fc(f.purchase||0)}</span>
       </div>`;
     }).join('');
+}
+
+// --- Shopify attribution (true source from order data) ---
+// Convert a GA4 date token ('28daysAgo' / 'today' / 'yesterday') or absolute
+// YYYY-MM-DD to absolute YYYY-MM-DD in local timezone. The Shopify endpoint
+// only accepts absolute dates.
+function ga4DateToYmd(token){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(token))return token;
+  const d=new Date();
+  if(token==='yesterday')d.setDate(d.getDate()-1);
+  else{
+    const m=token.match(/^(\d+)daysAgo$/);
+    if(m)d.setDate(d.getDate()-parseInt(m[1],10));
+  }
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+async function fetchShopifyAttribution(){
+  try{
+    const s=ga4DateToYmd(dateRange.startDate);
+    const e=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/shopify-orders?startDate=${s}&endDate=${e}`);
+    if(!r.ok){
+      let err='Shopify '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      return{orders:[],error:err};
+    }
+    const data=await r.json();
+    return{orders:data.orders||[]};
+  }catch(e){
+    return{orders:[],error:e.message};
+  }
+}
+// Classify an order into ONE channel using its Shopify customer-journey data.
+// Order matters: WhatsApp tag overrides everything; paid medium beats organic;
+// AI sources beat search; direct/none falls through to Direct; everything else
+// with a referrer goes Referral, otherwise Other.
+function classifyOrderChannel(order){
+  const tags=(order.tags||[]).map(t=>(t||'').toLowerCase());
+  // 1. WhatsApp tag override (always wins, even if Shopify recorded a source)
+  if(tags.some(t=>t.includes('whatsapp')))return 'WhatsApp';
+  const fv=order.customerJourneySummary&&order.customerJourneySummary.firstVisit;
+  if(!fv)return 'Unknown';
+  const utm=fv.utmParameters||{};
+  const utmSrc=(utm.source||'').toLowerCase();
+  const utmMed=(utm.medium||'').toLowerCase();
+  const src=(fv.source||'').toLowerCase();
+  const srcType=fv.sourceType||'';
+  const ref=(fv.referrerUrl||'').toLowerCase();
+  const checkSrc=utmSrc||src;
+  // 2. Paid medium → Paid (or Paid Social if the source is a social platform)
+  if(['cpc','ppc','paid'].includes(utmMed)){
+    if(/pinterest|facebook|instagram|tiktok/.test(checkSrc))return 'Paid Social';
+    return 'Paid';
+  }
+  // 3. AI sources
+  if(/chatgpt|gemini|perplexity|copilot|claude/.test(checkSrc))return 'AI';
+  // 4. Social platforms without paid medium → Organic Social
+  if(/pinterest|facebook|instagram|tiktok/.test(checkSrc))return 'Organic Social';
+  // 5. Organic search — sourceType=SEO, or known search engines
+  if(srcType==='SEO'||/^(google|bing|duckduckgo|yahoo|ecosia)$/.test(checkSrc))return 'Organic Search';
+  // 6. Direct
+  if(src==='direct'||src==='none'||src==='')return 'Direct';
+  // 7. Referral — referrer present, not search/social
+  if(ref&&!/google|bing|facebook|instagram|pinterest|tiktok/.test(ref))return 'Referral';
+  return 'Other';
+}
+function renderShopifyAttribution(payload){
+  const el=document.getElementById('shopify-ch-table');
+  if(!el)return;
+  const orders=(payload&&payload.orders)||[];
+  const err=payload&&payload.error;
+  if(err&&!orders.length){
+    el.innerHTML=`<div style="padding:16px;color:var(--red);font-size:12px">Shopify request failed: ${err}</div>`;
+    return;
+  }
+  // Filter to paid/authorised — exclude voided / refunded / pending / expired
+  const VALID=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+  const valid=orders.filter(o=>VALID.has(o.displayFinancialStatus));
+  if(!valid.length){
+    el.innerHTML='<div class="ld">No paid orders in this date range</div>';
+    return;
+  }
+  // Scope check: if firstVisit is null for ALL valid orders, the custom app
+  // token doesn't have access to customer-journey data.
+  const haveJourney=valid.filter(o=>o.customerJourneySummary&&o.customerJourneySummary.firstVisit);
+  if(haveJourney.length===0){
+    el.innerHTML=`<div style="padding:18px 16px;color:var(--amber);font-size:12.5px;line-height:1.55">
+      <strong>Shopify attribution needs the customer-journey read scope.</strong><br>
+      The custom app's API token is missing access to <code>customerJourneySummary</code>.
+      Open Shopify Admin → Apps → your custom app → API access, add order customer-journey read scope, and refresh this page.
+    </div>`;
+    return;
+  }
+  // Classify + aggregate
+  const buckets={};
+  valid.forEach(o=>{
+    const ch=classifyOrderChannel(o);
+    if(!buckets[ch])buckets[ch]={orders:0,revenue:0};
+    buckets[ch].orders++;
+    const total=parseFloat((o.currentTotalPriceSet&&o.currentTotalPriceSet.shopMoney&&o.currentTotalPriceSet.shopMoney.amount)||0);
+    const refund=parseFloat((o.totalRefundedSet&&o.totalRefundedSet.shopMoney&&o.totalRefundedSet.shopMoney.amount)||0);
+    buckets[ch].revenue+=Math.max(0,total-refund);
+  });
+  const totalRev=Object.values(buckets).reduce((a,b)=>a+b.revenue,0)||1;
+  const sorted=Object.entries(buckets).sort((a,b)=>b[1].revenue-a[1].revenue);
+  // Channel colors — reuse existing palette, add WhatsApp green + Paid blue + Unknown grey
+  const SHOPIFY_COLORS=Object.assign({},CH_COLORS,{'WhatsApp':'#25D366','Paid':'#4285F4','Paid Social':'#818cf8','Unknown':'#6b7280'});
+  const hdr=`<div class="tbl-row tbl-hdr sh"><span>Channel</span><span style="text-align:right">Orders</span><span style="text-align:right">Revenue</span><span style="text-align:right">% Rev</span><span style="text-align:right">AOV</span></div>`;
+  el.innerHTML=hdr+sorted.map(([ch,d],i)=>{
+    const pct=Math.round(d.revenue/totalRev*100);
+    const aov=d.orders>0?d.revenue/d.orders:0;
+    const color=SHOPIFY_COLORS[ch]||'#9ca3af';
+    const isTop=i===0;
+    return`<div class="tbl-row sh${isTop?' top-row':''}">
+      <span class="ch-name"><span class="ch-dot" style="background:${color}"></span>${ch}</span>
+      <span class="tnum">${d.orders.toLocaleString()}</span>
+      <span class="tnum gold">${d.revenue>0?fmtGBP(d.revenue):'—'}</span>
+      <span class="tnum mu">${pct}%</span>
+      <span class="tnum">${aov>0?fmtGBP(aov):'—'}</span>
+    </div>`;
+  }).join('');
 }
 
 // --- Daily P&L ---
