@@ -721,7 +721,11 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
   // bubble up regardless of which source attributed them.
   const allChannels=new Set([...Object.keys(ga4),...Object.keys(shop)]);
   const rows=[...allChannels].map(ch=>{
-    const g=ga4[ch]||{sessions:0,revenue:0,adCost:0};
+    // Use full empty structure so Shopify-only channels (WhatsApp, Unknown)
+    // still have .funnel / .calls / .whatsapp / .chat — otherwise the body
+    // row render throws "Cannot read properties of undefined (reading
+    // 'form_submit')" and the entire renderAll chain stops.
+    const g=ga4[ch]||emptyGa4();
     const s=shop[ch]||{orders:0,revenue:0};
     return{ch,g,s,maxRev:Math.max(g.revenue,s.revenue)};
   }).sort((a,b)=>b.maxRev-a.maxRev);
