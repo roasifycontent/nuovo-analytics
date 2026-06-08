@@ -100,6 +100,28 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:24px}
 .ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;font-family:'DM Mono',monospace}
 .cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+/* Category mini-dashboards */
+.cat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:28px}
+@media(min-width:1280px){.cat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.cat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.cat-card.empty{opacity:0.55}
+.cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.cat-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:500;letter-spacing:0.04em;color:var(--text)}
+.cat-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:0.05em;white-space:nowrap}
+.cat-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:10px 0;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
+.cat-stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cat-stat-lbl{font-size:9px;letter-spacing:0.06em;color:var(--dim);text-transform:uppercase;font-family:'DM Mono',monospace}
+.cat-stat-val{font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-feature-settings:'tnum';overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-prods{display:flex;flex-direction:column}
+.cat-prods-head{display:grid;grid-template-columns:1.6fr repeat(4,minmax(0,1fr));gap:6px;font-family:'DM Mono',monospace;font-size:9px;padding:4px 0 6px;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
+.cat-prods-head span{text-align:right}
+.cat-prods-head span:first-child{text-align:left}
+.cat-prod{display:grid;grid-template-columns:1.6fr repeat(4,minmax(0,1fr));gap:6px;padding:6px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
+.cat-prod:last-child{border-bottom:none}
+.cat-prod-name{font-family:'Syne',sans-serif;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-prod span{text-align:right;font-feature-settings:'tnum';color:var(--muted)}
+.cat-prod span.win{color:var(--green)}
+.cat-empty{color:var(--dim);font-size:11px;text-align:center;padding:16px 0}
 /* Rising product row */
 .rise-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
 .rise-row:last-child{border-bottom:none}
@@ -203,6 +225,12 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
         <div class="stat-val" id="h-events">—</div>
         <div class="stat-sub">calls + forms + purchases</div>
       </div>
+    </div>
+
+    <!-- Category mini-dashboards -->
+    <div class="section-title">Categories</div>
+    <div class="cat-grid" id="cat-grid">
+      <div class="ld"><span class="sp"></span>Categorising products...</div>
     </div>
 
     <!-- Product table -->
@@ -565,6 +593,7 @@ async function refresh(){
 
     allProducts=products;
     renderHero(products);
+    renderCategories(products);
     renderTable();
     renderLeaks(products);
 
@@ -612,6 +641,67 @@ function sortProducts(list){
     }
     return desc?(vb-va):(va-vb);
   });
+}
+
+// --- Category mini-dashboards ---
+// Order matters: first match wins, so "Sauna Lamp" goes to Saunas not Lighting.
+const CATEGORIES=[
+  {key:'sauna',label:'Saunas',match:n=>/sauna/i.test(n)},
+  {key:'swimspa',label:'Swim spas',match:n=>/swim\s*spa/i.test(n)},
+  {key:'icebath',label:'Ice baths & cold plunge',match:n=>/ice\s*bath|ice\s*tub|chill\s*tubs?|cold\s*plunge|plunge\s*pool/i.test(n)},
+  {key:'lighting',label:'Lighting',match:n=>/\b(lighting|chandelier|sconce|pendant)\b/i.test(n)||/\b(lamp|lamps)\b/i.test(n)||/\blight\b/i.test(n)}
+];
+function categoryFor(name){
+  for(const c of CATEGORIES)if(c.match(name||''))return c.key;
+  return null;
+}
+function renderCategories(products){
+  const grid=document.getElementById('cat-grid');
+  if(!grid)return;
+  let html='';
+  CATEGORIES.forEach(c=>{
+    const items=products
+      .filter(p=>categoryFor(p.name)===c.key)
+      .sort((a,b)=>(b.revenue-a.revenue)||(b.sessions-a.sessions));
+    const totals=items.reduce((a,p)=>{
+      a.sessions+=p.sessions;a.atc+=p.atc;a.checkout+=p.checkout;a.purchases+=p.purchases;a.revenue+=p.revenue;
+      a.calls+=p.calls;a.whatsapp+=p.whatsapp;a.chat+=p.chat;a.forms+=p.forms;
+      return a;
+    },{sessions:0,atc:0,checkout:0,purchases:0,revenue:0,calls:0,whatsapp:0,chat:0,forms:0});
+    const top=items.slice(0,6);
+    const isEmpty=items.length===0;
+    html+=`<div class="cat-card${isEmpty?' empty':''}">
+      <div class="cat-head">
+        <div class="cat-title">${c.label}</div>
+        <div class="cat-count">${items.length} product${items.length===1?'':'s'}</div>
+      </div>
+      <div class="cat-stats">
+        <div class="cat-stat"><div class="cat-stat-lbl">Sessions</div><div class="cat-stat-val">${fmtInt(totals.sessions)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">ATC</div><div class="cat-stat-val">${fmtInt(totals.atc)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">Purchases</div><div class="cat-stat-val">${fmtInt(totals.purchases)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">Calls</div><div class="cat-stat-val">${fmtInt(totals.calls)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">WhatsApp</div><div class="cat-stat-val">${fmtInt(totals.whatsapp)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">Revenue</div><div class="cat-stat-val">${totals.revenue>0?fmtGBP(totals.revenue):'—'}</div></div>
+      </div>
+      ${isEmpty?'<div class="cat-empty">No products matched in this date range</div>':`
+      <div class="cat-prods">
+        <div class="cat-prods-head"><span>Top products</span><span>Sess.</span><span>ATC</span><span>Calls</span><span>Purch.</span></div>
+        ${top.map(p=>{
+          const winCls=p.purchases>0?' win':'';
+          const safeName=p.name.replace(/"/g,'&quot;');
+          const shortName=p.name.length>34?p.name.slice(0,34)+'…':p.name;
+          return`<div class="cat-prod" title="${safeName}">
+            <div class="cat-prod-name">${shortName}</div>
+            <span>${fmtInt(p.sessions)}</span>
+            <span>${fmtInt(p.atc)}</span>
+            <span>${p.calls>0?p.calls:'—'}</span>
+            <span class="${winCls.trim()}">${fmtInt(p.purchases)}</span>
+          </div>`;
+        }).join('')}
+      </div>`}
+    </div>`;
+  });
+  grid.innerHTML=html;
 }
 
 // --- Table rendering ---
