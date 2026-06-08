@@ -730,12 +730,14 @@ function classifyOrderChannel(order){
   const srcType=fv.sourceType||'';
   const ref=(fv.referrerUrl||'').toLowerCase();
   const checkSrc=utmSrc||src;
-  // 2. Paid medium → Paid (or Paid Social if the source is a social platform)
+  // 2. Email — utm medium=email, or utm source/source is a known email sender
+  if(utmMed==='email'||/klaviyo|mailchimp|sendgrid|hubspot|activecampaign/.test(checkSrc))return 'Email';
+  // 3. Paid medium → Paid (or Paid Social if the source is a social platform)
   if(['cpc','ppc','paid'].includes(utmMed)){
     if(/pinterest|facebook|instagram|tiktok/.test(checkSrc))return 'Paid Social';
     return 'Paid';
   }
-  // 3. AI sources
+  // 4. AI sources
   if(/chatgpt|gemini|perplexity|copilot|claude/.test(checkSrc))return 'AI';
   // 4. Social platforms without paid medium → Organic Social
   if(/pinterest|facebook|instagram|tiktok/.test(checkSrc))return 'Organic Social';
