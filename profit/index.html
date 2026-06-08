@@ -122,6 +122,10 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
 .ddp-toggle.on{color:var(--gold)}
 .ddp-toggle input{width:11px;height:11px;cursor:pointer;accent-color:var(--gold);margin:0}
 .cost-saved-tick.show{opacity:1}
+.fee-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle;position:relative;top:-1px}
+.fee-dot.actual{background:var(--green);box-shadow:0 0 0 1px rgba(16,185,129,0.3)}
+.fee-dot.estimate{background:var(--dim);opacity:0.5}
+.fee-cell{cursor:help}
 
 .status-pill{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;font-family:'DM Mono',monospace;font-weight:500}
 .status-paid{background:rgba(16,185,129,0.12);color:var(--green)}
@@ -462,10 +466,10 @@ table.orders tbody tr.totals td{font-weight:600;border-top:1.5px solid var(--bor
 
     <div class="drawer-section">
       <h4>Transaction fee calculation</h4>
-      <p class="help">Shopify Payments reports actual fees per transaction. If a transaction is missing fee data, this fallback is used.</p>
+      <p class="help">Shopify Payments reports actual per-transaction fees (incl. Amex / international card surcharges). <strong>Actual</strong> uses real fees where available and falls back to the % below per order. <strong>Force estimate</strong> ignores real data and uses the % for every order. Green dot in the table = actual, grey = estimate.</p>
       <div class="spend-mode-tabs">
-        <button class="spend-mode-tab" id="fee-mode-actual" onclick="setFeeMode('actual')">Use actual</button>
-        <button class="spend-mode-tab active" id="fee-mode-estimate" onclick="setFeeMode('estimate')">Estimate fallback</button>
+        <button class="spend-mode-tab active" id="fee-mode-actual" onclick="setFeeMode('actual')">Actual + fallback</button>
+        <button class="spend-mode-tab" id="fee-mode-estimate" onclick="setFeeMode('estimate')">Force estimate</button>
       </div>
       <div class="fee-row">
         <label>UK</label>
@@ -670,7 +674,16 @@ function setOrderCost(orderId,cost){const c=getOrderCosts();if(cost==null||cost=
 // DDP orders (e.g. Alibaba DDP): the cost carries no reclaimable VAT, so VAT is never stripped from it.
 function getDdpFlags(){return lsGet('nuovo_order_ddp',{});}
 function setDdpFlag(orderId,on){const f=getDdpFlags();if(on)f[orderId]=true;else delete f[orderId];lsSet('nuovo_order_ddp',f);}
-function getFeeConfig(){return lsGet('nuovo_fee_config',{mode:'estimate',uk:{pct:1.5,fixed:0.25},int:{pct:2.5,fixed:0.25}});}
+function getFeeConfig(){
+  const c=lsGet('nuovo_fee_config',{mode:'actual',uk:{pct:1.5,fixed:0.25},int:{pct:2.5,fixed:0.25}});
+  // One-time migration: bump pre-actual users to actual mode (real Shopify fees + estimate fallback)
+  if(!localStorage.getItem('nuovo_fee_config_migrated_v2')){
+    if(c.mode==='estimate')c.mode='actual';
+    lsSet('nuovo_fee_config',c);
+    localStorage.setItem('nuovo_fee_config_migrated_v2','1');
+  }
+  return c;
+}
 function setFeeConfig(c){lsSet('nuovo_fee_config',c);}
 function getVatConfig(){return lsGet('nuovo_vat_config',{showExVat:true,vatRate:0.20,costsIncVat:true,spendIncVat:false});}
 function setVatConfig(c){lsSet('nuovo_vat_config',c);}
@@ -858,34 +871,38 @@ function normaliseOrder(o){
   const refundedAmt=parseFloat(o.totalRefundedSet?.shopMoney?.amount||0);
   const subtotalAmt=parseFloat(o.currentSubtotalPriceSet?.shopMoney?.amount||0);
   const originalAmt=parseFloat(o.originalTotalPriceSet?.shopMoney?.amount||0);
-  // Sum transaction fees
-  let txFee=0,gateway='',hasFee=false;
+  // Sum real transaction fees from Shopify (only Shopify Payments populates this)
+  let realFee=0,gateway='',hasFee=false;
   const saleTxns=txns.filter(t=>(t.kind==='SALE'||t.kind==='CAPTURE')&&t.status==='SUCCESS');
   saleTxns.forEach(t=>{
     gateway=t.gateway||gateway;
     if(t.fees&&t.fees.length){
       hasFee=true;
-      t.fees.forEach(f=>{txFee+=parseFloat(f.amount?.amount||0);});
+      t.fees.forEach(f=>{realFee+=parseFloat(f.amount?.amount||0);});
     }
   });
-  // Fallback fee estimate
+  // Compute estimate as fallback (also used when user forces 'estimate' mode)
   const feeCfg=getFeeConfig();
-  if(!hasFee||feeCfg.mode==='estimate'){
-    // Heuristic: GBP & UK probably domestic. We don't have country here, treat as UK by default.
-    const currency=o.currencyCode||'GBP';
-    const isUk=currency==='GBP';
-    const cfg=isUk?feeCfg.uk:feeCfg.int;
-    const base=originalAmt||totalAmt;
-    txFee=(base*(cfg.pct/100))+cfg.fixed;
-    // Pro-rate refund: refund portion of percentage fee, keep fixed
-    if(refundedAmt>0&&base>0){
-      const refundPct=refundedAmt/base;
-      txFee=(base-refundedAmt)*(cfg.pct/100)+cfg.fixed;
+  const currency=o.currencyCode||'GBP';
+  const isUk=currency==='GBP';
+  const cfgEst=isUk?feeCfg.uk:feeCfg.int;
+  const base=originalAmt||totalAmt;
+  let estFee=(base*(cfgEst.pct/100))+cfgEst.fixed;
+  if(refundedAmt>0&&base>0){
+    estFee=(base-refundedAmt)*(cfgEst.pct/100)+cfgEst.fixed;
+  }
+  // Choose: real fee when available (and not forced to estimate), else fallback
+  let txFee,txFeeSource;
+  if(hasFee&&feeCfg.mode==='actual'){
+    txFee=realFee;
+    if(refundedAmt>0&&originalAmt>0){
+      const refundPct=refundedAmt/originalAmt;
+      txFee=realFee*(1-refundPct)+(0.25*refundPct); // approximate: keep fixed 25p
     }
-  } else if(refundedAmt>0&&originalAmt>0&&hasFee){
-    // Pro-rate actual fee
-    const refundPct=refundedAmt/originalAmt;
-    txFee=txFee*(1-refundPct)+(0.25*refundPct); // approximate: keep fixed 25p
+    txFeeSource='actual';
+  } else {
+    txFee=estFee;
+    txFeeSource=hasFee?'estimate_forced':'estimate';
   }
   const productsLabel=lineItems.map(li=>{
     const q=li.quantity>1?` x${li.quantity}`:'';
@@ -925,6 +942,9 @@ function normaliseOrder(o){
     refundedAmt,
     txFee,
     txFeeAuto:txFee,
+    txFeeSource,
+    txFeeReal:hasFee?realFee:null,
+    txFeeEst:estFee,
     gateway,
     currency:o.currencyCode||'GBP',
     financialStatus:o.displayFinancialStatus,
@@ -989,6 +1009,7 @@ function computeAggregates(){
   const costs=getOrderCosts();
   let gross=0,vatCollected=0,spendTotal=0,feesTotal=0,fulfillTotal=0;
   let missing=0,withCosts=0;
+  let feesActualOrders=0,feesPaidOrders=0;
   const byDate={};
   const byProduct={};
 
@@ -1001,6 +1022,8 @@ function computeAggregates(){
     gross+=rev;
     vatCollected+=o.vatAmount||0;
     feesTotal+=o.txFee;
+    feesPaidOrders++;
+    if(o.txFeeSource==='actual')feesActualOrders++;
     const alloc=displayedAdSpend(allocs[o.id]||0);
     const{profit,fulfillment}=orderProfit(o,alloc);
     if(fulfillment!=null){
@@ -1066,7 +1089,7 @@ function computeAggregates(){
   const headlineProfit=headlineGross-headlineFees-adSpendShare-fulfillTotal-opCostsShare;
   const headlineMargin=headlineGross>0?headlineProfit/headlineGross:0;
 
-  return{gross,vatCollected,spendTotal,feesTotal,fulfillTotal,opCostsTotal,opCostsBreakdown:opCostsRaw.breakdown,opCostsDays:opCostsRaw.days,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
+  return{gross,vatCollected,spendTotal,feesTotal,feesActualOrders,feesPaidOrders,fulfillTotal,opCostsTotal,opCostsBreakdown:opCostsRaw.breakdown,opCostsDays:opCostsRaw.days,netProfit:headlineProfit,headlineMargin,missing,withCosts,byDate,byProduct,allocs};
 }
 
 // ===== Render all =====
@@ -1113,7 +1136,10 @@ function renderHero(agg){
   });
   document.getElementById('h-spend-sub').textContent=spendDetail.length?spendDetail.join(' · '):'no spend in period';
   document.getElementById('h-fees').textContent=fmtGBP(agg.feesTotal);
-  document.getElementById('h-fees-sub').textContent=`${(allOrders.length?agg.feesTotal/agg.gross*100:0).toFixed(2)}% of revenue`;
+  const pctOfRev=(allOrders.length?agg.feesTotal/agg.gross*100:0).toFixed(2);
+  const actCnt=agg.feesActualOrders||0, paidCnt=agg.feesPaidOrders||0;
+  const srcTag=paidCnt?(actCnt===paidCnt?` · ${actCnt}/${paidCnt} actual`:actCnt===0?` · all estimated`:` · ${actCnt}/${paidCnt} actual`):'';
+  document.getElementById('h-fees-sub').textContent=`${pctOfRev}% of revenue${srcTag}`;
   document.getElementById('h-fulfill').textContent=fmtGBP(agg.fulfillTotal);
   document.getElementById('h-fulfill-sub').textContent=`${agg.withCosts} of ${agg.withCosts+agg.missing} orders`;
   document.getElementById('h-ops').textContent=agg.opCostsTotal>0?fmtGBP(agg.opCostsTotal):'£0.00';
@@ -1379,7 +1405,7 @@ function renderTable(){
       <td><div class="customer-cell" title="${escapeHtml(o.customer)}">${escapeHtml(o.customer)||'—'}</div></td>
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
       <td class="nm">${fmtGBP(r.revenue)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
-      <td class="nm muted">${fmtGBP(o.txFee)}</td>
+      <td class="nm muted fee-cell" title="${o.txFeeSource==='actual'?`Actual fee from Shopify (${escapeHtml(o.gateway||'')})`:o.txFeeSource==='estimate_forced'?`Forced estimate — real fee was ${fmtGBP(o.txFeeReal||0)} (${escapeHtml(o.gateway||'')})`:`Estimated — ${escapeHtml(o.gateway||'no gateway data')} doesn't return fee data`}"><span class="fee-dot ${o.txFeeSource==='actual'?'actual':'estimate'}"></span>${fmtGBP(o.txFee)}</td>
       <td class="nm"><div class="fulfill-cell">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span><label class="ddp-toggle${r.isDdp?' on':''}" title="Alibaba DDP — this cost has no reclaimable VAT, so VAT is not stripped from it"><input type="checkbox" data-order="${o.id}" ${r.isDdp?'checked':''} ${o.isUnpaid?'disabled':''} onchange="saveDdp(this)">DDP</label></div></td>
       <td class="nm ${profitCls}">${profitTxt}</td>
       <td class="nm">${marginHtml}</td>
@@ -1389,14 +1415,16 @@ function renderTable(){
   // Totals row
   const totals=rows.reduce((a,r)=>{
     a.gross+=r.revenue;a.fee+=r.o.txFee;
+    if(r.o.txFeeSource==='actual')a.feeActualCount++;
     if(r.fulfillment!=null)a.fulfill+=r.fulfillment;
     if(r.profit!=null)a.profit+=r.profit;
     return a;
-  },{gross:0,fee:0,fulfill:0,profit:0});
+  },{gross:0,fee:0,fulfill:0,profit:0,feeActualCount:0});
+  const feeSrcLabel=rows.length?(totals.feeActualCount===rows.length?`<span style="font-size:9px;color:var(--green);display:block;margin-top:2px">${totals.feeActualCount}/${rows.length} actual</span>`:totals.feeActualCount===0?`<span style="font-size:9px;color:var(--dim);display:block;margin-top:2px">${rows.length} estimated</span>`:`<span style="font-size:9px;color:var(--amber);display:block;margin-top:2px">${totals.feeActualCount}/${rows.length} actual</span>`):'';
   const totalRow=`<tr class="totals">
     <td colspan="4">Totals (${rows.length} rows)</td>
     <td class="nm">${fmtGBP(totals.gross)}</td>
-    <td class="nm">${fmtGBP(totals.fee)}</td>
+    <td class="nm">${fmtGBP(totals.fee)}${feeSrcLabel}</td>
     <td class="nm">${fmtGBP(totals.fulfill)}</td>
     <td class="nm">${fmtGBP(totals.profit)}</td>
     <td></td>
@@ -1768,7 +1796,7 @@ function exportCSV(){
   const rows=filterAndSort();
   const v=getVatConfig();
   const vatMode=v.showExVat?'ex-VAT':'inc-VAT';
-  const headers=['Order','Date','Customer','Products',`Revenue (${vatMode})`,'VAT','Tx fee',`Fulfillment (${vatMode})`,`Net profit (${vatMode})`,'Margin %','Status'];
+  const headers=['Order','Date','Customer','Products',`Revenue (${vatMode})`,'VAT','Tx fee','Tx fee source','Gateway',`Fulfillment (${vatMode})`,`Net profit (${vatMode})`,'Margin %','Status'];
   const lines=[headers.join(',')];
   rows.forEach(r=>{
     const o=r.o;
@@ -1778,6 +1806,8 @@ function exportCSV(){
       r.revenue.toFixed(2),
       (o.vatAmount||0).toFixed(2),
       o.txFee.toFixed(2),
+      o.txFeeSource||'estimate',
+      o.gateway||'',
       r.fulfillment!=null?r.fulfillment.toFixed(2):'',
       r.profit!=null?r.profit.toFixed(2):'',
       r.margin!=null?(r.margin*100).toFixed(2):'',
