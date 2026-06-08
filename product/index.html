@@ -101,8 +101,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;font-family:'DM Mono',monospace}
 .cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 /* Category mini-dashboards */
-.cat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:28px}
-@media(min-width:1280px){.cat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:28px}
 .cat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .cat-card.empty{opacity:0.55}
 .cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
@@ -644,8 +643,10 @@ function sortProducts(list){
 }
 
 // --- Category mini-dashboards ---
-// Order matters: first match wins, so "Sauna Lamp" goes to Saunas not Lighting.
+// Order matters: first match wins. Steam first so "Sauna & Steam" goes to Steam;
+// Sauna before Lighting so "Sauna Lamp" goes to Saunas, not Lighting.
 const CATEGORIES=[
+  {key:'steam',label:'Steam showers',match:n=>/steam\s*(shower|room|cabin|generator)|shower\s*cabin/i.test(n)},
   {key:'sauna',label:'Saunas',match:n=>/sauna/i.test(n)},
   {key:'swimspa',label:'Swim spas',match:n=>/swim\s*spa/i.test(n)},
   {key:'icebath',label:'Ice baths & cold plunge',match:n=>/ice\s*bath|ice\s*tub|chill\s*tubs?|cold\s*plunge|plunge\s*pool/i.test(n)},
