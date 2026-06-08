@@ -69,13 +69,14 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
 .tbl-row.ch{grid-template-columns:128px 56px 74px 74px 54px 44px 46px 44px 64px 44px 44px 56px 58px}
 .tbl-row.sh{grid-template-columns:1fr 90px 110px 70px 100px}
-.tbl-row.cmp{grid-template-columns:120px 60px 80px 70px 56px 65px 80px 72px 90px;gap:6px}
-.tbl-row.cmp>*:nth-child(6){padding-left:10px;border-left:0.5px solid var(--border)}
-.tbl-row.cmp>*:nth-child(9){padding-left:10px;border-left:0.5px solid var(--border)}
-.cmp-grp-hdr{display:grid;grid-template-columns:120px 60px 80px 70px 56px 65px 80px 72px 90px;gap:6px;padding:6px 0 4px;font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);border-bottom:0.5px solid var(--border)}
-.cmp-grp-hdr>span.grp-ga4{grid-column:2 / 6;text-align:center;color:#4285F4;font-weight:600}
-.cmp-grp-hdr>span.grp-shop{grid-column:6 / 9;text-align:center;color:var(--gold);font-weight:600}
-.cmp-grp-hdr>span.grp-delta{grid-column:9 / 10;text-align:center;color:var(--muted)}
+.tbl-row.cmp{grid-template-columns:108px 50px 68px 60px 46px 40px 40px 40px 56px 38px 38px 54px 54px 54px 68px 62px 76px;gap:5px;font-size:12.5px;min-width:1010px}
+.tbl-row.cmp>*:nth-child(14){padding-left:8px;border-left:0.5px solid var(--border)}
+.tbl-row.cmp>*:nth-child(17){padding-left:8px;border-left:0.5px solid var(--border)}
+#ch-compare{overflow-x:auto}
+.cmp-grp-hdr{display:grid;grid-template-columns:108px 50px 68px 60px 46px 40px 40px 40px 56px 38px 38px 54px 54px 54px 68px 62px 76px;gap:5px;padding:6px 0 4px;font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);border-bottom:0.5px solid var(--border);min-width:1010px}
+.cmp-grp-hdr>span.grp-ga4{grid-column:2 / 14;text-align:center;color:#4285F4;font-weight:600}
+.cmp-grp-hdr>span.grp-shop{grid-column:14 / 17;text-align:center;color:var(--gold);font-weight:600}
+.cmp-grp-hdr>span.grp-delta{grid-column:17 / 18;text-align:center;color:var(--muted)}
 .tnum.green{color:var(--green)}
 .tnum.red{color:var(--red)}
 .tbl-row.prod{grid-template-columns:1fr 90px 70px 80px 80px}
@@ -116,7 +117,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .footer{border-top:0.5px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
 .ftl{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
 
-@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.tbl-row.ch{grid-template-columns:100px 55px 70px 70px 55px 50px}.tbl-row.ch>*:nth-child(n+7){display:none}.tbl-row.sh{grid-template-columns:1fr 60px 80px 50px 70px}.tbl-row.cmp{grid-template-columns:100px 70px 60px 70px 75px}.tbl-row.cmp>*:nth-child(4),.tbl-row.cmp>*:nth-child(5),.tbl-row.cmp>*:nth-child(8){display:none}.cmp-grp-hdr{display:none}.tbl-row.prod{grid-template-columns:1fr 70px 55px 65px}.tbl-row.prod>*:nth-child(5){display:none}.pnl-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
+@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}.tbl-row.ch{grid-template-columns:100px 55px 70px 70px 55px 50px}.tbl-row.ch>*:nth-child(n+7){display:none}.tbl-row.sh{grid-template-columns:1fr 60px 80px 50px 70px}.tbl-row.cmp{font-size:11.5px}.cmp-grp-hdr{font-size:8.5px}.tbl-row.prod{grid-template-columns:1fr 70px 55px 65px}.tbl-row.prod>*:nth-child(5){display:none}.pnl-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -645,8 +646,26 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
   // ---------- GA4 SIDE ----------
   // Allocate ad spend to Paid sub-channels FIRST (mirrors old renderChannelTable),
   // then normalise to a unified channel name so rows align with Shopify.
+  const emptyFunnel=()=>({form_submit:0,add_to_cart:0,begin_checkout:0,purchase:0});
+  const emptyGa4=()=>({sessions:0,revenue:0,adCost:0,calls:0,whatsapp:0,chat:0,funnel:emptyFunnel()});
   const ga4Raw={};
-  Object.entries(chMap||{}).forEach(([ch,d])=>{ga4Raw[ch]={sessions:d.sessions,revenue:d.revenue,adCost:0};});
+  Object.entries(chMap||{}).forEach(([ch,d])=>{
+    const f=d.funnel||{};
+    ga4Raw[ch]={
+      sessions:d.sessions||0,
+      revenue:d.revenue||0,
+      adCost:0,
+      calls:d.calls||0,
+      whatsapp:d.whatsapp||0,
+      chat:d.chat||0,
+      funnel:{
+        form_submit:f.form_submit||0,
+        add_to_cart:f.add_to_cart||0,
+        begin_checkout:f.begin_checkout||0,
+        purchase:f.purchase||0
+      }
+    };
+  });
   const gAdSpend=gAdSpendTotal||0;
   if(gAdSpend>0){
     const ps=ga4Raw['Paid Search'], psh=ga4Raw['Paid Shopping'];
@@ -656,19 +675,27 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
       psh.adCost=gAdSpend*(psh.sessions/tot);
     }else if(ps){ps.adCost=gAdSpend;}
     else if(psh){psh.adCost=gAdSpend;}
-    else{ga4Raw['Paid Search']={sessions:0,revenue:0,adCost:gAdSpend};}
+    else{ga4Raw['Paid Search']=Object.assign(emptyGa4(),{adCost:gAdSpend});}
   }
   const msSpend=getMsTotalSpend();
   if(ga4Raw['Paid Search']&&msSpend>0)ga4Raw['Paid Search'].adCost+=msSpend;
-  // Normalise into the unified channel space
+  // Normalise into the unified channel space — sum all detail metrics too
   const ga4={};
   Object.entries(ga4Raw).forEach(([ch,d])=>{
     const key=normaliseGa4Channel(ch);
-    if(!ga4[key])ga4[key]={sessions:0,revenue:0,adCost:0};
+    if(!ga4[key])ga4[key]=emptyGa4();
     ga4[key].sessions+=d.sessions;
     ga4[key].revenue+=d.revenue;
     ga4[key].adCost+=d.adCost;
+    ga4[key].calls+=d.calls;
+    ga4[key].whatsapp+=d.whatsapp;
+    ga4[key].chat+=d.chat;
+    ga4[key].funnel.form_submit+=d.funnel.form_submit;
+    ga4[key].funnel.add_to_cart+=d.funnel.add_to_cart;
+    ga4[key].funnel.begin_checkout+=d.funnel.begin_checkout;
+    ga4[key].funnel.purchase+=d.funnel.purchase;
   });
+  const ga4TotRev=Object.values(ga4).reduce((a,d)=>a+d.revenue,0)||1;
 
   // ---------- SHOPIFY SIDE ----------
   const orders=(shopifyPayload&&shopifyPayload.orders)||[];
@@ -713,15 +740,16 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
     banner=`<div style="padding:14px 16px;color:var(--red);font-size:12px;border-bottom:0.5px solid var(--border)">Shopify fetch failed: ${fetchErr}. GA4 side shown below.</div>`;
   }
 
-  // Super-header — GA4 spans cols 2-5, Shopify spans cols 6-8, Δ stands alone in col 9
+  // Super-header — GA4 spans cols 2-13 (12 cols), Shopify spans cols 14-16 (3 cols), Δ stands alone in col 17
   const grpHdr=`<div class="cmp-grp-hdr"><span></span><span class="grp-ga4">GA4 · on-site sessions</span><span class="grp-shop">Shopify · true source</span><span class="grp-delta">Δ</span></div>`;
-  const colHdr=`<div class="tbl-row tbl-hdr cmp"><span>Channel</span><span style="text-align:right">Sess.</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">Orders</span><span style="text-align:right">Revenue</span><span style="text-align:right">AOV</span><span style="text-align:right">Δ Rev</span></div>`;
+  const colHdr=`<div class="tbl-row tbl-hdr cmp"><span>Channel</span><span style="text-align:right">Sess.</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">% Rev</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">WhatsApp</span><span style="text-align:right">Chat</span><span style="text-align:right">ATC</span><span style="text-align:right">Checkout</span><span style="text-align:right">Purchase</span><span style="text-align:right">Orders</span><span style="text-align:right">Revenue</span><span style="text-align:right">AOV</span><span style="text-align:right">Δ Rev</span></div>`;
 
   const body=rows.map(({ch,g,s},i)=>{
     const isTop=i===0;
     const color=CH_COLORS[ch]||'#9ca3af';
     const roasStr=g.adCost>0?(g.revenue/g.adCost).toFixed(2)+'x':'—';
     const roasCls=g.adCost>0?(parseFloat(roasStr)>=2?' green':parseFloat(roasStr)<1?' red':''):'';
+    const pctRev=g.revenue>0?Math.round(g.revenue/ga4TotRev*100)+'%':'—';
     const aov=s.orders>0?s.revenue/s.orders:0;
     const delta=s.revenue-g.revenue;
     let deltaTxt='—',deltaCls='mu';
@@ -729,12 +757,22 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
       deltaTxt=(delta>=0?'+':'−')+fmtGBP(Math.abs(delta));
       deltaCls=Math.abs(delta)<1?'mu':delta>0?'green':'red';
     }
+    const f=g.funnel;
+    const fc=v=>v>0?v:'—';
     return`<div class="tbl-row cmp${isTop?' top-row':''}">
       <span class="ch-name"><span class="ch-dot" style="background:${color}"></span>${ch}</span>
       <span class="tnum">${g.sessions>0?g.sessions.toLocaleString():'—'}</span>
       <span class="tnum gold">${g.revenue>0?fmtGBP(g.revenue):'—'}</span>
       <span class="tnum${g.adCost>0?' mu':''}">${g.adCost>0?fmtGBP(g.adCost):'—'}</span>
       <span class="tnum${roasCls}">${roasStr}</span>
+      <span class="tnum mu">${pctRev}</span>
+      <span class="tnum">${fc(f.form_submit)}</span>
+      <span class="tnum">${fc(g.calls)}</span>
+      <span class="tnum">${fc(g.whatsapp)}</span>
+      <span class="tnum">${fc(g.chat)}</span>
+      <span class="tnum">${fc(f.add_to_cart)}</span>
+      <span class="tnum">${fc(f.begin_checkout)}</span>
+      <span class="tnum">${fc(f.purchase)}</span>
       <span class="tnum">${s.orders>0?s.orders.toLocaleString():'—'}</span>
       <span class="tnum gold">${s.revenue>0?fmtGBP(s.revenue):'—'}</span>
       <span class="tnum">${aov>0?fmtGBP(aov):'—'}</span>
