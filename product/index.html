@@ -648,13 +648,17 @@ function sortProducts(list){
 }
 
 // --- Category mini-dashboards ---
-// Order matters: first match wins. Steam first so "Sauna & Steam" goes to Steam;
-// Sauna before Lighting so "Sauna Lamp" goes to Saunas, not Lighting.
+// Order matters: first match wins. Steam before Sauna ("Sauna & Steam" → Steam),
+// Sauna before Hot tubs / Swim spas (so "Sauna in hot tub style" doesn't land in
+// Hot tubs), Sauna before Lighting ("Sauna Lamp" → Saunas not Lighting).
+// Hot tubs explicitly excludes "heat pump" (accessory, not a hot tub itself).
 const CATEGORIES=[
   {key:'steam',label:'Steam showers',match:n=>/steam\s*(shower|room|cabin|generator)|shower\s*cabin/i.test(n)},
   {key:'sauna',label:'Saunas',match:n=>/sauna/i.test(n)},
+  {key:'hottub',label:'Hot tubs',match:n=>/hot\s*tub/i.test(n)&&!/heat\s*pump/i.test(n)},
   {key:'swimspa',label:'Swim spas',match:n=>/swim\s*spa/i.test(n)},
   {key:'icebath',label:'Ice baths & cold plunge',match:n=>/ice\s*bath|ice\s*tub|chill\s*tubs?|cold\s*plunge|plunge\s*pool/i.test(n)},
+  {key:'pergola',label:'Pergolas',match:n=>/pergola/i.test(n)},
   {key:'lighting',label:'Lighting',match:n=>/\b(lighting|chandelier|sconce|pendant)\b/i.test(n)||/\b(lamp|lamps)\b/i.test(n)||/\blight\b/i.test(n)}
 ];
 function categoryFor(name){
