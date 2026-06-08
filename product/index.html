@@ -113,16 +113,17 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .cat-stat-lbl{font-size:9px;letter-spacing:0.06em;color:var(--dim);text-transform:uppercase;font-family:'DM Mono',monospace}
 .cat-stat-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-feature-settings:'tnum';overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-prods{display:flex;flex-direction:column}
-.cat-prods-head{display:grid;grid-template-columns:1.5fr repeat(6,minmax(0,1fr));gap:6px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
+.cat-prods-head{display:grid;grid-template-columns:1.4fr repeat(7,minmax(0,1fr));gap:5px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
 .cat-prods-head span{text-align:right;cursor:pointer;user-select:none;transition:color 0.15s}
 .cat-prods-head span:first-child{text-align:left}
 .cat-prods-head span:hover{color:var(--text)}
 .cat-prods-head span.sort-active{color:var(--gold)}
 .cat-prods-head span.sort-active::after{content:'↑';margin-left:2px;font-size:9px}
 .cat-prods-head span.sort-active.desc::after{content:'↓'}
-.cat-prod{display:grid;grid-template-columns:1.5fr repeat(6,minmax(0,1fr));gap:6px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
+.cat-prod{display:grid;grid-template-columns:1.4fr repeat(7,minmax(0,1fr));gap:5px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
 .cat-prod:last-child{border-bottom:none}
-.cat-prod-name{font-family:'Syne',sans-serif;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-prod-name{font-family:'Syne',sans-serif;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:color 0.15s}
+.cat-prod-name:hover{color:var(--gold)}
 .cat-prod span{text-align:right;font-feature-settings:'tnum';color:var(--muted)}
 .cat-prod span.win{color:var(--green)}
 .cat-empty{color:var(--dim);font-size:11px;text-align:center;padding:16px 0}
@@ -668,6 +669,30 @@ function categoryFor(name){
 // Per-card sort state — each category remembers its own column + direction
 const catSortState={};
 CATEGORIES.forEach(c=>{catSortState[c.key]={col:'revenue',desc:true};});
+// Drill from a category card into the main product table — scroll, highlight,
+// expand the channel breakdown if not already open. Auto-turns-on Show all
+// if the product is ranked past the top 25 visible rows.
+function drillToProduct(slug,name){
+  const find=()=>document.querySelector(`.tbl-row[data-slug="${CSS.escape(slug)}"]`);
+  let row=find();
+  if(!row&&!showAll){
+    showAll=true;
+    renderTable();
+    row=find();
+  }
+  if(!row)return;
+  row.scrollIntoView({behavior:'smooth',block:'center'});
+  // Brief gold highlight so the user can see the row they landed on
+  row.style.transition='background 0.4s';
+  row.style.background='rgba(212,175,55,0.18)';
+  setTimeout(()=>{row.style.background='';},1600);
+  // Expand the channel breakdown only if currently closed (don't toggle off)
+  const idx=row.getAttribute('data-idx');
+  const expand=document.getElementById('expand-'+idx);
+  if(expand&&!expand.classList.contains('open')){
+    toggleExpand(row,name,slug);
+  }
+}
 function sortCat(catKey,col){
   const s=catSortState[catKey];
   if(s.col===col)s.desc=!s.desc;
@@ -724,19 +749,22 @@ function renderCategories(products){
           <span class="${sc('whatsapp')}" onclick="sortCat('${c.key}','whatsapp')">WA</span>
           <span class="${sc('forms')}" onclick="sortCat('${c.key}','forms')">Forms</span>
           <span class="${sc('purchases')}" onclick="sortCat('${c.key}','purchases')">Purch.</span>
+          <span class="${sc('aov')}" onclick="sortCat('${c.key}','aov')">AOV</span>
         </div>
         ${top.map(p=>{
           const winCls=p.purchases>0?'win':'';
           const safeName=p.name.replace(/"/g,'&quot;');
+          const jsName=p.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           const shortName=p.name.length>32?p.name.slice(0,32)+'…':p.name;
-          return`<div class="cat-prod" title="${safeName}">
-            <div class="cat-prod-name">${shortName}</div>
+          return`<div class="cat-prod" title="Click to see channel breakdown · ${safeName}">
+            <div class="cat-prod-name" onclick="drillToProduct('${p.slug}','${jsName}')">${shortName}</div>
             <span>${fmtInt(p.sessions)}</span>
             <span>${fmtInt(p.atc)}</span>
             <span>${p.calls>0?p.calls:'—'}</span>
             <span>${p.whatsapp>0?p.whatsapp:'—'}</span>
             <span>${p.forms>0?p.forms:'—'}</span>
             <span class="${winCls}">${fmtInt(p.purchases)}</span>
+            <span>${p.aov>0?fmtGBP(p.aov):'—'}</span>
           </div>`;
         }).join('')}
       </div>`}
