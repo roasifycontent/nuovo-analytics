@@ -101,21 +101,26 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .ct{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;font-family:'DM Mono',monospace}
 .cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 /* Category mini-dashboards */
-.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:28px}
-.cat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.cat-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:28px}
+@media(min-width:900px){.cat-grid{grid-template-columns:1fr 1fr}}
+.cat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .cat-card.empty{opacity:0.55}
 .cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.cat-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:500;letter-spacing:0.04em;color:var(--text)}
+.cat-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:500;letter-spacing:0.04em;color:var(--text)}
 .cat-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:0.05em;white-space:nowrap}
-.cat-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:10px 0;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
-.cat-stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cat-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 10px;padding:12px 0;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
+.cat-stat{display:flex;flex-direction:column;gap:3px;min-width:0}
 .cat-stat-lbl{font-size:9px;letter-spacing:0.06em;color:var(--dim);text-transform:uppercase;font-family:'DM Mono',monospace}
-.cat-stat-val{font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-feature-settings:'tnum';overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-stat-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-feature-settings:'tnum';overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-prods{display:flex;flex-direction:column}
-.cat-prods-head{display:grid;grid-template-columns:1.6fr repeat(4,minmax(0,1fr));gap:6px;font-family:'DM Mono',monospace;font-size:9px;padding:4px 0 6px;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
-.cat-prods-head span{text-align:right}
+.cat-prods-head{display:grid;grid-template-columns:1.5fr repeat(6,minmax(0,1fr));gap:6px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
+.cat-prods-head span{text-align:right;cursor:pointer;user-select:none;transition:color 0.15s}
 .cat-prods-head span:first-child{text-align:left}
-.cat-prod{display:grid;grid-template-columns:1.6fr repeat(4,minmax(0,1fr));gap:6px;padding:6px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
+.cat-prods-head span:hover{color:var(--text)}
+.cat-prods-head span.sort-active{color:var(--gold)}
+.cat-prods-head span.sort-active::after{content:'↑';margin-left:2px;font-size:9px}
+.cat-prods-head span.sort-active.desc::after{content:'↓'}
+.cat-prod{display:grid;grid-template-columns:1.5fr repeat(6,minmax(0,1fr));gap:6px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
 .cat-prod:last-child{border-bottom:none}
 .cat-prod-name{font-family:'Syne',sans-serif;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-prod span{text-align:right;font-feature-settings:'tnum';color:var(--muted)}
@@ -656,21 +661,40 @@ function categoryFor(name){
   for(const c of CATEGORIES)if(c.match(name||''))return c.key;
   return null;
 }
+// Per-card sort state — each category remembers its own column + direction
+const catSortState={};
+CATEGORIES.forEach(c=>{catSortState[c.key]={col:'revenue',desc:true};});
+function sortCat(catKey,col){
+  const s=catSortState[catKey];
+  if(s.col===col)s.desc=!s.desc;
+  else{s.col=col;s.desc=col!=='name';}
+  renderCategories(allProducts);
+}
+function sortCatItems(items,catKey){
+  const{col,desc}=catSortState[catKey];
+  const dir=desc?-1:1;
+  return[...items].sort((a,b)=>{
+    const av=a[col],bv=b[col];
+    if(typeof av==='string')return dir*av.localeCompare(bv);
+    return dir*((av||0)-(bv||0));
+  });
+}
 function renderCategories(products){
   const grid=document.getElementById('cat-grid');
   if(!grid)return;
   let html='';
   CATEGORIES.forEach(c=>{
-    const items=products
-      .filter(p=>categoryFor(p.name)===c.key)
-      .sort((a,b)=>(b.revenue-a.revenue)||(b.sessions-a.sessions));
+    const items=products.filter(p=>categoryFor(p.name)===c.key);
+    const sorted=sortCatItems(items,c.key);
     const totals=items.reduce((a,p)=>{
       a.sessions+=p.sessions;a.atc+=p.atc;a.checkout+=p.checkout;a.purchases+=p.purchases;a.revenue+=p.revenue;
       a.calls+=p.calls;a.whatsapp+=p.whatsapp;a.chat+=p.chat;a.forms+=p.forms;
       return a;
     },{sessions:0,atc:0,checkout:0,purchases:0,revenue:0,calls:0,whatsapp:0,chat:0,forms:0});
-    const top=items.slice(0,6);
+    const top=sorted.slice(0,6);
     const isEmpty=items.length===0;
+    const s=catSortState[c.key];
+    const sc=col=>{const a=s.col===col?'sort-active'+(s.desc?' desc':''):'';return a;};
     html+=`<div class="cat-card${isEmpty?' empty':''}">
       <div class="cat-head">
         <div class="cat-title">${c.label}</div>
@@ -680,23 +704,35 @@ function renderCategories(products){
         <div class="cat-stat"><div class="cat-stat-lbl">Sessions</div><div class="cat-stat-val">${fmtInt(totals.sessions)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">ATC</div><div class="cat-stat-val">${fmtInt(totals.atc)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Purchases</div><div class="cat-stat-val">${fmtInt(totals.purchases)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">Revenue</div><div class="cat-stat-val">${totals.revenue>0?fmtGBP(totals.revenue):'—'}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Calls</div><div class="cat-stat-val">${fmtInt(totals.calls)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">WhatsApp</div><div class="cat-stat-val">${fmtInt(totals.whatsapp)}</div></div>
-        <div class="cat-stat"><div class="cat-stat-lbl">Revenue</div><div class="cat-stat-val">${totals.revenue>0?fmtGBP(totals.revenue):'—'}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">Forms</div><div class="cat-stat-val">${fmtInt(totals.forms)}</div></div>
+        <div class="cat-stat"><div class="cat-stat-lbl">Chat</div><div class="cat-stat-val">${fmtInt(totals.chat)}</div></div>
       </div>
       ${isEmpty?'<div class="cat-empty">No products matched in this date range</div>':`
       <div class="cat-prods">
-        <div class="cat-prods-head"><span>Top products</span><span>Sess.</span><span>ATC</span><span>Calls</span><span>Purch.</span></div>
+        <div class="cat-prods-head">
+          <span class="${sc('name')}" onclick="sortCat('${c.key}','name')">Top products</span>
+          <span class="${sc('sessions')}" onclick="sortCat('${c.key}','sessions')">Sess.</span>
+          <span class="${sc('atc')}" onclick="sortCat('${c.key}','atc')">ATC</span>
+          <span class="${sc('calls')}" onclick="sortCat('${c.key}','calls')">Calls</span>
+          <span class="${sc('whatsapp')}" onclick="sortCat('${c.key}','whatsapp')">WA</span>
+          <span class="${sc('forms')}" onclick="sortCat('${c.key}','forms')">Forms</span>
+          <span class="${sc('purchases')}" onclick="sortCat('${c.key}','purchases')">Purch.</span>
+        </div>
         ${top.map(p=>{
-          const winCls=p.purchases>0?' win':'';
+          const winCls=p.purchases>0?'win':'';
           const safeName=p.name.replace(/"/g,'&quot;');
-          const shortName=p.name.length>34?p.name.slice(0,34)+'…':p.name;
+          const shortName=p.name.length>32?p.name.slice(0,32)+'…':p.name;
           return`<div class="cat-prod" title="${safeName}">
             <div class="cat-prod-name">${shortName}</div>
             <span>${fmtInt(p.sessions)}</span>
             <span>${fmtInt(p.atc)}</span>
             <span>${p.calls>0?p.calls:'—'}</span>
-            <span class="${winCls.trim()}">${fmtInt(p.purchases)}</span>
+            <span>${p.whatsapp>0?p.whatsapp:'—'}</span>
+            <span>${p.forms>0?p.forms:'—'}</span>
+            <span class="${winCls}">${fmtInt(p.purchases)}</span>
           </div>`;
         }).join('')}
       </div>`}
