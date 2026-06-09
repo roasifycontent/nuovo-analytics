@@ -886,15 +886,20 @@ function classifyOrderChannel(order){
   const checkSrc=utmSrc||src;
   // 2. Email — utm medium=email, or utm source/source is a known email sender
   if(utmMed==='email'||/klaviyo|mailchimp|sendgrid|hubspot|activecampaign/.test(checkSrc))return 'Email';
-  // 3. Paid medium → Paid (or Paid Social if the source is a social platform)
+  // 3. Pinterest is ALWAYS Organic Social — Nuovo runs Pinterest organically. Stale or
+  //    third-party-added utm_medium=cpc on Pinterest pins was misclassifying genuine
+  //    organic Pinterest traffic as paid. If paid Pinterest campaigns start later, swap
+  //    this to require an explicit marker (e.g. utm_source='pinterest_ads').
+  if(/pinterest/.test(checkSrc))return 'Organic Social';
+  // 4. Paid medium → Paid (or Paid Social for Meta / TikTok where Nuovo does run ads)
   if(['cpc','ppc','paid'].includes(utmMed)){
-    if(/pinterest|facebook|instagram|tiktok/.test(checkSrc))return 'Paid Social';
+    if(/facebook|instagram|tiktok/.test(checkSrc))return 'Paid Social';
     return 'Paid';
   }
-  // 4. AI sources
+  // 5. AI sources
   if(/chatgpt|gemini|perplexity|copilot|claude/.test(checkSrc))return 'AI';
-  // 4. Social platforms without paid medium → Organic Social
-  if(/pinterest|facebook|instagram|tiktok/.test(checkSrc))return 'Organic Social';
+  // 6. Other social platforms without paid medium → Organic Social
+  if(/facebook|instagram|tiktok/.test(checkSrc))return 'Organic Social';
   // 5. Organic search — sourceType=SEO, or known search engines
   if(srcType==='SEO'||/^(google|bing|duckduckgo|yahoo|ecosia)$/.test(checkSrc))return 'Organic Search';
   // 6. Direct
