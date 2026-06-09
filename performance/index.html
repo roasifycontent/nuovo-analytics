@@ -84,6 +84,17 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .cmp-grp-hdr>span.grp-ga4{grid-column:2 / 14;text-align:center;color:#4285F4;font-weight:700;border-bottom:2px solid #4285F4;padding-bottom:5px;margin-bottom:2px}
 .cmp-grp-hdr>span.grp-shop{grid-column:14 / 18;text-align:center;color:var(--gold);font-weight:700;border-bottom:2px solid var(--gold);padding-bottom:5px;margin-bottom:2px}
 .cmp-grp-hdr>span.grp-delta{grid-column:18 / 19;text-align:center;color:var(--muted);font-weight:700;border-bottom:2px solid var(--muted);padding-bottom:5px;margin-bottom:2px}
+/* Reading guide — plain English at the top of the card so the table is self-explanatory */
+.cmp-guide{padding:12px 16px;background:var(--bg3);border-radius:8px;font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:14px;border-left:3px solid var(--gold)}
+.cmp-guide strong{color:var(--text);font-weight:600}
+.cmp-guide .gd-ga4{color:#4285F4;font-weight:600}
+.cmp-guide .gd-shop{color:var(--gold);font-weight:600}
+.cmp-guide .gd-delta{color:var(--green);font-weight:600}
+/* Per-column subtitle — a tiny one-word reminder of what each column shows */
+.cmp-sub{font-size:9px;font-weight:400;letter-spacing:0.02em;color:var(--dim);text-transform:none;opacity:0.85;margin-top:2px}
+.tbl-row.tbl-hdr.cmp{align-items:flex-start;padding-top:8px;padding-bottom:10px}
+.tbl-row.tbl-hdr.cmp>span{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.2}
+.tbl-row.tbl-hdr.cmp>span:first-child{align-items:flex-start}
 .tnum.green{color:var(--green)}
 .tnum.red{color:var(--red)}
 .tbl-row.prod{grid-template-columns:1fr 90px 70px 80px 80px}
@@ -752,9 +763,38 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
     banner=`<div style="padding:14px 16px;color:var(--red);font-size:12px;border-bottom:0.5px solid var(--border)">Shopify fetch failed: ${fetchErr}. GA4 side shown below.</div>`;
   }
 
+  // Reading guide — plain English explanation at the top of the card
+  const guide=`<div class="cmp-guide">
+    <strong>Read it like this:</strong>
+    The <span class="gd-ga4">blue GA4 block (left)</span> shows what visitors did on your site — sessions, on-site events, and the revenue GA4 attributes to each channel.
+    The <span class="gd-shop">gold Shopify block (right)</span> shows real orders by their <em>true first-visit source</em> (where the customer actually came from), pulled from Shopify's customer-journey data.
+    <strong>Δ Rev</strong> = Shopify revenue − GA4 revenue. <span class="gd-delta">Green</span> means Shopify reveals more revenue than GA4 attributed (good — you're capturing real sales GA4 missed). Red means GA4 is over-attributing.
+    <strong>WA Lead</strong> counts orders in that source that converted via a WhatsApp conversation.
+  </div>`;
   // Super-header — GA4 spans cols 2-13 (12 cols), Shopify spans cols 14-17 (4 cols), Δ stands alone in col 18
   const grpHdr=`<div class="cmp-grp-hdr"><span></span><span class="grp-ga4">GA4 · on-site sessions</span><span class="grp-shop">Shopify · true source</span><span class="grp-delta">Δ</span></div>`;
-  const colHdr=`<div class="tbl-row tbl-hdr cmp"><span>Channel</span><span style="text-align:right">Sess.</span><span style="text-align:right">Revenue</span><span style="text-align:right">Ad Spend</span><span style="text-align:right">ROAS</span><span style="text-align:right">% Rev</span><span style="text-align:right">Forms</span><span style="text-align:right">Calls</span><span style="text-align:right">WhatsApp</span><span style="text-align:right">Chat</span><span style="text-align:right">ATC</span><span style="text-align:right">Checkout</span><span style="text-align:right">Purchase</span><span style="text-align:right">Orders</span><span style="text-align:right">Revenue</span><span style="text-align:right">AOV</span><span style="text-align:right" title="Orders in this source that came via a WhatsApp conversation">WA Lead</span><span style="text-align:right">Δ Rev</span></div>`;
+  // Subtitle helper — small reminder line under each header
+  const s=t=>`<div class="cmp-sub">${t}</div>`;
+  const colHdr=`<div class="tbl-row tbl-hdr cmp">
+    <span title="Traffic source / channel grouping">Channel${s('source')}</span>
+    <span style="text-align:right" title="Total sessions GA4 attributed to this channel">Sess.${s('visits')}</span>
+    <span style="text-align:right" title="Revenue GA4 attributed to this channel — based on on-site session attribution">Revenue${s('GA4 attr.')}</span>
+    <span style="text-align:right" title="Google Ads + Microsoft Ads cost — allocated to Paid">Ad Spend${s('G + MS')}</span>
+    <span style="text-align:right" title="Return on ad spend — revenue ÷ ad spend">ROAS${s('rev / spend')}</span>
+    <span style="text-align:right" title="This channel's share of total GA4 revenue">% Rev${s('share')}</span>
+    <span style="text-align:right" title="form_submit + generate_lead events on your site">Forms${s('lead forms')}</span>
+    <span style="text-align:right" title="Phone-click events (click_to_call_ga4) on your site">Calls${s('phone clk')}</span>
+    <span style="text-align:right" title="WhatsApp icon click events on your site (GA4 tracking)">WhatsApp${s('on-site clk')}</span>
+    <span style="text-align:right" title="Tidio chat conversations started">Chat${s('Tidio')}</span>
+    <span style="text-align:right" title="Add-to-cart events">ATC${s('add to cart')}</span>
+    <span style="text-align:right" title="Begin-checkout events">Checkout${s('start chkt')}</span>
+    <span style="text-align:right" title="Completed purchase events from GA4">Purchase${s('GA4 evt')}</span>
+    <span style="text-align:right" title="Real number of paid/authorised Shopify orders attributed to this source">Orders${s('real orders')}</span>
+    <span style="text-align:right" title="Net revenue from Shopify orders (minus refunds)">Revenue${s('Shopify net')}</span>
+    <span style="text-align:right" title="Average order value — Shopify revenue ÷ orders">AOV${s('avg / order')}</span>
+    <span style="text-align:right" title="Orders in this source that came via a WhatsApp conversation">WA Lead${s('via WA tag')}</span>
+    <span style="text-align:right" title="Shopify revenue minus GA4 revenue. Green = Shopify reveals more.">Δ Rev${s('Shop − GA4')}</span>
+  </div>`;
 
   const body=rows.map(({ch,g,s},i)=>{
     const isTop=i===0;
@@ -793,7 +833,7 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
     </div>`;
   }).join('');
 
-  el.innerHTML=banner+grpHdr+colHdr+body;
+  el.innerHTML=banner+guide+grpHdr+colHdr+body;
 }
 
 // --- Shopify attribution (true source from order data) ---
