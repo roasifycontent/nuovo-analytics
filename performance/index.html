@@ -69,14 +69,21 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 .tbl-hdr{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);padding-bottom:6px}
 .tbl-row.ch{grid-template-columns:128px 56px 74px 74px 54px 44px 46px 44px 64px 44px 44px 56px 58px}
 .tbl-row.sh{grid-template-columns:1fr 90px 110px 70px 100px}
-.tbl-row.cmp{grid-template-columns:140px 50px 72px 78px 48px 56px 56px 56px 78px 46px 48px 78px 78px 64px 78px 58px 64px 82px;gap:6px;font-size:13px}
-.tbl-row.cmp>*:nth-child(14){padding-left:8px;border-left:0.5px solid var(--border)}
-.tbl-row.cmp>*:nth-child(18){padding-left:8px;border-left:0.5px solid var(--border)}
+.tbl-row.cmp{grid-template-columns:140px 50px 72px 78px 48px 56px 56px 56px 78px 46px 48px 78px 78px 80px 78px 58px 70px 92px;gap:6px;font-size:13px}
+/* STRONG section dividers — 3px gold line + padding so the eye groups the cols */
+.tbl-row.cmp>*:nth-child(14){padding-left:12px;border-left:3px solid var(--gold)}
+.tbl-row.cmp>*:nth-child(18){padding-left:12px;border-left:2px solid var(--muted)}
+/* Shopify-section cells get a subtle gold tint so the band is obvious end-to-end */
+.tbl-row.cmp>*:nth-child(n+14):nth-child(-n+17){background:rgba(212,168,67,0.06)}
+/* Column headers — color them by section so GA4 vs Shopify is immediately clear */
+.tbl-row.tbl-hdr.cmp>*:nth-child(n+2):nth-child(-n+13){color:#4285F4}
+.tbl-row.tbl-hdr.cmp>*:nth-child(n+14):nth-child(-n+17){color:var(--gold);background:rgba(212,168,67,0.12)}
 #ch-compare{overflow-x:auto}
-.cmp-grp-hdr{display:grid;grid-template-columns:140px 50px 72px 78px 48px 56px 56px 56px 78px 46px 48px 78px 78px 64px 78px 58px 64px 82px;gap:6px;padding:6px 0 4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);border-bottom:0.5px solid var(--border)}
-.cmp-grp-hdr>span.grp-ga4{grid-column:2 / 14;text-align:center;color:#4285F4;font-weight:600}
-.cmp-grp-hdr>span.grp-shop{grid-column:14 / 18;text-align:center;color:var(--gold);font-weight:600}
-.cmp-grp-hdr>span.grp-delta{grid-column:18 / 19;text-align:center;color:var(--muted)}
+.cmp-grp-hdr{display:grid;grid-template-columns:140px 50px 72px 78px 48px 56px 56px 56px 78px 46px 48px 78px 78px 80px 78px 58px 70px 92px;gap:6px;padding:10px 0 6px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase}
+/* Super-header labels — bigger, bolder, with matching underline so each block is unmistakable */
+.cmp-grp-hdr>span.grp-ga4{grid-column:2 / 14;text-align:center;color:#4285F4;font-weight:700;border-bottom:2px solid #4285F4;padding-bottom:5px;margin-bottom:2px}
+.cmp-grp-hdr>span.grp-shop{grid-column:14 / 18;text-align:center;color:var(--gold);font-weight:700;border-bottom:2px solid var(--gold);padding-bottom:5px;margin-bottom:2px}
+.cmp-grp-hdr>span.grp-delta{grid-column:18 / 19;text-align:center;color:var(--muted);font-weight:700;border-bottom:2px solid var(--muted);padding-bottom:5px;margin-bottom:2px}
 .tnum.green{color:var(--green)}
 .tnum.red{color:var(--red)}
 .tbl-row.prod{grid-template-columns:1fr 90px 70px 80px 80px}
