@@ -215,7 +215,7 @@ input[type="date"]{background:var(--bg2);border:0.5px solid var(--border);border
     <div class="kpi blended">
       <div class="kpi-lbl">Blended cat ROAS</div>
       <div class="kpi-val" id="k-blended">—</div>
-      <div class="kpi-sub">Shopify cat-paid rev ÷ spend · estimate</div>
+      <div class="kpi-sub">whole category revenue ÷ spend · estimate</div>
     </div>
     <div class="kpi">
       <div class="kpi-lbl">Cat orders</div>
@@ -580,35 +580,33 @@ async function refresh(){
       safeGa4({dateRanges:ds,dimensions:[{name:'date'}],metrics:[
         {name:'sessions'},{name:'purchaseRevenue'}
       ],dimensionFilter:googleCpc,orderBys:[{dimension:{dimensionName:'date'}}]}),
-      // 5. FUNNEL events by event name
-      safeGa4({dateRanges:ds,dimensions:[{name:'eventName'}],metrics:[
+      // 5. FUNNEL events — sessionCampaignName as a DIMENSION (not a filter) then
+      //    matched client-side. This mirrors the proven Paid-page pattern; filtering
+      //    an eventName-dimension query directly by sessionCampaignName returns empty.
+      safeGa4({dateRanges:ds,dimensions:[{name:'sessionCampaignName'},{name:'eventName'}],metrics:[
         {name:'eventCount'}
       ],dimensionFilter:{andGroup:{expressions:[
-        campaignFilter,
         {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
         {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
         {filter:{fieldName:'eventName',inListFilter:{values:['add_to_cart','begin_checkout','purchase','form_submit']}}}
-      ]}}}),
+      ]}},limit:5000}),
       // 6. CONTACT events (Calls / WhatsApp / Chat) — unique users via totalUsers
-      safeGa4({dateRanges:ds,dimensions:[{name:'eventName'}],metrics:[
+      safeGa4({dateRanges:ds,dimensions:[{name:'sessionCampaignName'},{name:'eventName'}],metrics:[
         {name:'totalUsers'}
       ],dimensionFilter:{andGroup:{expressions:[
-        campaignFilter,
         {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
         {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
         {filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}
-      ]}}}),
-      // 7. PER-PRODUCT events scoped to this campaign — itemName + eventName breakdown
-      //    so the products table can show real Sess / ATC / Chkt for THIS campaign
-      //    (eventCount is event-scoped, mixes safely with itemName).
-      safeGa4({dateRanges:ds,dimensions:[{name:'itemName'},{name:'eventName'}],metrics:[
+      ]}},limit:5000}),
+      // 7. PER-PRODUCT events — sessionCampaignName + itemName + eventName, matched
+      //    client-side. eventCount pairs naturally with item events.
+      safeGa4({dateRanges:ds,dimensions:[{name:'sessionCampaignName'},{name:'itemName'},{name:'eventName'}],metrics:[
         {name:'eventCount'}
       ],dimensionFilter:{andGroup:{expressions:[
-        campaignFilter,
         {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
         {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
         {filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase']}}}
-      ]}}}),
+      ]}},limit:10000}),
       // 8. Shopify orders for the date range (server-side endpoint)
       fetchShopifyOrders(startYmd,endYmd)
     ]);
@@ -635,18 +633,23 @@ async function refresh(){
   const transactions=convRow?parseInt(convRow.metricValues[2].value||0):0;
   const purchaseRev=convRow?parseFloat(convRow.metricValues[3].value||0):0;
 
-  // Funnel events
+  // Funnel events — dim0 = sessionCampaignName, dim1 = eventName; match our campaign
   const funnel={add_to_cart:0,begin_checkout:0,purchase:0,form_submit:0};
-  (funnelData.rows||[]).forEach(r=>{const ev=r.dimensionValues[0].value;if(funnel.hasOwnProperty(ev))funnel[ev]=parseInt(r.metricValues[0].value||0);});
+  (funnelData.rows||[]).forEach(r=>{
+    if(r.dimensionValues[0].value!==campaignName)return;
+    const ev=r.dimensionValues[1].value;
+    if(funnel.hasOwnProperty(ev))funnel[ev]+=parseInt(r.metricValues[0].value||0);
+  });
 
-  // Contact events (unique users)
+  // Contact events (unique users) — dim0 = sessionCampaignName, dim1 = eventName
   const contacts={calls:0,whatsapp:0,chat:0};
   (contactData.rows||[]).forEach(r=>{
-    const ev=r.dimensionValues[0].value;
+    if(r.dimensionValues[0].value!==campaignName)return;
+    const ev=r.dimensionValues[1].value;
     const c=parseInt(r.metricValues[0].value||0);
-    if(ev==='click_to_call_ga4')contacts.calls=c;
-    else if(ev==='whatsapp_click')contacts.whatsapp=c;
-    else if(ev==='tidio_conversation_started')contacts.chat=c;
+    if(ev==='click_to_call_ga4')contacts.calls+=c;
+    else if(ev==='whatsapp_click')contacts.whatsapp+=c;
+    else if(ev==='tidio_conversation_started')contacts.chat+=c;
   });
   const leads=funnel.form_submit+contacts.calls+contacts.whatsapp+contacts.chat;
 
@@ -660,10 +663,12 @@ async function refresh(){
 
   // Per-product event map (keyed by normalised item title for join with Shopify)
   // Each entry: { sess (view_item), atc, checkout, orders }
+  // dim0 = sessionCampaignName, dim1 = itemName, dim2 = eventName — match our campaign
   const eventsByProduct={};
   (productEventsData.rows||[]).forEach(r=>{
-    const item=r.dimensionValues[0].value;
-    const ev=r.dimensionValues[1].value;
+    if(r.dimensionValues[0].value!==campaignName)return;
+    const item=r.dimensionValues[1].value;
+    const ev=r.dimensionValues[2].value;
     const c=parseInt(r.metricValues[0].value||0);
     if(!item||item==='(not set)')return;
     const key=normTitle(item);
@@ -759,7 +764,11 @@ async function refresh(){
   const catPaidRevenueDisp=exVatRev(catPaidRevenue);  // ex-VAT paid-source category revenue
   const directROAS=spend>0?purchaseRev/spend:0;
   const costPerLead=leads>0&&spend>0?spend/leads:0;
-  const blendedCatROAS=spend>0?catPaidRevenueDisp/spend:0;
+  // Blended cat ROAS = WHOLE category revenue ÷ ad spend. The thesis: this campaign
+  // is the paid demand engine for the category; most of its return shows up in
+  // non-paid attribution (Direct/Organic) so comparing total category sales to the
+  // spend driving the category is the truer efficiency read than the Paid-only slice.
+  const blendedCatROAS=spend>0?catRevenueDisp/spend:0;
 
   lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catRevenueDisp,catUnits,catOrders,catPaidRevenue,catPaidRevenueDisp,byProduct,sourceRev,dailyCatRev,eventsByProduct,directROAS,costPerLead,blendedCatROAS,profitability};
 
@@ -779,12 +788,12 @@ function renderKPIs(){
   const d=lastData;
   document.getElementById('k-spend').textContent=d.spend>0?fmtGBP(d.spend):'—';
   const roasEl=document.getElementById('k-roas');
-  roasEl.textContent=d.directROAS>0?fmtRoas(d.directROAS):'—';
+  roasEl.textContent=d.spend>0?fmtRoas(d.directROAS):'—';
   roasEl.className='kpi-val '+(d.directROAS>=2?'green':d.directROAS<1&&d.spend>0?'red':'');
   document.getElementById('k-leads').textContent=d.leads>0?d.leads:'—';
   document.getElementById('k-cpl').textContent=d.costPerLead>0?fmtGBP(d.costPerLead):'—';
   const blEl=document.getElementById('k-blended');
-  blEl.textContent=d.blendedCatROAS>0?fmtRoas(d.blendedCatROAS):'—';
+  blEl.textContent=d.spend>0?fmtRoas(d.blendedCatROAS):'—';
   blEl.className='kpi-val '+(d.blendedCatROAS>=2?'green':d.blendedCatROAS<1&&d.spend>0?'red':'');
   document.getElementById('k-corders').textContent=d.catOrders>0?d.catOrders:'—';
   document.getElementById('k-crev').textContent=d.catRevenueDisp>0?fmtGBP(d.catRevenueDisp):'—';
@@ -997,28 +1006,27 @@ function renderVerdict(){
   const d=lastData;
   document.getElementById('v-spend').textContent=d.spend>0?fmtGBP(d.spend):'—';
   const vRoasEl=document.getElementById('v-roas');
-  vRoasEl.textContent=d.directROAS>0?fmtRoas(d.directROAS):'—';
+  vRoasEl.textContent=d.spend>0?fmtRoas(d.directROAS):'—';
   vRoasEl.className='v-pill-val '+(d.directROAS>=2?'green':d.directROAS<1&&d.spend>0?'red':'');
   document.getElementById('v-leads').textContent=d.leads||'—';
   document.getElementById('v-cpl').textContent=d.costPerLead>0?fmtGBP(d.costPerLead):'—';
   const vBlEl=document.getElementById('v-blended');
-  vBlEl.textContent=d.blendedCatROAS>0?fmtRoas(d.blendedCatROAS):'—';
+  vBlEl.textContent=d.spend>0?fmtRoas(d.blendedCatROAS):'—';
   vBlEl.className='v-pill-val '+(d.blendedCatROAS>=2?'green':d.blendedCatROAS<1&&d.spend>0?'red':'');
 
-  // Plain English read
+  // Plain English read — leans on blended cat ROAS (total category sales ÷ spend)
+  // since Direct ROAS is last-click only and runs ~0 for high-ticket Shopping.
   let read='';
   if(d.spend===0){
     read='No GA4-recorded spend for this campaign in the selected range. Check the Google Ads link in GA4, or pick a wider date window.';
   }else if(d.leads===0&&d.catOrders===0){
-    read=`<strong>${fmtGBP(d.spend)} spent with no measurable output</strong> — no leads on-site and no category orders attributable in Shopify. Pause until you understand why.`;
-  }else if(d.directROAS<1&&d.blendedCatROAS<1&&d.leads<3){
-    read=`<strong>Underperforming.</strong> Direct ROAS ${fmtRoas(d.directROAS)} and blended cat ROAS ${fmtRoas(d.blendedCatROAS)} with only ${d.leads} lead${d.leads===1?'':'s'} — likely cut spend or fix targeting.`;
-  }else if(d.directROAS<1&&d.leads>=3){
-    read=`<strong>Last-click ROAS is poor (${fmtRoas(d.directROAS)}) but the campaign is generating ${d.leads} leads at ${fmtGBP(d.costPerLead)}/lead.</strong> Likely closing offline — judge by leads + blended cat ROAS (${fmtRoas(d.blendedCatROAS)}) before cutting.`;
-  }else if(d.directROAS>=2){
-    read=`<strong>Healthy.</strong> Direct ROAS ${fmtRoas(d.directROAS)} + ${d.leads} leads + ${d.catOrders} category orders at ${fmtGBP(d.catRevenue)} true revenue. Scale carefully.`;
+    read=`<strong>${fmtGBP(d.spend)} spent with no measurable output</strong> — no leads on-site and no category orders in Shopify. Pause until you understand why.`;
+  }else if(d.blendedCatROAS>=4){
+    read=`<strong>Strong.</strong> ${fmtGBP(d.spend)} spend against ${fmtGBP(d.catRevenueDisp)} of category revenue = ${fmtRoas(d.blendedCatROAS)} blended ROAS${d.leads>0?` plus ${d.leads} leads`:''}. Direct ROAS is only ${fmtRoas(d.directROAS)} because the sales close later under Direct/Organic — judge by blended. Scale carefully.`;
+  }else if(d.blendedCatROAS>=1.5){
+    read=`<strong>Working.</strong> Blended cat ROAS ${fmtRoas(d.blendedCatROAS)} (${fmtGBP(d.catRevenueDisp)} category revenue ÷ ${fmtGBP(d.spend)} spend)${d.leads>0?`, ${d.leads} leads at ${fmtGBP(d.costPerLead)}/lead`:''}. Direct ROAS ${fmtRoas(d.directROAS)} is last-click only — the real return is in the blended figure.`;
   }else{
-    read=`Direct ROAS ${fmtRoas(d.directROAS)}, ${d.leads} leads at ${fmtGBP(d.costPerLead)}/lead, blended cat ROAS ${fmtRoas(d.blendedCatROAS)}. Acceptable performance — monitor leads and offline closes before changing spend.`;
+    read=`<strong>Watch closely.</strong> Blended cat ROAS only ${fmtRoas(d.blendedCatROAS)} — ${fmtGBP(d.catRevenueDisp)} category revenue against ${fmtGBP(d.spend)} spend${d.leads>0?`, ${d.leads} leads`:' and no leads'}. If the category isn't growing, consider cutting or re-targeting.`;
   }
   document.getElementById('v-read').innerHTML=read;
 }
