@@ -409,6 +409,25 @@ function setCustom(){
 }
 
 // --- Microsoft Spend ---
+// Source priority: Bing-spend sheet (auto, fetched per refresh) → manual fields.
+let _bingSheet={daily:{},total:0,error:null,loaded:false};
+async function fetchBingSheetSpend(){
+  try{
+    const s=ga4DateToYmd(dateRange.startDate);
+    const e=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/bing-spend?startDate=${s}&endDate=${e}`);
+    if(!r.ok){
+      let err='Bing '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      _bingSheet={daily:{},total:0,error:err,loaded:false};
+      return;
+    }
+    const data=await r.json();
+    _bingSheet={daily:data.daily||{},total:data.total||0,error:null,loaded:true};
+  }catch(err){
+    _bingSheet={daily:{},total:0,error:err.message,loaded:false};
+  }
+}
 function loadMsSpend(){
   const d=localStorage.getItem('nuovo_microsoft_spend_daily');
   const m=localStorage.getItem('nuovo_microsoft_spend_monthly');
@@ -421,14 +440,33 @@ function saveMsSpend(){
   if(d)localStorage.setItem('nuovo_microsoft_spend_daily',d);else localStorage.removeItem('nuovo_microsoft_spend_daily');
   if(m)localStorage.setItem('nuovo_microsoft_spend_monthly',m);else localStorage.removeItem('nuovo_microsoft_spend_monthly');
 }
-function getMsDailySpend(){
+function getMsManualDaily(){
   const d=parseFloat(document.getElementById('ms-daily').value)||0;
   if(d>0)return d;
   const m=parseFloat(document.getElementById('ms-monthly').value)||0;
   return m>0?m/30:0;
 }
+// Today's MS spend — sheet wins, manual fallback
+function getMsDailySpend(){
+  if(_bingSheet.loaded){
+    const t=new Date();
+    const today=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    if(_bingSheet.daily[today]!==undefined)return _bingSheet.daily[today];
+  }
+  return getMsManualDaily();
+}
+// Day-specific MS spend for the 14-day MER chart. Accepts GA4 YYYYMMDD form.
+function getMsDailyForDate(yyyymmdd){
+  if(_bingSheet.loaded){
+    const ymd=`${yyyymmdd.slice(0,4)}-${yyyymmdd.slice(4,6)}-${yyyymmdd.slice(6,8)}`;
+    if(_bingSheet.daily[ymd]!==undefined)return _bingSheet.daily[ymd];
+  }
+  return getMsManualDaily();
+}
+// Period total — sheet wins, manual × days fallback
 function getMsTotalSpend(){
-  const daily=getMsDailySpend();
+  if(_bingSheet.loaded)return _bingSheet.total;
+  const daily=getMsManualDaily();
   const days=getDaysInRange(dateRange);
   return daily*days;
 }
@@ -505,6 +543,9 @@ function fmtGBP(v){
 async function refresh(){
   document.getElementById('fst').textContent='Fetching...';
   if(!token){signOut();return;}
+  // Bing spend from sheet — fire alongside everything else so it's ready when
+  // renderAll runs. _bingSheet falls back to manual entry on failure.
+  const bingSheetPromise=fetchBingSheetSpend();
 
   const dr=[dateRange];
 
@@ -589,6 +630,8 @@ async function refresh(){
     const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
 
+    // Ensure Bing sheet has resolved before renderAll uses getMsTotalSpend()
+    await bingSheetPromise;
     lastData={chMap,dailyTrend,products,todayData,newUsersTotal,gAdSpendTotal,dailyAdSpend,todayGAdSpend,shopifyAttr};
     renderAll();
 
@@ -632,7 +675,8 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
 
   document.getElementById('h-rev').textContent=fmtGBP(totRev);
   document.getElementById('h-spend').textContent=fmtGBP(totalSpend);
-  document.getElementById('h-spend-sub').textContent=msSpend>0?`Google £${Math.round(gAdSpend).toLocaleString()} + MS £${Math.round(msSpend).toLocaleString()}`:'Google Ads'+(gAdSpend>0?` £${Math.round(gAdSpend).toLocaleString()}`:'');
+  const msTag=_bingSheet.loaded?' · auto':(_bingSheet.error?' · sheet err':'');
+  document.getElementById('h-spend-sub').textContent=msSpend>0?`Google £${Math.round(gAdSpend).toLocaleString()} + MS £${Math.round(msSpend).toLocaleString()}${msTag}`:'Google Ads'+(gAdSpend>0?` £${Math.round(gAdSpend).toLocaleString()}`:'');
 
   const merEl=document.getElementById('h-mer');
   merEl.textContent=totalSpend>0?mer.toFixed(2)+'x':'—';
@@ -938,7 +982,7 @@ function renderPnL(todayData,todayGAdSpend,dailyTrend,dailyAdSpend){
   const mers=revRows.map(r=>{
     const d=r.dimensionValues[0].value;
     const rev=parseFloat(r.metricValues[0].value||0);
-    const spend=(adByDate[d]||0)+getMsDailySpend();
+    const spend=(adByDate[d]||0)+getMsDailyForDate(d);
     return spend>0?rev/spend:0;
   });
   const labels=dates.map(d=>d.slice(6,8)+'/'+d.slice(4,6));

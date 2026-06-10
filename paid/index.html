@@ -42,6 +42,8 @@ body{min-height:100vh}
 .channel-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;opacity:0.8}
 .channel-card.google::before{background:var(--google)}
 .channel-card.bing::before{background:var(--bing)}
+.ch-spend-input[data-auto="1"]{border-color:var(--bing);background:rgba(0,120,212,0.05)}
+.ch-spend-input[data-error]{border-color:var(--red);background:rgba(248,113,113,0.06)}
 .ch-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .ch-name{font-size:14px;font-weight:600;letter-spacing:0.03em;display:flex;align-items:center;gap:8px}
 .ch-dot{width:8px;height:8px;border-radius:50%}
@@ -504,7 +506,60 @@ function markManual(channel){
   const lbl=document.getElementById('lbl-'+channel);
   if(lbl) lbl.textContent='Spend (manual) £';
   const inp=document.getElementById('spend-'+channel);
-  if(inp) inp.removeAttribute('data-auto');
+  if(inp){inp.removeAttribute('data-auto');inp.removeAttribute('data-auto-source');inp.removeAttribute('data-error');}
+}
+function markAuto(channel,sourceLabel){
+  const lbl=document.getElementById('lbl-'+channel);
+  if(lbl) lbl.textContent=sourceLabel;
+  const inp=document.getElementById('spend-'+channel);
+  if(inp){inp.setAttribute('data-auto','1');inp.setAttribute('data-auto-source',sourceLabel);inp.removeAttribute('data-error');}
+}
+function markError(channel,message){
+  const lbl=document.getElementById('lbl-'+channel);
+  if(lbl) lbl.textContent='Bing fetch failed';
+  const inp=document.getElementById('spend-'+channel);
+  if(inp){inp.setAttribute('data-error',message);inp.setAttribute('title',`Bing spend auto-fetch failed: ${message}. Enter manually below.`);}
+}
+// Convert GA4-style date tokens to YYYY-MM-DD (local). The /api/bing-spend
+// endpoint only accepts absolute dates.
+function ga4DateToYmd(token){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(token))return token;
+  const d=new Date();
+  if(token==='yesterday')d.setDate(d.getDate()-1);
+  else{const m=token.match(/^(\d+)daysAgo$/);if(m)d.setDate(d.getDate()-parseInt(m[1],10));}
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+let bingSheet={daily:{},total:0,error:null};
+async function fetchBingSheetSpend(){
+  try{
+    const s=ga4DateToYmd(dateRange.startDate);
+    const e=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/bing-spend?startDate=${s}&endDate=${e}`);
+    if(!r.ok){
+      let err='Bing '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      bingSheet={daily:{},total:0,error:err};
+      return;
+    }
+    const data=await r.json();
+    bingSheet={daily:data.daily||{},total:data.total||0,error:null};
+  }catch(err){
+    bingSheet={daily:{},total:0,error:err.message};
+  }
+}
+function applyBingSheetToInput(){
+  const inp=document.getElementById('spend-bing');
+  if(!inp)return;
+  // Don't clobber a user's in-progress manual edit — only auto-fill if the input
+  // is empty OR currently in an auto state from a previous fetch.
+  const isManualWithValue=!inp.getAttribute('data-auto')&&parseFloat(inp.value)>0;
+  if(isManualWithValue)return;
+  if(bingSheet.error){
+    markError('bing',bingSheet.error);
+    return;
+  }
+  inp.value=bingSheet.total>0?bingSheet.total.toFixed(2):'';
+  markAuto('bing','auto from Microsoft Ads');
 }
 
 function saveSpend(){
@@ -660,15 +715,15 @@ function renderSourceMetrics(data, funnelData){
     cache.google.addCart=Math.round((funnelEvents.add_to_cart||0)*gRatio);
     cache.bing.addCart=(funnelEvents.add_to_cart||0)-cache.google.addCart;
   }
-  // Auto-populate spend input from GA4 if not manually set
+  // Auto-populate Google spend from GA4
   if(cache.google.adCost>0){
     document.getElementById('spend-google').value=cache.google.adCost.toFixed(2);
     document.getElementById('spend-google').setAttribute('data-auto','1');
   }
-  if(cache.bing.adCost>0){
-    document.getElementById('spend-bing').value=cache.bing.adCost.toFixed(2);
-    document.getElementById('spend-bing').setAttribute('data-auto','1');
-  }
+  // Auto-populate Bing spend from the Microsoft Ads Google Sheet (GA4 doesn't
+  // surface Microsoft Ads cost). Falls back to manual entry if the fetch fails.
+  await fetchBingSheetSpend();
+  applyBingSheetToInput();
   document.getElementById('g-sessions').textContent=cache.google.sessions.toLocaleString();
   document.getElementById('g-revenue').textContent='£'+cache.google.revenue.toLocaleString('en-GB',{maximumFractionDigits:0});
   document.getElementById('b-sessions').textContent=cache.bing.sessions.toLocaleString();
@@ -684,8 +739,9 @@ function recalc(){
   document.getElementById('b-spend').textContent=fmtSpend(bSpend);
   const gAuto=document.getElementById('spend-google').getAttribute('data-auto')==='1';
   const bAuto=document.getElementById('spend-bing').getAttribute('data-auto')==='1';
+  const bErr=document.getElementById('spend-bing').getAttribute('data-error');
   document.getElementById('g-spend-sub').textContent=gSpend>0?(gAuto?'auto from GA4':'manual entry'):'enter spend';
-  document.getElementById('b-spend-sub').textContent=bSpend>0?(bAuto?'auto from GA4':'manual entry'):'enter spend';
+  document.getElementById('b-spend-sub').textContent=bErr?'sheet error — manual fallback':(bSpend>0?(bAuto?'auto from Microsoft Ads':'manual entry'):(bingSheet&&bingSheet.error?'sheet error':'enter spend'));
   // ROAS
   setRoasCpa('g',cache.google,gSpend);
   setRoasCpa('b',cache.bing,bSpend);

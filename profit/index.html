@@ -774,10 +774,11 @@ async function refresh(){
   const dates=getDatesInRange(start,end);
 
   try{
-    // Parallel: Shopify orders + GA4 Google Ads spend
-    const [ordersResp, googleSpendResp]=await Promise.all([
+    // Parallel: Shopify orders + GA4 Google Ads spend + Microsoft Ads sheet
+    const [ordersResp, googleSpendResp, bingResp]=await Promise.all([
       fetchShopifyOrders(start,end),
-      fetchGoogleAdSpend(start,end)
+      fetchGoogleAdSpend(start,end),
+      fetchBingSpendFromSheet(start,end)
     ]);
 
     allOrders=(ordersResp.orders||[]).map(normaliseOrder);
@@ -792,9 +793,20 @@ async function refresh(){
       const d=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
       if(dailyAdSpend[d])dailyAdSpend[d].google=parseFloat(r.metricValues[0].value||0);
     });
-    // Manual platforms
+    // Microsoft from the Bing spend sheet — auto, true daily values back to 2023-06-10
+    let bingFromSheet=false;
+    if(bingResp&&!bingResp.error){
+      bingFromSheet=true;
+      Object.entries(bingResp.daily||{}).forEach(([d,v])=>{
+        if(dailyAdSpend[d])dailyAdSpend[d].microsoft=v;
+      });
+    }else if(bingResp&&bingResp.error){
+      addBanner('warn',`<strong>Microsoft Ads sheet unreachable</strong> — falling back to manual entry. Error: ${bingResp.error}`,'bing-sheet-err');
+    }
+    // Manual platforms — skip microsoft if sheet provided it (manual stays as fallback only)
     const legacyPlatforms=[];
-    ['microsoft','meta','tiktok','other'].forEach(p=>{
+    const manualPlatforms=bingFromSheet?['meta','tiktok','other']:['microsoft','meta','tiktok','other'];
+    manualPlatforms.forEach(p=>{
       const result=platformSpendForRange(p,dates);
       if(result.legacy)legacyPlatforms.push(p);
       dates.forEach(d=>{if(dailyAdSpend[d])dailyAdSpend[d][p]=result.daily[d]||0;});
@@ -832,6 +844,19 @@ async function fetchShopifyOrders(start,end){
     throw new Error(e.error||'Shopify request failed');
   }
   return r.json();
+}
+// Microsoft Ads (Bing) daily spend from the shared Google Sheet. Never throws —
+// returns { daily, total, error } so a sheet outage doesn't take the page down.
+async function fetchBingSpendFromSheet(start,end){
+  try{
+    const r=await fetch(`/api/bing-spend?startDate=${start}&endDate=${end}`);
+    if(!r.ok){
+      let err='Bing '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      return{daily:{},total:0,error:err};
+    }
+    return await r.json();
+  }catch(e){return{daily:{},total:0,error:e.message};}
 }
 
 async function fetchGoogleAdSpend(start,end){
