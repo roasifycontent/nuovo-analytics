@@ -866,9 +866,13 @@ function renderCampaigns(data, evMap){
     const name=r.dimensionValues[1].value;
     const dot=src==='google'?'#4285F4':'#0078d4';
     const ev=(evMap&&evMap[src+'__'+name])||{atc:0,checkout:0,purchase:0,form:0,calls:0,whatsapp:0,chat:0};
-    return`<div class="tbl-row" style="grid-template-columns:${cols};font-size:12px">
+    // Google campaigns get a detail-page link. Bing is excluded by design.
+    const isGoogle=src==='google';
+    const hrefAttr=isGoogle?`onclick="window.location.href='/paid/campaign/'+encodeURIComponent('${name.replace(/'/g,"\\'")}')" style="grid-template-columns:${cols};font-size:12px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(212,168,67,0.05)'" onmouseout="this.style.background=''"`:`style="grid-template-columns:${cols};font-size:12px"`;
+    const nameCell=isGoogle?`<span class="tpath" title="Click to open campaign detail · ${name}" style="color:var(--gold)">${name.slice(0,40)} ↗</span>`:`<span class="tpath" title="${name}">${name.slice(0,40)}</span>`;
+    return`<div class="tbl-row" ${hrefAttr}>
       <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${dot}"></span><span style="font-size:11px;color:var(--muted)">${src}</span></span>
-      <span class="tpath" title="${name}">${name.slice(0,40)}</span>
+      ${nameCell}
       <span class="tnum">${r.metricValues[0].value}</span>
       <span class="tnum gold">£${parseFloat(r.metricValues[1].value||0).toLocaleString('en-GB',{maximumFractionDigits:0})}</span>
       <span class="tnum">${r.metricValues[2].value}</span>

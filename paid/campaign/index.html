@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Campaign · Nuovo Luxury</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Syne:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* === Design system (mirrors /paid + /performance) === */
+:root{
+  --bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;
+  --google:#4285F4;--gold:#d4a843;--red:#f87171;--green:#10b981;--amber:#f59e0b;
+  --chart-grid:rgba(255,255,255,0.04);--chart-tick:#a8a49e;
+}
+html.light{--bg:#fbf9f3;--bg2:#fff;--bg3:#f6f3eb;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.16);--text:#1c1a17;--muted:#6a6660;--dim:#8a857d;--chart-grid:rgba(0,0,0,0.04);--chart-tick:#6a6660}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Fraunces',serif;font-weight:300;min-height:100vh}
+.main{padding:24px 32px;max-width:1800px;margin:0 auto}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;gap:18px;border-bottom:0.5px solid var(--border);padding-bottom:14px;margin-bottom:24px}
+.back-btn{background:none;border:0.5px solid var(--border2);border-radius:6px;padding:7px 14px;color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.2s}
+.back-btn:hover{border-color:var(--gold);color:var(--text)}
+.brand{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase}
+.brand b{color:var(--gold);font-weight:600}
+.fst{margin-left:auto;font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+
+/* Setup (sign in) */
+#setup{display:none;align-items:center;justify-content:center;min-height:90vh;padding:24px}
+#setup.show{display:flex}
+.setup-card{max-width:440px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:48px 40px;text-align:center}
+.setup-card h2{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.01em;margin-bottom:12px}
+.setup-card p{color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.6}
+.gbtn{background:var(--gold);color:#1a1812;border:none;border-radius:8px;padding:12px 28px;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s}
+.gbtn:hover{opacity:0.9}
+
+/* Hero header */
+.hero{margin-bottom:32px}
+.hero-meta{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase}
+.badge.google{background:rgba(66,133,244,0.12);color:var(--google);border:0.5px solid rgba(66,133,244,0.3)}
+.badge.cat{background:rgba(212,168,67,0.1);color:var(--gold);border:0.5px solid rgba(212,168,67,0.3)}
+.badge.range{background:var(--bg3);color:var(--muted);border:0.5px solid var(--border)}
+.hero h1{font-family:'Fraunces',serif;font-weight:300;font-size:54px;letter-spacing:-0.015em;line-height:1.05;color:var(--text);overflow-wrap:break-word}
+.hero h1 .accent{color:var(--gold)}
+.hero-sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:0.04em}
+
+/* KPI tiles */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:32px}
+.kpi{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold);opacity:0.7}
+.kpi.spend::before{background:var(--google)}
+.kpi.leads::before{background:var(--amber)}
+.kpi.blended::before{background:var(--green)}
+.kpi-lbl{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.kpi-val{font-family:'Fraunces',serif;font-weight:300;font-size:30px;color:var(--text);line-height:1.1;letter-spacing:-0.01em;font-feature-settings:'tnum'}
+.kpi-val.gold{color:var(--gold)}
+.kpi-val.green{color:var(--green)}
+.kpi-val.red{color:var(--red)}
+.kpi-val.muted{color:var(--dim)}
+.kpi-sub{margin-top:6px;font-family:'DM Mono',monospace;font-size:10px;color:var(--dim)}
+
+/* Section card */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:22px 26px;margin-bottom:24px}
+.ct{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;gap:12px}
+.ct h2{font-family:'Syne',sans-serif;font-weight:500;font-size:14px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text)}
+.ct .tip{font-size:10px;color:var(--dim);letter-spacing:0.04em;font-family:'DM Mono',monospace}
+
+/* Charts grid */
+.charts{display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;margin-bottom:24px}
+@media(max-width:1100px){.charts{grid-template-columns:1fr}}
+.chart-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;padding:22px 24px}
+.chart-wrap h3{font-family:'Syne',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--text);margin-bottom:6px}
+.chart-wrap .sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);margin-bottom:14px;letter-spacing:0.04em}
+.chart-canvas{position:relative;height:280px}
+.chart-canvas.tall{height:320px}
+
+/* Lead gen panel */
+.leads-row{display:grid;grid-template-columns:repeat(4,1fr) 1.4fr;gap:14px;margin-bottom:14px}
+@media(max-width:900px){.leads-row{grid-template-columns:repeat(2,1fr)}}
+.lead-tile{background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:16px 18px}
+.lead-tile-lbl{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.lead-tile-val{font-family:'DM Mono',monospace;font-size:28px;color:var(--text);font-feature-settings:'tnum'}
+.lead-tile.total{background:rgba(212,168,67,0.06);border-color:rgba(212,168,67,0.25)}
+.lead-tile.total .lead-tile-val{color:var(--gold)}
+.leads-caption{font-size:12px;color:var(--muted);line-height:1.6;padding:14px 18px;background:var(--bg3);border-left:3px solid var(--gold);border-radius:6px;font-family:'Fraunces',serif}
+
+/* Products table */
+.prod-tbl{display:grid;grid-template-columns:1.6fr 70px 50px 60px 60px 60px 80px 90px 70px;gap:6px;font-size:12.5px}
+.prod-tbl.hdr{font-family:'DM Mono',monospace;font-size:9.5px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.prod-tbl.hdr span{cursor:pointer;user-select:none;text-align:right;transition:color 0.15s}
+.prod-tbl.hdr span:first-child{text-align:left}
+.prod-tbl.hdr span:hover{color:var(--text)}
+.prod-tbl.hdr span.sort-active{color:var(--gold)}
+.prod-tbl.hdr span.sort-active::after{content:'↑';margin-left:3px}
+.prod-tbl.hdr span.sort-active.desc::after{content:'↓'}
+.prod-tbl.row{padding:9px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace}
+.prod-tbl.row:last-child{border-bottom:none}
+.prod-tbl.row span{text-align:right;font-feature-settings:'tnum';color:var(--muted)}
+.prod-tbl.row .pname{text-align:left;color:var(--text);font-family:'Syne',sans-serif;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-tbl.row .gold{color:var(--gold)}
+.prod-tbl.row .win{color:var(--green)}
+
+/* Verdict strip */
+.verdict{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);border:0.5px solid var(--border2);border-radius:14px;padding:24px 28px;margin-bottom:32px}
+.verdict-pills{display:flex;flex-wrap:wrap;gap:18px 32px;margin-bottom:18px}
+.v-pill{display:flex;flex-direction:column;gap:4px}
+.v-pill-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim)}
+.v-pill-val{font-family:'Fraunces',serif;font-size:22px;font-weight:300;color:var(--text);font-feature-settings:'tnum'}
+.v-pill-val.gold{color:var(--gold)}
+.v-pill-val.green{color:var(--green)}
+.v-pill-val.red{color:var(--red)}
+.verdict-read{font-family:'Fraunces',serif;font-size:15px;line-height:1.6;color:var(--text)}
+.verdict-read strong{font-weight:500;color:var(--gold)}
+
+/* Loading */
+.ld{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;padding:32px;justify-content:center}
+.sp{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{color:var(--dim);font-size:12px;text-align:center;padding:24px;font-family:'DM Mono',monospace}
+.err-banner{background:rgba(248,113,113,0.08);border:0.5px solid rgba(248,113,113,0.3);color:var(--red);padding:14px 18px;border-radius:8px;margin-bottom:20px;font-size:13px;font-family:'DM Mono',monospace}
+</style>
+</head>
+<body>
+
+<!-- Setup screen (when not signed in) -->
+<div id="setup">
+  <div class="setup-card">
+    <h2>Campaign Detail</h2>
+    <p>Sign in with Google to view the full campaign breakdown — GA4 spend, leads, Shopify products sold and true-source revenue.</p>
+    <button class="gbtn" onclick="startOAuth()">Sign in with Google</button>
+  </div>
+</div>
+
+<!-- Main dashboard -->
+<div id="dashboard" class="main" style="display:none">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack()">← Back to Paid Ads</button>
+    <div class="brand">NUOVO LUXURY / <b>CAMPAIGN DETAIL</b></div>
+    <div class="fst" id="fst">—</div>
+  </div>
+
+  <div id="banners"></div>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-meta">
+      <span class="badge google"><span style="width:6px;height:6px;border-radius:50%;background:var(--google);display:inline-block"></span> Google Ads</span>
+      <span class="badge cat" id="h-category">Category</span>
+      <span class="badge range" id="h-range">Date</span>
+    </div>
+    <h1 id="h-name">Loading…</h1>
+    <div class="hero-sub" id="h-sub">Campaign detail · Mapped category · Google source</div>
+  </header>
+
+  <!-- KPI tiles -->
+  <section class="kpi-row">
+    <div class="kpi spend">
+      <div class="kpi-lbl">Spend</div>
+      <div class="kpi-val gold" id="k-spend">—</div>
+      <div class="kpi-sub">GA4 ad cost · this campaign</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Direct ROAS</div>
+      <div class="kpi-val" id="k-roas">—</div>
+      <div class="kpi-sub">GA4 last-click rev ÷ spend</div>
+    </div>
+    <div class="kpi leads">
+      <div class="kpi-lbl">Leads</div>
+      <div class="kpi-val" id="k-leads">—</div>
+      <div class="kpi-sub">forms + calls + WA + chat</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Cost / lead</div>
+      <div class="kpi-val" id="k-cpl">—</div>
+      <div class="kpi-sub">spend ÷ total leads</div>
+    </div>
+    <div class="kpi blended">
+      <div class="kpi-lbl">Blended cat ROAS</div>
+      <div class="kpi-val" id="k-blended">—</div>
+      <div class="kpi-sub">Shopify cat-paid rev ÷ spend · estimate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Cat orders</div>
+      <div class="kpi-val" id="k-corders">—</div>
+      <div class="kpi-sub">Shopify orders in category</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Cat revenue (true)</div>
+      <div class="kpi-val gold" id="k-crev">—</div>
+      <div class="kpi-sub">Shopify line-item revenue</div>
+    </div>
+  </section>
+
+  <!-- Charts row -->
+  <section class="charts">
+    <div class="chart-wrap">
+      <h3>Spend vs Category Revenue</h3>
+      <div class="sub">Daily campaign spend (GA4) overlaid on daily category true revenue (Shopify)</div>
+      <div class="chart-canvas tall"><canvas id="spend-rev-chart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <h3>Conversion Funnel</h3>
+      <div class="sub">Campaign sessions → orders</div>
+      <div class="chart-canvas tall"><canvas id="funnel-chart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <h3>True Source Mix</h3>
+      <div class="sub">Category revenue by Shopify first-visit source</div>
+      <div class="chart-canvas tall"><canvas id="source-donut"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Lead gen panel -->
+  <section class="card">
+    <div class="ct">
+      <h2>Lead generation from this campaign</h2>
+      <span class="tip">GA4 events tagged to Google · this campaign</span>
+    </div>
+    <div class="leads-row">
+      <div class="lead-tile">
+        <div class="lead-tile-lbl">Forms</div>
+        <div class="lead-tile-val" id="l-forms">—</div>
+      </div>
+      <div class="lead-tile">
+        <div class="lead-tile-lbl">Calls</div>
+        <div class="lead-tile-val" id="l-calls">—</div>
+      </div>
+      <div class="lead-tile">
+        <div class="lead-tile-lbl">WhatsApp</div>
+        <div class="lead-tile-val" id="l-whatsapp">—</div>
+      </div>
+      <div class="lead-tile">
+        <div class="lead-tile-lbl">Chat</div>
+        <div class="lead-tile-val" id="l-chat">—</div>
+      </div>
+      <div class="lead-tile total">
+        <div class="lead-tile-lbl">Total leads / Cost</div>
+        <div class="lead-tile-val" id="l-total">—</div>
+      </div>
+    </div>
+    <p class="leads-caption">
+      Direct ROAS is <em>last-click only</em>. For luxury / high-ticket products, sales typically close offline via phone or WhatsApp after the paid click — those purchases later land under Direct (or WhatsApp) in true-source attribution, not under the campaign that drove the lead.
+      <strong>Treat leads as the truer near-term output of paid spend.</strong>
+    </p>
+  </section>
+
+  <!-- Products sold -->
+  <section class="card">
+    <div class="ct">
+      <h2 id="prod-title">Products sold in this category</h2>
+      <span class="tip" id="prod-tip">Shopify line items · GA4 sessions/ATC/checkout</span>
+    </div>
+    <div id="prod-table"><div class="ld"><span class="sp"></span>Loading products…</div></div>
+  </section>
+
+  <!-- Verdict strip -->
+  <section class="verdict">
+    <div class="verdict-pills">
+      <div class="v-pill"><div class="v-pill-lbl">Spend</div><div class="v-pill-val gold" id="v-spend">—</div></div>
+      <div class="v-pill"><div class="v-pill-lbl">Direct ROAS</div><div class="v-pill-val" id="v-roas">—</div></div>
+      <div class="v-pill"><div class="v-pill-lbl">Leads</div><div class="v-pill-val" id="v-leads">—</div></div>
+      <div class="v-pill"><div class="v-pill-lbl">Cost / lead</div><div class="v-pill-val" id="v-cpl">—</div></div>
+      <div class="v-pill"><div class="v-pill-lbl">Blended cat ROAS</div><div class="v-pill-val green" id="v-blended">—</div></div>
+    </div>
+    <div class="verdict-read" id="v-read">Awaiting data…</div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+/* ===== Constants ===== */
+const PROP='346978985';
+const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
+const OAUTH_SCOPE='https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly';
+
+/* ===== Campaign → category mapping (single editable object) =====
+   Parse segment before first "|". e.g. "Lighting | Shopping" → "Lighting". */
+const CAMPAIGN_TO_CATEGORY={
+  'Pergolas':       {label:'Pergolas',     match:n=>/pergola/i.test(n)},
+  'Nuovo Swim':     {label:'Swim Spas',    match:n=>/swim\s*spa/i.test(n)},
+  'Outdoor Saunas': {label:'Saunas',       match:n=>/sauna/i.test(n)},
+  'Insignia':       {label:'Saunas',       match:n=>/sauna/i.test(n)},
+  'Lighting':       {label:'Lighting',     match:n=>/\b(lighting|chandelier|sconce|pendant|lamp|lamps|light)\b/i.test(n)},
+  'Chill Tubs':     {label:'Ice Baths',    match:n=>/ice\s*bath|ice\s*tub|chill\s*tubs?|cold\s*plunge|plunge\s*pool/i.test(n)}
+};
+const CATCHALL_PREFIXES=new Set(['Google Shopping','Remarketing - Demand Gen']);
+
+function mapCampaignToCategory(campaignName){
+  const prefix=(campaignName||'').split('|')[0].trim();
+  if(CATCHALL_PREFIXES.has(prefix)){
+    return{key:'__mixed',label:'Mixed / catalogue-wide',match:_=>true,mixed:true,prefix};
+  }
+  if(CAMPAIGN_TO_CATEGORY[prefix]){
+    const c=CAMPAIGN_TO_CATEGORY[prefix];
+    return{key:prefix.toLowerCase(),label:c.label,match:c.match,mixed:false,prefix};
+  }
+  // Unmapped: still show the page but products section will be empty.
+  return{key:'__unmapped',label:'Unmapped',match:_=>false,mixed:false,prefix};
+}
+
+/* ===== URL parsing — campaign name from /paid/campaign/<encoded> ===== */
+function getCampaignFromUrl(){
+  const seg=window.location.pathname.split('/').filter(Boolean);
+  // Expected: ['paid','campaign','<encoded-name>']
+  const last=seg[seg.length-1];
+  if(!last||last==='campaign')return null;
+  try{return decodeURIComponent(last);}catch(_){return last;}
+}
+
+/* ===== OAuth (mirrors /paid pattern — implicit redirect) ===== */
+let token=null;
+const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',email:'nuovo_user_email',legacy:'nuovo_token'};
+function storeToken(tok,expiresIn){
+  if(!tok)return;
+  token=tok;
+  localStorage.setItem(TK.tok,tok);
+  localStorage.setItem(TK.legacy,tok);
+  localStorage.setItem(TK.exp,String(Date.now()+((parseInt(expiresIn,10)||3600)*1000)));
+}
+function tokenExpiry(){return parseInt(localStorage.getItem(TK.exp)||'0',10);}
+function startOAuth(){
+  const base='https://accounts.google.com/o/oauth2/v2/auth';
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+window.location.pathname,
+    response_type:'token',
+    scope:OAUTH_SCOPE
+  });
+  window.location.href=base+'?'+params.toString();
+}
+function showSignIn(){
+  document.getElementById('setup').classList.add('show');
+  document.getElementById('dashboard').style.display='none';
+}
+function showDashboard(){
+  document.getElementById('setup').classList.remove('show');
+  document.getElementById('dashboard').style.display='block';
+}
+// OAuth callback handling
+(function(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  if(hash.get('access_token')){
+    storeToken(hash.get('access_token'),hash.get('expires_in'));
+    window.history.replaceState(null,'',window.location.pathname);
+  }
+})();
+function isAuthError(e){return e.status===401||e.status===403||/invalid.*credential|access.token.*expired|unauthenticated/i.test(e.message||'');}
+
+/* ===== Date range (shared via nuovo_date_range) ===== */
+function loadSharedDateRange(){
+  try{const s=JSON.parse(localStorage.getItem('nuovo_date_range'));if(s&&s.preset)return s;}catch(e){}
+  return{preset:'28d',from:null,to:null};
+}
+function computeDateRange(){
+  const s=loadSharedDateRange();
+  if(s.preset==='custom'&&s.from&&s.to)return{startDate:s.from,endDate:s.to,label:`${s.from} → ${s.to}`};
+  if(s.preset==='today')return{startDate:'today',endDate:'today',label:'Today'};
+  if(s.preset==='yesterday'){
+    const d=new Date();d.setDate(d.getDate()-1);
+    const ymd=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return{startDate:ymd,endDate:ymd,label:'Yesterday'};
+  }
+  // Numeric: '7d', '28d', '90d', '180d' — convert to NdaysAgo
+  const m=String(s.preset).match(/^(\d+)d?$/);
+  const n=m?parseInt(m[1],10):28;
+  return{startDate:`${n}daysAgo`,endDate:'today',label:`Last ${n} days`};
+}
+function ga4DateToYmd(token){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(token))return token;
+  const d=new Date();
+  if(token==='yesterday')d.setDate(d.getDate()-1);
+  else{const m=token.match(/^(\d+)daysAgo$/);if(m)d.setDate(d.getDate()-parseInt(m[1],10));}
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* ===== GA4 fetch ===== */
+async function ga4(body){
+  const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){
+    const e=await r.json().catch(()=>({}));
+    const err=new Error(e.error?.message||'GA4 '+r.status);err.status=r.status;throw err;
+  }
+  return r.json();
+}
+async function safeGa4(body,fallback={rows:[]}){try{return await ga4(body);}catch(e){if(isAuthError(e))throw e;console.warn('[GA4 query failed]',e.message);return fallback;}}
+
+/* ===== Shopify orders fetch ===== */
+async function fetchShopifyOrders(start,end){
+  try{
+    const r=await fetch(`/api/shopify-orders?startDate=${start}&endDate=${end}`);
+    if(!r.ok){const e=await r.json().catch(()=>({}));return{orders:[],error:e.error||('Shopify '+r.status)};}
+    return await r.json();
+  }catch(e){return{orders:[],error:e.message};}
+}
+
+/* ===== Shopify true-source classifier (mirrors /performance logic) ===== */
+function hasWhatsAppTag(o){return(o.tags||[]).some(t=>((t||'').toLowerCase()).includes('whatsapp'));}
+function classifyOrderChannel(order){
+  // WhatsApp tag overrides because it identifies the closing channel
+  if(hasWhatsAppTag(order))return 'WhatsApp';
+  const fv=order.customerJourneySummary&&order.customerJourneySummary.firstVisit;
+  if(!fv)return 'Unknown';
+  const utm=fv.utmParameters||{};
+  const utmSrc=(utm.source||'').toLowerCase();
+  const utmMed=(utm.medium||'').toLowerCase();
+  const src=(fv.source||'').toLowerCase();
+  const srcType=fv.sourceType||'';
+  const ref=(fv.referrerUrl||'').toLowerCase();
+  const checkSrc=utmSrc||src;
+  if(utmMed==='email'||/klaviyo|mailchimp|sendgrid|hubspot|activecampaign/.test(checkSrc))return 'Email';
+  // Pinterest always organic (Nuovo runs Pinterest organically)
+  if(/pinterest/.test(checkSrc))return 'Organic Social';
+  if(['cpc','ppc','paid'].includes(utmMed)||/^gclid/.test(utmSrc)){
+    if(/facebook|instagram|tiktok/.test(checkSrc))return 'Paid Social';
+    return 'Paid';
+  }
+  if(/chatgpt|gemini|perplexity|copilot|claude/.test(checkSrc))return 'AI';
+  if(/facebook|instagram|tiktok/.test(checkSrc))return 'Organic Social';
+  if(srcType==='SEO'||/^(google|bing|duckduckgo|yahoo|ecosia)$/.test(checkSrc))return 'Organic Search';
+  if(src==='direct'||src==='none'||src==='')return 'Direct';
+  if(ref&&!/google|bing|facebook|instagram|pinterest|tiktok/.test(ref))return 'Referral';
+  return 'Other';
+}
+
+/* ===== Formatters ===== */
+function fmtGBP(v){if(v===null||v===undefined||isNaN(v))return'—';if(v>=100)return'£'+Math.round(v).toLocaleString('en-GB');return'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtInt(v){if(v===null||v===undefined||isNaN(v)||v===0)return'—';return v.toLocaleString('en-GB');}
+function fmtIntZero(v){if(v===null||v===undefined||isNaN(v))return 0;return v;}
+function fmtPct(v){if(v===null||v===undefined||isNaN(v))return'—';return(v*100).toFixed(1)+'%';}
+function fmtRoas(v){if(v===null||v===undefined||isNaN(v)||!isFinite(v))return'—';return v.toFixed(2)+'x';}
+const normTitle=t=>(t||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+
+/* ===== Banner ===== */
+function addBanner(msg){
+  const wrap=document.getElementById('banners');
+  if(!wrap)return;
+  const div=document.createElement('div');div.className='err-banner';div.innerHTML=msg;wrap.appendChild(div);
+}
+
+/* ===== Main refresh ===== */
+let charts={};
+let lastData={};
+let sortCol='revenue',sortDesc=true;
+
+async function refresh(){
+  document.getElementById('fst').textContent='Fetching…';
+  document.getElementById('banners').innerHTML='';
+  if(!token){showSignIn();return;}
+
+  const campaignName=getCampaignFromUrl();
+  if(!campaignName){
+    addBanner('No campaign in URL — go back and click a campaign row.');
+    document.getElementById('h-name').textContent='No campaign selected';
+    return;
+  }
+  const cat=mapCampaignToCategory(campaignName);
+  const dr=computeDateRange();
+  const startYmd=ga4DateToYmd(dr.startDate);
+  const endYmd=ga4DateToYmd(dr.endDate);
+
+  // Hero
+  document.getElementById('h-name').innerHTML=campaignName.replace(/\s*\|\s*/,' <span class="accent">|</span> ');
+  document.getElementById('h-category').textContent=cat.mixed?'Mixed / catalogue-wide':cat.label;
+  document.getElementById('h-range').textContent=dr.label;
+  document.getElementById('h-sub').textContent=`Google source · category ${cat.mixed?'(all)':cat.label} · last-click revenue is GA4, true revenue is Shopify`;
+  document.getElementById('prod-title').textContent=cat.mixed?'Products sold (store-wide)':`Products sold in ${cat.label}`;
+  document.getElementById('prod-tip').textContent=cat.mixed?'All Shopify line items in this date range':'Shopify line items in this category';
+
+  // ---- GA4 queries (each runReport per spec — cost metrics need isolation) ----
+  // Filters
+  const campaignFilter={filter:{fieldName:'sessionCampaignName',stringFilter:{matchType:'EXACT',value:campaignName}}};
+  const googleCpc={andGroup:{expressions:[
+    campaignFilter,
+    {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+    {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
+  ]}};
+  // The cost-metric query uses googleAdsCampaignName (Google Ads dim), not sessionCampaignName
+  const adsCampaignFilter={filter:{fieldName:'googleAdsCampaignName',stringFilter:{matchType:'EXACT',value:campaignName}}};
+
+  const ds=[{startDate:dr.startDate,endDate:dr.endDate}];
+
+  let spendData, spendDailyData, convData, dailyConvData, funnelData, contactData, shopifyResp;
+  try{
+    [spendData, spendDailyData, convData, dailyConvData, funnelData, contactData, shopifyResp] = await Promise.all([
+      // 1. SPEND total — cost metrics ONLY (no event-scoped fields)
+      safeGa4({dateRanges:ds,dimensions:[{name:'googleAdsCampaignName'}],metrics:[
+        {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'}
+      ],dimensionFilter:adsCampaignFilter}),
+      // 2. SPEND daily timeseries — own runReport
+      safeGa4({dateRanges:ds,dimensions:[{name:'date'},{name:'googleAdsCampaignName'}],metrics:[
+        {name:'advertiserAdCost'}
+      ],dimensionFilter:adsCampaignFilter,orderBys:[{dimension:{dimensionName:'date'}}]}),
+      // 3. CONVERSIONS for this campaign (sessions, transactions, revenue)
+      safeGa4({dateRanges:ds,dimensions:[{name:'sessionCampaignName'}],metrics:[
+        {name:'sessions'},{name:'engagedSessions'},{name:'transactions'},{name:'purchaseRevenue'},{name:'totalRevenue'}
+      ],dimensionFilter:googleCpc}),
+      // 4. DAILY purchaseRevenue for the line chart (paid GA4 last-click)
+      safeGa4({dateRanges:ds,dimensions:[{name:'date'}],metrics:[
+        {name:'sessions'},{name:'purchaseRevenue'}
+      ],dimensionFilter:googleCpc,orderBys:[{dimension:{dimensionName:'date'}}]}),
+      // 5. FUNNEL events by event name
+      safeGa4({dateRanges:ds,dimensions:[{name:'eventName'}],metrics:[
+        {name:'eventCount'}
+      ],dimensionFilter:{andGroup:{expressions:[
+        campaignFilter,
+        {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+        {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
+        {filter:{fieldName:'eventName',inListFilter:{values:['add_to_cart','begin_checkout','purchase','form_submit']}}}
+      ]}}}),
+      // 6. CONTACT events (Calls / WhatsApp / Chat) — unique users via totalUsers
+      safeGa4({dateRanges:ds,dimensions:[{name:'eventName'}],metrics:[
+        {name:'totalUsers'}
+      ],dimensionFilter:{andGroup:{expressions:[
+        campaignFilter,
+        {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+        {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
+        {filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}
+      ]}}}),
+      // 7. Shopify orders for the date range (server-side endpoint)
+      fetchShopifyOrders(startYmd,endYmd)
+    ]);
+  }catch(e){
+    if(isAuthError(e)){showSignIn();return;}
+    addBanner(`Failed to load campaign data: ${e.message}`);
+    document.getElementById('fst').textContent='Error: '+e.message;
+    return;
+  }
+
+  if(shopifyResp.error){addBanner(`Shopify error: ${shopifyResp.error} — true revenue / products list will be empty.`);}
+
+  // ---- Aggregate ----
+  // Spend totals
+  const spendRow=(spendData.rows||[])[0];
+  const spend=spendRow?parseFloat(spendRow.metricValues[0].value||0):0;
+  const clicks=spendRow?parseInt(spendRow.metricValues[1].value||0):0;
+  const impressions=spendRow?parseInt(spendRow.metricValues[2].value||0):0;
+
+  // Conversions (Direct ROAS source)
+  const convRow=(convData.rows||[])[0];
+  const sessions=convRow?parseInt(convRow.metricValues[0].value||0):0;
+  const engaged=convRow?parseInt(convRow.metricValues[1].value||0):0;
+  const transactions=convRow?parseInt(convRow.metricValues[2].value||0):0;
+  const purchaseRev=convRow?parseFloat(convRow.metricValues[3].value||0):0;
+
+  // Funnel events
+  const funnel={add_to_cart:0,begin_checkout:0,purchase:0,form_submit:0};
+  (funnelData.rows||[]).forEach(r=>{const ev=r.dimensionValues[0].value;if(funnel.hasOwnProperty(ev))funnel[ev]=parseInt(r.metricValues[0].value||0);});
+
+  // Contact events (unique users)
+  const contacts={calls:0,whatsapp:0,chat:0};
+  (contactData.rows||[]).forEach(r=>{
+    const ev=r.dimensionValues[0].value;
+    const c=parseInt(r.metricValues[0].value||0);
+    if(ev==='click_to_call_ga4')contacts.calls=c;
+    else if(ev==='whatsapp_click')contacts.whatsapp=c;
+    else if(ev==='tidio_conversation_started')contacts.chat=c;
+  });
+  const leads=funnel.form_submit+contacts.calls+contacts.whatsapp+contacts.chat;
+
+  // Daily spend map (YYYY-MM-DD → spend)
+  const spendByDate={};
+  (spendDailyData.rows||[]).forEach(r=>{
+    const raw=r.dimensionValues[0].value;
+    const ymd=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+    spendByDate[ymd]=parseFloat(r.metricValues[0].value||0);
+  });
+
+  // ---- Shopify aggregate: category orders, revenue, units, source mix ----
+  const VALID=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+  const orders=(shopifyResp.orders||[]).filter(o=>VALID.has(o.displayFinancialStatus));
+
+  let catRevenue=0, catUnits=0, catPaidRevenue=0;
+  const catOrderIds=new Set();
+  const byProduct={}; // normTitle → {name, units, revenue, orders:Set}
+  const sourceRev={}; // source → revenue
+  const dailyCatRev={}; // YYYY-MM-DD → revenue
+  orders.forEach(o=>{
+    const lineItems=((o.lineItems&&o.lineItems.edges)||[]).map(e=>e.node).filter(Boolean);
+    const matchingLis=lineItems.filter(li=>cat.match(li.title||''));
+    if(!matchingLis.length)return;
+    catOrderIds.add(o.id);
+    const orderSource=classifyOrderChannel(o);
+    // Net revenue from matching items only
+    let orderCatRev=0;
+    matchingLis.forEach(li=>{
+      const qty=parseInt(li.quantity||0);
+      const unitPrice=parseFloat((li.originalUnitPriceSet&&li.originalUnitPriceSet.shopMoney&&li.originalUnitPriceSet.shopMoney.amount)||0);
+      const liRev=qty*unitPrice;
+      orderCatRev+=liRev;
+      catUnits+=qty;
+      const title=li.title||'(untitled)';
+      const key=normTitle(title);
+      if(!byProduct[key])byProduct[key]={name:title,units:0,revenue:0,orders:new Set()};
+      byProduct[key].units+=qty;
+      byProduct[key].revenue+=liRev;
+      byProduct[key].orders.add(o.id);
+    });
+    catRevenue+=orderCatRev;
+    if(orderSource==='Paid')catPaidRevenue+=orderCatRev;
+    sourceRev[orderSource]=(sourceRev[orderSource]||0)+orderCatRev;
+    // Daily revenue bucket by createdAt (UK day)
+    const dayKey=(o.createdAt||'').slice(0,10);
+    if(dayKey)dailyCatRev[dayKey]=(dailyCatRev[dayKey]||0)+orderCatRev;
+  });
+  const catOrders=catOrderIds.size;
+
+  // ---- KPI math ----
+  const directROAS=spend>0?purchaseRev/spend:0;
+  const costPerLead=leads>0&&spend>0?spend/leads:0;
+  const blendedCatROAS=spend>0?catPaidRevenue/spend:0;
+
+  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catUnits,catOrders,catPaidRevenue,byProduct,sourceRev,dailyCatRev,directROAS,costPerLead,blendedCatROAS};
+
+  // ---- Render ----
+  renderKPIs();
+  renderCharts();
+  renderLeads();
+  renderProducts();
+  renderVerdict();
+
+  document.getElementById('fst').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ===== Renderers ===== */
+function renderKPIs(){
+  const d=lastData;
+  document.getElementById('k-spend').textContent=d.spend>0?fmtGBP(d.spend):'—';
+  const roasEl=document.getElementById('k-roas');
+  roasEl.textContent=d.directROAS>0?fmtRoas(d.directROAS):'—';
+  roasEl.className='kpi-val '+(d.directROAS>=2?'green':d.directROAS<1&&d.spend>0?'red':'');
+  document.getElementById('k-leads').textContent=d.leads>0?d.leads:'—';
+  document.getElementById('k-cpl').textContent=d.costPerLead>0?fmtGBP(d.costPerLead):'—';
+  const blEl=document.getElementById('k-blended');
+  blEl.textContent=d.blendedCatROAS>0?fmtRoas(d.blendedCatROAS):'—';
+  blEl.className='kpi-val '+(d.blendedCatROAS>=2?'green':d.blendedCatROAS<1&&d.spend>0?'red':'');
+  document.getElementById('k-corders').textContent=d.catOrders>0?d.catOrders:'—';
+  document.getElementById('k-crev').textContent=d.catRevenue>0?fmtGBP(d.catRevenue):'—';
+}
+
+function chartColor(name){
+  const c={'Paid':'#4285F4','Paid Social':'#818cf8','Organic Search':'#10b981','Organic Social':'#a78bfa','Direct':'#d4a843','AI':'#34d399','WhatsApp':'#25D366','Email':'#38bdf8','Referral':'#e8a87c','Unknown':'#6b7280','Other':'#9ca3af'};
+  return c[name]||'#9ca3af';
+}
+
+function renderCharts(){
+  const d=lastData;
+  const isLight=document.documentElement.classList.contains('light');
+  const grid=isLight?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.05)';
+  const tick=isLight?'#6a6660':'#a8a49e';
+
+  // 1. Spend vs Revenue line chart
+  // Build union of dates from spend + revenue maps
+  const allDates=new Set([...Object.keys(d.spendByDate),...Object.keys(d.dailyCatRev)]);
+  const dates=[...allDates].sort();
+  const spendSeries=dates.map(k=>d.spendByDate[k]||0);
+  const revSeries=dates.map(k=>d.dailyCatRev[k]||0);
+  const labels=dates.map(k=>k.slice(5));
+
+  if(charts.spendRev)charts.spendRev.destroy();
+  const ctx1=document.getElementById('spend-rev-chart');
+  if(ctx1){
+    charts.spendRev=new Chart(ctx1,{
+      type:'line',
+      data:{labels,datasets:[
+        {label:'Campaign spend',data:spendSeries,borderColor:'#4285F4',backgroundColor:'rgba(66,133,244,0.15)',fill:true,tension:0.3,yAxisID:'y',pointRadius:0,borderWidth:2},
+        {label:'Category revenue (Shopify)',data:revSeries,borderColor:'#d4a843',backgroundColor:'rgba(212,168,67,0.1)',fill:true,tension:0.3,yAxisID:'y',pointRadius:0,borderWidth:2}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{color:tick,font:{family:'DM Mono',size:11}}},tooltip:{mode:'index',intersect:false}},
+        scales:{
+          x:{ticks:{color:tick,font:{family:'DM Mono',size:10},maxRotation:0,autoSkip:true,maxTicksLimit:12},grid:{color:grid}},
+          y:{ticks:{color:tick,font:{family:'DM Mono',size:10},callback:v=>'£'+v},grid:{color:grid}}
+        }
+      }
+    });
+  }
+
+  // 2. Conversion funnel — horizontal bar chart
+  if(charts.funnel)charts.funnel.destroy();
+  const ctx2=document.getElementById('funnel-chart');
+  if(ctx2){
+    const fnLabels=['Sessions','Add to cart','Checkout','Orders'];
+    const fnData=[d.sessions,d.funnel.add_to_cart,d.funnel.begin_checkout,d.funnel.purchase];
+    charts.funnel=new Chart(ctx2,{
+      type:'bar',
+      data:{labels:fnLabels,datasets:[{label:'Count',data:fnData,backgroundColor:['#4285F4','#818cf8','#d4a843','#10b981'],borderRadius:4}]},
+      options:{
+        indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{enabled:true}},
+        scales:{
+          x:{ticks:{color:tick,font:{family:'DM Mono',size:10}},grid:{color:grid}},
+          y:{ticks:{color:tick,font:{family:'DM Mono',size:11}},grid:{display:false}}
+        }
+      }
+    });
+  }
+
+  // 3. True-source donut
+  if(charts.donut)charts.donut.destroy();
+  const ctx3=document.getElementById('source-donut');
+  if(ctx3){
+    const entries=Object.entries(d.sourceRev).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    if(entries.length===0){
+      ctx3.parentElement.innerHTML='<div class="empty">No category orders in this period</div>';
+    }else{
+      const lbls=entries.map(e=>e[0]);
+      const data=entries.map(e=>e[1]);
+      const colors=lbls.map(chartColor);
+      charts.donut=new Chart(ctx3,{
+        type:'doughnut',
+        data:{labels:lbls,datasets:[{data,backgroundColor:colors,borderWidth:0}]},
+        options:{
+          responsive:true,maintainAspectRatio:false,cutout:'58%',
+          plugins:{
+            legend:{position:'bottom',labels:{color:tick,font:{family:'DM Mono',size:10},padding:10,boxWidth:10}},
+            tooltip:{callbacks:{label:c=>`${c.label}: ${fmtGBP(c.parsed)}`}}
+          }
+        }
+      });
+    }
+  }
+}
+
+function renderLeads(){
+  const d=lastData;
+  document.getElementById('l-forms').textContent=d.funnel.form_submit||'—';
+  document.getElementById('l-calls').textContent=d.contacts.calls||'—';
+  document.getElementById('l-whatsapp').textContent=d.contacts.whatsapp||'—';
+  document.getElementById('l-chat').textContent=d.contacts.chat||'—';
+  document.getElementById('l-total').textContent=d.leads>0?`${d.leads} / ${d.costPerLead>0?fmtGBP(d.costPerLead):'—'}`:'—';
+}
+
+function sortProducts(items){
+  const dir=sortDesc?-1:1;
+  return[...items].sort((a,b)=>{
+    const av=a[sortCol],bv=b[sortCol];
+    if(typeof av==='string')return dir*av.localeCompare(bv);
+    return dir*((av||0)-(bv||0));
+  });
+}
+
+function renderProducts(){
+  const d=lastData;
+  const el=document.getElementById('prod-table');
+  const items=Object.values(d.byProduct).map(p=>({name:p.name,units:p.units,revenue:p.revenue,orders:p.orders.size,aov:p.orders.size>0?p.revenue/p.orders.size:0}));
+  if(items.length===0){
+    el.innerHTML='<div class="empty">No products sold in this category for the selected date range.</div>';
+    return;
+  }
+  const sorted=sortProducts(items);
+  const sc=col=>(sortCol===col?'sort-active'+(sortDesc?' desc':''):'');
+  const hdr=`<div class="prod-tbl hdr">
+    <span class="${sc('name')}" onclick="setSort('name')">Product</span>
+    <span class="${sc('sessions')}" onclick="setSort('sessions')">Sess.</span>
+    <span class="${sc('atc')}" onclick="setSort('atc')">ATC</span>
+    <span class="${sc('checkout')}" onclick="setSort('checkout')">Chkt</span>
+    <span class="${sc('orders')}" onclick="setSort('orders')">Orders</span>
+    <span class="${sc('units')}" onclick="setSort('units')">Units</span>
+    <span class="${sc('revenue')}" onclick="setSort('revenue')">Revenue</span>
+    <span class="${sc('aov')}" onclick="setSort('aov')">AOV</span>
+    <span></span>
+  </div>`;
+  const rows=sorted.map(p=>{
+    const sess='—',atc='—',chk='—'; // GA4 per-product attribution to this campaign requires item-scope queries — left as — for clarity
+    const short=p.name.length>56?p.name.slice(0,56)+'…':p.name;
+    return`<div class="prod-tbl row" title="${p.name.replace(/"/g,'&quot;')}">
+      <span class="pname">${short}</span>
+      <span>${sess}</span>
+      <span>${atc}</span>
+      <span>${chk}</span>
+      <span class="${p.orders>0?'win':''}">${p.orders||'—'}</span>
+      <span class="${p.units>0?'win':''}">${p.units||'—'}</span>
+      <span class="gold">${p.revenue>0?fmtGBP(p.revenue):'—'}</span>
+      <span>${p.aov>0?fmtGBP(p.aov):'—'}</span>
+      <span></span>
+    </div>`;
+  }).join('');
+  el.innerHTML=hdr+rows;
+}
+
+function setSort(col){
+  if(sortCol===col)sortDesc=!sortDesc;
+  else{sortCol=col;sortDesc=col!=='name';}
+  renderProducts();
+}
+
+function renderVerdict(){
+  const d=lastData;
+  document.getElementById('v-spend').textContent=d.spend>0?fmtGBP(d.spend):'—';
+  const vRoasEl=document.getElementById('v-roas');
+  vRoasEl.textContent=d.directROAS>0?fmtRoas(d.directROAS):'—';
+  vRoasEl.className='v-pill-val '+(d.directROAS>=2?'green':d.directROAS<1&&d.spend>0?'red':'');
+  document.getElementById('v-leads').textContent=d.leads||'—';
+  document.getElementById('v-cpl').textContent=d.costPerLead>0?fmtGBP(d.costPerLead):'—';
+  const vBlEl=document.getElementById('v-blended');
+  vBlEl.textContent=d.blendedCatROAS>0?fmtRoas(d.blendedCatROAS):'—';
+  vBlEl.className='v-pill-val '+(d.blendedCatROAS>=2?'green':d.blendedCatROAS<1&&d.spend>0?'red':'');
+
+  // Plain English read
+  let read='';
+  if(d.spend===0){
+    read='No GA4-recorded spend for this campaign in the selected range. Check the Google Ads link in GA4, or pick a wider date window.';
+  }else if(d.leads===0&&d.catOrders===0){
+    read=`<strong>${fmtGBP(d.spend)} spent with no measurable output</strong> — no leads on-site and no category orders attributable in Shopify. Pause until you understand why.`;
+  }else if(d.directROAS<1&&d.blendedCatROAS<1&&d.leads<3){
+    read=`<strong>Underperforming.</strong> Direct ROAS ${fmtRoas(d.directROAS)} and blended cat ROAS ${fmtRoas(d.blendedCatROAS)} with only ${d.leads} lead${d.leads===1?'':'s'} — likely cut spend or fix targeting.`;
+  }else if(d.directROAS<1&&d.leads>=3){
+    read=`<strong>Last-click ROAS is poor (${fmtRoas(d.directROAS)}) but the campaign is generating ${d.leads} leads at ${fmtGBP(d.costPerLead)}/lead.</strong> Likely closing offline — judge by leads + blended cat ROAS (${fmtRoas(d.blendedCatROAS)}) before cutting.`;
+  }else if(d.directROAS>=2){
+    read=`<strong>Healthy.</strong> Direct ROAS ${fmtRoas(d.directROAS)} + ${d.leads} leads + ${d.catOrders} category orders at ${fmtGBP(d.catRevenue)} true revenue. Scale carefully.`;
+  }else{
+    read=`Direct ROAS ${fmtRoas(d.directROAS)}, ${d.leads} leads at ${fmtGBP(d.costPerLead)}/lead, blended cat ROAS ${fmtRoas(d.blendedCatROAS)}. Acceptable performance — monitor leads and offline closes before changing spend.`;
+  }
+  document.getElementById('v-read').innerHTML=read;
+}
+
+/* ===== Boot ===== */
+function goBack(){
+  // Prefer history if there's a referrer from /paid, else go to /paid
+  if(document.referrer&&document.referrer.includes('/paid')&&!document.referrer.includes('/paid/campaign')){
+    window.history.back();
+  }else{
+    window.location.href='/paid';
+  }
+}
+
+// Theme
+(function(){const t=localStorage.getItem('nuovo_theme');if(t==='light')document.documentElement.classList.add('light');})();
+
+window.addEventListener('load',()=>{
+  const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
+  const exp=tokenExpiry();
+  if(window.location.hash.includes('access_token'))return; // OAuth callback IIFE already ran
+  if(cached&&exp&&exp-Date.now()>60000){
+    token=cached;
+    showDashboard();
+    refresh();
+    return;
+  }
+  if(cached){
+    // Token might be still valid even without exp set — try once
+    token=cached;
+    showDashboard();
+    refresh();
+    return;
+  }
+  showSignIn();
+});
+
+// Re-fetch if user switches back to the tab (catches date-range change on /paid)
+let _lastFocus=Date.now();
+window.addEventListener('focus',()=>{
+  // Only refresh if it's been >5s and we have a token (avoid double-fetch on initial load)
+  if(token&&Date.now()-_lastFocus>5000){refresh();}
+  _lastFocus=Date.now();
+});
+</script>
+</body>
+</html>
