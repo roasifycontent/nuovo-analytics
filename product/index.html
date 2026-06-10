@@ -113,14 +113,14 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .cat-stat-lbl{font-size:9px;letter-spacing:0.06em;color:var(--dim);text-transform:uppercase;font-family:'DM Mono',monospace}
 .cat-stat-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-feature-settings:'tnum';overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-prods{display:flex;flex-direction:column}
-.cat-prods-head{display:grid;grid-template-columns:1.4fr repeat(7,minmax(0,1fr));gap:5px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
+.cat-prods-head{display:grid;grid-template-columns:1.3fr repeat(8,minmax(0,1fr));gap:5px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
 .cat-prods-head span{text-align:right;cursor:pointer;user-select:none;transition:color 0.15s}
 .cat-prods-head span:first-child{text-align:left}
 .cat-prods-head span:hover{color:var(--text)}
 .cat-prods-head span.sort-active{color:var(--gold)}
 .cat-prods-head span.sort-active::after{content:'↑';margin-left:2px;font-size:9px}
 .cat-prods-head span.sort-active.desc::after{content:'↓'}
-.cat-prod{display:grid;grid-template-columns:1.4fr repeat(7,minmax(0,1fr));gap:5px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
+.cat-prod{display:grid;grid-template-columns:1.3fr repeat(8,minmax(0,1fr));gap:5px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
 .cat-prod:last-child{border-bottom:none}
 .cat-prod-name{font-family:'Syne',sans-serif;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:color 0.15s}
 .cat-prod-name:hover{color:var(--gold)}
@@ -252,7 +252,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
         <span data-col="whatsapp" data-type="num" style="text-align:right">WhatsApp</span>
         <span data-col="chat" data-type="num" style="text-align:right">Chat</span>
         <span data-col="forms" data-type="num" style="text-align:right">Forms</span>
-        <span data-col="purchases" data-type="num" style="text-align:right">Purch.</span>
+        <span data-col="purchases" data-type="num" style="text-align:right" title="Orders containing this product — 1 order with 5 units counts as 1 order">Orders</span>
         <span data-col="cvr" data-type="num" style="text-align:right">CVR</span>
         <span data-col="revenue" data-type="num" style="text-align:right" class="sort-active desc">Revenue</span>
         <span data-col="aov" data-type="num" style="text-align:right">AOV</span>
@@ -521,7 +521,7 @@ async function refresh(){
 
   try{
     // Query 1: Main product table
-    const [productData, keyEventsData, contactData] = await Promise.all([
+    const [productData, transactionData, keyEventsData, contactData] = await Promise.all([
       safe({
         dateRanges:dr,
         dimensions:[{name:'itemName'}],
@@ -535,6 +535,16 @@ async function refresh(){
         orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],
         limit:50
       }),
+      // Query 1b: Orders (= GA4 transactions) per item — separate so item-scoped
+      // metrics above don't conflict. itemsPurchased counts UNITS (5 of one product
+      // in one order = 5), transactions counts ORDERS (5 of one product in one order = 1).
+      // Orders is what you actually want for "how many times did this product sell".
+      safe({
+        dateRanges:dr,
+        dimensions:[{name:'itemName'}],
+        metrics:[{name:'transactions'}],
+        limit:200
+      }),
       // Query 2: Key events by page (for phone/form attribution)
       safe({
         dateRanges:dr,
@@ -547,6 +557,14 @@ async function refresh(){
       fetchContactsByPage()
     ]);
 
+    // Build orders-by-item map from the transactions query
+    const ordersByItem={};
+    (transactionData.rows||[]).forEach(r=>{
+      const name=r.dimensionValues[0].value;
+      if(!name||name==='(not set)')return;
+      ordersByItem[name]=parseInt(r.metricValues[0].value||0);
+    });
+
     // Build product map
     const products=[];
     const slugMap={};
@@ -556,11 +574,12 @@ async function refresh(){
       const sessions=parseInt(r.metricValues[0].value||0);
       const atc=parseInt(r.metricValues[1].value||0);
       const checkout=parseInt(r.metricValues[2].value||0);
-      const purchases=parseInt(r.metricValues[3].value||0);
+      const units=parseInt(r.metricValues[3].value||0); // itemsPurchased — units sold
       const revenue=parseFloat(r.metricValues[4].value||0);
+      const purchases=ordersByItem[name]||0; // ORDERS — distinct purchase events for this item
       const slug=toSlug(name);
       const p={
-        name,slug,sessions,atc,checkout,purchases,revenue,
+        name,slug,sessions,atc,checkout,purchases,units,revenue,
         atcRate:sessions>0?atc/sessions:0,
         checkoutRate:sessions>0?checkout/sessions:0,
         cvr:sessions>0?purchases/sessions:0,
@@ -732,7 +751,7 @@ function renderCategories(products){
       <div class="cat-stats">
         <div class="cat-stat"><div class="cat-stat-lbl">Sessions</div><div class="cat-stat-val">${fmtInt(totals.sessions)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">ATC</div><div class="cat-stat-val">${fmtInt(totals.atc)}</div></div>
-        <div class="cat-stat"><div class="cat-stat-lbl">Purchases</div><div class="cat-stat-val">${fmtInt(totals.purchases)}</div></div>
+        <div class="cat-stat" title="Number of orders (not units) containing a product in this category"><div class="cat-stat-lbl">Orders</div><div class="cat-stat-val">${fmtInt(totals.purchases)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Revenue</div><div class="cat-stat-val">${totals.revenue>0?fmtGBP(totals.revenue):'—'}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Calls</div><div class="cat-stat-val">${fmtInt(totals.calls)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">WhatsApp</div><div class="cat-stat-val">${fmtInt(totals.whatsapp)}</div></div>
@@ -748,8 +767,9 @@ function renderCategories(products){
           <span class="${sc('calls')}" onclick="sortCat('${c.key}','calls')">Calls</span>
           <span class="${sc('whatsapp')}" onclick="sortCat('${c.key}','whatsapp')">WA</span>
           <span class="${sc('forms')}" onclick="sortCat('${c.key}','forms')">Forms</span>
-          <span class="${sc('purchases')}" onclick="sortCat('${c.key}','purchases')">Purch.</span>
-          <span class="${sc('aov')}" onclick="sortCat('${c.key}','aov')">AOV</span>
+          <span class="${sc('purchases')}" onclick="sortCat('${c.key}','purchases')" title="Orders containing this product (not units)">Orders</span>
+          <span class="${sc('revenue')}" onclick="sortCat('${c.key}','revenue')">Revenue</span>
+          <span class="${sc('aov')}" onclick="sortCat('${c.key}','aov')" title="Average order value — itemRevenue ÷ orders">AOV</span>
         </div>
         ${top.map(p=>{
           const winCls=p.purchases>0?'win':'';
@@ -764,6 +784,7 @@ function renderCategories(products){
             <span>${p.whatsapp>0?p.whatsapp:'—'}</span>
             <span>${p.forms>0?p.forms:'—'}</span>
             <span class="${winCls}">${fmtInt(p.purchases)}</span>
+            <span class="${p.revenue>0?'win':''}">${p.revenue>0?fmtGBP(p.revenue):'—'}</span>
             <span>${p.aov>0?fmtGBP(p.aov):'—'}</span>
           </div>`;
         }).join('')}
