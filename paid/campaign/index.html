@@ -225,7 +225,7 @@ input[type="date"]{background:var(--bg2);border:0.5px solid var(--border);border
     <div class="kpi">
       <div class="kpi-lbl">Cat revenue (true)</div>
       <div class="kpi-val gold" id="k-crev">—</div>
-      <div class="kpi-sub">Shopify line-item revenue</div>
+      <div class="kpi-sub">Shopify line-item revenue · ex-VAT</div>
     </div>
   </section>
 
@@ -546,7 +546,7 @@ async function refresh(){
   document.getElementById('h-range').textContent=dr.label;
   document.getElementById('h-sub').textContent=`Google source · category ${cat.mixed?'(all)':cat.label} · last-click revenue is GA4, true revenue is Shopify`;
   document.getElementById('prod-title').textContent=cat.mixed?'Products sold (store-wide)':`Products sold in ${cat.label}`;
-  document.getElementById('prod-tip').textContent=cat.mixed?'All Shopify line items in this date range':'Shopify line items in this category';
+  document.getElementById('prod-tip').textContent=(cat.mixed?'All Shopify line items in this date range':'Shopify line items in this category')+' · revenue ex-VAT';
 
   // ---- GA4 queries (each runReport per spec — cost metrics need isolation) ----
   // Filters
@@ -752,11 +752,16 @@ async function refresh(){
   const profitability={vatOn,profRevenue,profFulfill,profFees,profAdSpend,grossProfit,netProfit,grossMargin,netMargin,costEntered,costMissing,catOrders};
 
   // ---- KPI math ----
+  // Category revenue figures are shown ex-VAT across the whole page to match the
+  // Profit page + the profitability panel. exVatRev() strips VAT only when the
+  // shared VAT config has showExVat=true (else returns gross unchanged).
+  const catRevenueDisp=exVatRev(catRevenue);          // ex-VAT category revenue (display)
+  const catPaidRevenueDisp=exVatRev(catPaidRevenue);  // ex-VAT paid-source category revenue
   const directROAS=spend>0?purchaseRev/spend:0;
   const costPerLead=leads>0&&spend>0?spend/leads:0;
-  const blendedCatROAS=spend>0?catPaidRevenue/spend:0;
+  const blendedCatROAS=spend>0?catPaidRevenueDisp/spend:0;
 
-  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catUnits,catOrders,catPaidRevenue,byProduct,sourceRev,dailyCatRev,eventsByProduct,directROAS,costPerLead,blendedCatROAS,profitability};
+  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catRevenueDisp,catUnits,catOrders,catPaidRevenue,catPaidRevenueDisp,byProduct,sourceRev,dailyCatRev,eventsByProduct,directROAS,costPerLead,blendedCatROAS,profitability};
 
   // ---- Render ----
   renderKPIs();
@@ -782,7 +787,7 @@ function renderKPIs(){
   blEl.textContent=d.blendedCatROAS>0?fmtRoas(d.blendedCatROAS):'—';
   blEl.className='kpi-val '+(d.blendedCatROAS>=2?'green':d.blendedCatROAS<1&&d.spend>0?'red':'');
   document.getElementById('k-corders').textContent=d.catOrders>0?d.catOrders:'—';
-  document.getElementById('k-crev').textContent=d.catRevenue>0?fmtGBP(d.catRevenue):'—';
+  document.getElementById('k-crev').textContent=d.catRevenueDisp>0?fmtGBP(d.catRevenueDisp):'—';
 }
 
 function chartColor(name){
@@ -801,7 +806,7 @@ function renderCharts(){
   const allDates=new Set([...Object.keys(d.spendByDate),...Object.keys(d.dailyCatRev)]);
   const dates=[...allDates].sort();
   const spendSeries=dates.map(k=>d.spendByDate[k]||0);
-  const revSeries=dates.map(k=>d.dailyCatRev[k]||0);
+  const revSeries=dates.map(k=>exVatRev(d.dailyCatRev[k]||0));
   const labels=dates.map(k=>k.slice(5));
 
   if(charts.spendRev)charts.spendRev.destroy();
@@ -811,7 +816,7 @@ function renderCharts(){
       type:'line',
       data:{labels,datasets:[
         {label:'Campaign spend',data:spendSeries,borderColor:'#4285F4',backgroundColor:'rgba(66,133,244,0.15)',fill:true,tension:0.3,yAxisID:'y',pointRadius:0,borderWidth:2},
-        {label:'Category revenue (Shopify)',data:revSeries,borderColor:'#d4a843',backgroundColor:'rgba(212,168,67,0.1)',fill:true,tension:0.3,yAxisID:'y',pointRadius:0,borderWidth:2}
+        {label:'Category revenue (Shopify, ex-VAT)',data:revSeries,borderColor:'#d4a843',backgroundColor:'rgba(212,168,67,0.1)',fill:true,tension:0.3,yAxisID:'y',pointRadius:0,borderWidth:2}
       ]},
       options:{
         responsive:true,maintainAspectRatio:false,
@@ -850,7 +855,8 @@ function renderCharts(){
   const ctx3=document.getElementById('source-donut');
   const emptyEl=document.getElementById('source-donut-empty');
   if(ctx3&&emptyEl){
-    const entries=Object.entries(d.sourceRev).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    // Source revenue shown ex-VAT to match the rest of the page
+    const entries=Object.entries(d.sourceRev).map(([k,v])=>[k,exVatRev(v)]).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
     if(entries.length===0){
       emptyEl.style.display='flex';
       ctx3.style.display='none';
@@ -944,7 +950,8 @@ function renderProducts(){
   const items=Object.values(d.byProduct).map(p=>{
     const key=normTitle(p.name);
     const ev=d.eventsByProduct[key]||{sess:0,atc:0,checkout:0,orders:0};
-    return{name:p.name,units:p.units,revenue:p.revenue,orders:p.orders.size,aov:p.orders.size>0?p.revenue/p.orders.size:0,sess:ev.sess,atc:ev.atc,checkout:ev.checkout};
+    const revExVat=exVatRev(p.revenue); // ex-VAT to match the rest of the page
+    return{name:p.name,units:p.units,revenue:revExVat,orders:p.orders.size,aov:p.orders.size>0?revExVat/p.orders.size:0,sess:ev.sess,atc:ev.atc,checkout:ev.checkout};
   });
   if(items.length===0){
     el.innerHTML='<div class="empty">No products sold in this category for the selected date range.</div>';
