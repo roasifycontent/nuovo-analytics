@@ -665,7 +665,7 @@ async function refresh(){
       campEvMap[key][ev]+=parseInt(r.metricValues[0].value||0);
     });
 
-    renderSourceMetrics(bySource, funnelData);
+    await renderSourceMetrics(bySource, funnelData);
     renderKPIs(bySource, funnelData);
     renderFunnel(funnelData, bySource);
     renderTrend(byDate);
@@ -685,7 +685,7 @@ async function refresh(){
   }
 }
 
-function renderSourceMetrics(data, funnelData){
+async function renderSourceMetrics(data, funnelData){
   cache.google={sessions:0,engaged:0,revenue:0,transactions:0,keyEvents:0,calls:0,forms:0,begin:0,addCart:0,adCost:0,adClicks:0,adImpressions:0,roas:0};
   cache.bing={sessions:0,engaged:0,revenue:0,transactions:0,keyEvents:0,calls:0,forms:0,begin:0,addCart:0,adCost:0,adClicks:0,adImpressions:0,roas:0};
   (data.rows||[]).forEach(r=>{
