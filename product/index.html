@@ -108,19 +108,19 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .cat-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:500;letter-spacing:0.04em;color:var(--text)}
 .cat-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:0.05em;white-space:nowrap}
-.cat-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 10px;padding:12px 0;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
+.cat-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px 8px;padding:12px 0;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
 .cat-stat{display:flex;flex-direction:column;gap:3px;min-width:0}
 .cat-stat-lbl{font-size:9px;letter-spacing:0.06em;color:var(--dim);text-transform:uppercase;font-family:'DM Mono',monospace}
 .cat-stat-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-feature-settings:'tnum';overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-prods{display:flex;flex-direction:column}
-.cat-prods-head{display:grid;grid-template-columns:1.3fr repeat(8,minmax(0,1fr));gap:5px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
+.cat-prods-head{display:grid;grid-template-columns:1.2fr repeat(8,minmax(0,1fr)) 1.3fr 1.1fr;gap:4px;font-family:'DM Mono',monospace;font-size:9px;padding:6px 0;color:var(--dim);letter-spacing:0.05em;text-transform:uppercase;border-bottom:0.5px solid var(--border)}
 .cat-prods-head span{text-align:right;cursor:pointer;user-select:none;transition:color 0.15s}
 .cat-prods-head span:first-child{text-align:left}
 .cat-prods-head span:hover{color:var(--text)}
 .cat-prods-head span.sort-active{color:var(--gold)}
 .cat-prods-head span.sort-active::after{content:'↑';margin-left:2px;font-size:9px}
 .cat-prods-head span.sort-active.desc::after{content:'↓'}
-.cat-prod{display:grid;grid-template-columns:1.3fr repeat(8,minmax(0,1fr));gap:5px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
+.cat-prod{display:grid;grid-template-columns:1.2fr repeat(8,minmax(0,1fr)) 1.3fr 1.1fr;gap:4px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:center;font-family:'DM Mono',monospace;font-size:11px}
 .cat-prod:last-child{border-bottom:none}
 .cat-prod-name{font-family:'Syne',sans-serif;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:color 0.15s}
 .cat-prod-name:hover{color:var(--gold)}
@@ -735,10 +735,10 @@ function renderCategories(products){
     const items=products.filter(p=>categoryFor(p.name)===c.key);
     const sorted=sortCatItems(items,c.key);
     const totals=items.reduce((a,p)=>{
-      a.sessions+=p.sessions;a.atc+=p.atc;a.checkout+=p.checkout;a.purchases+=p.purchases;a.revenue+=p.revenue;
+      a.sessions+=p.sessions;a.atc+=p.atc;a.checkout+=p.checkout;a.purchases+=p.purchases;a.units+=(p.units||0);a.revenue+=p.revenue;
       a.calls+=p.calls;a.whatsapp+=p.whatsapp;a.chat+=p.chat;a.forms+=p.forms;
       return a;
-    },{sessions:0,atc:0,checkout:0,purchases:0,revenue:0,calls:0,whatsapp:0,chat:0,forms:0});
+    },{sessions:0,atc:0,checkout:0,purchases:0,units:0,revenue:0,calls:0,whatsapp:0,chat:0,forms:0});
     const top=sorted.slice(0,6);
     const isEmpty=items.length===0;
     const s=catSortState[c.key];
@@ -751,8 +751,10 @@ function renderCategories(products){
       <div class="cat-stats">
         <div class="cat-stat"><div class="cat-stat-lbl">Sessions</div><div class="cat-stat-val">${fmtInt(totals.sessions)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">ATC</div><div class="cat-stat-val">${fmtInt(totals.atc)}</div></div>
+        <div class="cat-stat" title="Units that reached the checkout step (itemsCheckedOut)"><div class="cat-stat-lbl">Reached chkt</div><div class="cat-stat-val">${fmtInt(totals.checkout)}</div></div>
         <div class="cat-stat" title="Number of orders (not units) containing a product in this category"><div class="cat-stat-lbl">Orders</div><div class="cat-stat-val">${fmtInt(totals.purchases)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Revenue</div><div class="cat-stat-val">${totals.revenue>0?fmtGBP(totals.revenue):'—'}</div></div>
+        <div class="cat-stat" title="Total units sold across all orders in this category (1 order with 5 units = 5)"><div class="cat-stat-lbl">Items sold</div><div class="cat-stat-val">${fmtInt(totals.units)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Calls</div><div class="cat-stat-val">${fmtInt(totals.calls)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">WhatsApp</div><div class="cat-stat-val">${fmtInt(totals.whatsapp)}</div></div>
         <div class="cat-stat"><div class="cat-stat-lbl">Forms</div><div class="cat-stat-val">${fmtInt(totals.forms)}</div></div>
@@ -763,11 +765,13 @@ function renderCategories(products){
         <div class="cat-prods-head">
           <span class="${sc('name')}" onclick="sortCat('${c.key}','name')">Top products</span>
           <span class="${sc('sessions')}" onclick="sortCat('${c.key}','sessions')">Sess.</span>
-          <span class="${sc('atc')}" onclick="sortCat('${c.key}','atc')">ATC</span>
+          <span class="${sc('atc')}" onclick="sortCat('${c.key}','atc')" title="Add-to-cart events">ATC</span>
+          <span class="${sc('checkout')}" onclick="sortCat('${c.key}','checkout')" title="Units that reached the checkout step (itemsCheckedOut)">Chkt</span>
           <span class="${sc('calls')}" onclick="sortCat('${c.key}','calls')">Calls</span>
           <span class="${sc('whatsapp')}" onclick="sortCat('${c.key}','whatsapp')">WA</span>
           <span class="${sc('forms')}" onclick="sortCat('${c.key}','forms')">Forms</span>
-          <span class="${sc('purchases')}" onclick="sortCat('${c.key}','purchases')" title="Orders containing this product (not units)">Orders</span>
+          <span class="${sc('purchases')}" onclick="sortCat('${c.key}','purchases')" title="Orders containing this product (1 order with 5 units = 1)">Orders</span>
+          <span class="${sc('units')}" onclick="sortCat('${c.key}','units')" title="Total units sold across all orders (1 order with 5 units = 5)">Items</span>
           <span class="${sc('revenue')}" onclick="sortCat('${c.key}','revenue')">Revenue</span>
           <span class="${sc('aov')}" onclick="sortCat('${c.key}','aov')" title="Average order value — itemRevenue ÷ orders">AOV</span>
         </div>
@@ -780,10 +784,12 @@ function renderCategories(products){
             <div class="cat-prod-name" onclick="drillToProduct('${p.slug}','${jsName}')">${shortName}</div>
             <span>${fmtInt(p.sessions)}</span>
             <span>${fmtInt(p.atc)}</span>
+            <span>${p.checkout>0?fmtInt(p.checkout):'—'}</span>
             <span>${p.calls>0?p.calls:'—'}</span>
             <span>${p.whatsapp>0?p.whatsapp:'—'}</span>
             <span>${p.forms>0?p.forms:'—'}</span>
             <span class="${winCls}">${fmtInt(p.purchases)}</span>
+            <span class="${p.units>0?'win':''}">${p.units>0?fmtInt(p.units):'—'}</span>
             <span class="${p.revenue>0?'win':''}">${p.revenue>0?fmtGBP(p.revenue):'—'}</span>
             <span>${p.aov>0?fmtGBP(p.aov):'—'}</span>
           </div>`;
