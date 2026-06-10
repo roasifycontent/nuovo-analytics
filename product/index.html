@@ -228,7 +228,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
       <div class="stat">
         <div class="stat-lbl">Total key events</div>
         <div class="stat-val" id="h-events">—</div>
-        <div class="stat-sub">calls + forms + purchases</div>
+        <div class="stat-sub">ATC + chkt + calls + WhatsApp + chat + forms + orders</div>
       </div>
     </div>
 
@@ -666,7 +666,7 @@ function renderHero(products){
   const active=products.filter(p=>p.sessions>0).length;
   const totalRev=products.reduce((a,p)=>a+p.revenue,0);
   const top=products[0];
-  const totalEvents=products.reduce((a,p)=>a+p.calls+p.whatsapp+p.chat+p.forms+p.purchases,0);
+  const totalEvents=products.reduce((a,p)=>a+(p.atc||0)+(p.checkout||0)+(p.calls||0)+(p.whatsapp||0)+(p.chat||0)+(p.forms||0)+(p.purchases||0),0);
 
   document.getElementById('h-active').textContent=active>0?active:'—';
   document.getElementById('h-rev').textContent=totalRev>0?fmtGBP(totalRev):'—';
