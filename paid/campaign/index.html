@@ -27,7 +27,13 @@ body{background:var(--bg);color:var(--text);font-family:'Fraunces',serif;font-we
 .back-btn:hover{border-color:var(--gold);color:var(--text)}
 .brand{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase}
 .brand b{color:var(--gold);font-weight:600}
-.fst{margin-left:auto;font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+.fst{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace}
+.date-toggle{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bsm{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:5px 12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;letter-spacing:0.04em;transition:all 0.15s}
+.bsm:hover{border-color:var(--border2);color:var(--text)}
+.bsm.preset-btn.active{background:var(--gold);color:#1a1812;border-color:var(--gold);font-weight:500}
+.bsm.refresh-btn{font-size:14px;padding:5px 10px}
+input[type="date"]{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer}
 
 /* Setup (sign in) */
 #setup{display:none;align-items:center;justify-content:center;min-height:90vh;padding:24px}
@@ -141,7 +147,19 @@ body{background:var(--bg);color:var(--text);font-family:'Fraunces',serif;font-we
   <div class="topbar">
     <button class="back-btn" onclick="goBack()">← Back to Paid Ads</button>
     <div class="brand">NUOVO LUXURY / <b>CAMPAIGN DETAIL</b></div>
-    <div class="fst" id="fst">—</div>
+    <div class="date-toggle">
+      <button class="bsm preset-btn" data-preset="today" onclick="setPreset(this,'today')">Today</button>
+      <button class="bsm preset-btn" data-preset="yesterday" onclick="setPreset(this,'yesterday')">Yesterday</button>
+      <button class="bsm preset-btn" data-preset="7" onclick="setPreset(this,'7')">7d</button>
+      <button class="bsm preset-btn" data-preset="28" onclick="setPreset(this,'28')">28d</button>
+      <button class="bsm preset-btn" data-preset="90" onclick="setPreset(this,'90')">90d</button>
+      <button class="bsm preset-btn" data-preset="180" onclick="setPreset(this,'180')">180d</button>
+      <input type="date" id="date-from" onchange="setCustom()">
+      <span style="color:var(--dim);font-size:11px">→</span>
+      <input type="date" id="date-to" onchange="setCustom()">
+      <button class="bsm refresh-btn" onclick="refresh()" title="Refresh">↻</button>
+      <span class="fst" id="fst">—</span>
+    </div>
   </div>
 
   <div id="banners"></div>
@@ -822,6 +840,54 @@ function renderVerdict(){
   document.getElementById('v-read').innerHTML=read;
 }
 
+/* ===== Date toggle (writes to shared nuovo_date_range, triggers refresh) ===== */
+function saveSharedDateRange(preset,from,to){
+  localStorage.setItem('nuovo_date_range',JSON.stringify({preset,from:from||null,to:to||null}));
+}
+function setPreset(btn,preset){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  saveSharedDateRange(preset);
+  // Sync the date inputs to reflect the preset
+  const today=new Date();
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if(preset==='today'){document.getElementById('date-from').value=fmt(today);document.getElementById('date-to').value=fmt(today);}
+  else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);document.getElementById('date-from').value=fmt(y);document.getElementById('date-to').value=fmt(y);}
+  else{const m=parseInt(preset,10);if(m){const from=new Date(today);from.setDate(today.getDate()-m);document.getElementById('date-from').value=fmt(from);document.getElementById('date-to').value=fmt(today);}}
+  refresh();
+}
+function setCustom(){
+  const from=document.getElementById('date-from').value;
+  const to=document.getElementById('date-to').value;
+  if(from&&to&&from<=to){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    saveSharedDateRange('custom',from,to);
+    refresh();
+  }
+}
+function initDateToggle(){
+  // Default both date inputs to last-28d range as a visual baseline
+  const today=new Date();
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('date-to').value=fmt(today);
+  const d28=new Date(today);d28.setDate(today.getDate()-28);
+  document.getElementById('date-from').value=fmt(d28);
+  // Activate the button matching the saved preset
+  const s=loadSharedDateRange();
+  if(s.preset==='custom'&&s.from&&s.to){
+    document.getElementById('date-from').value=s.from;
+    document.getElementById('date-to').value=s.to;
+  }else{
+    const preset=s.preset&&document.querySelector(`.preset-btn[data-preset="${s.preset}"]`)?s.preset:'28';
+    const btn=document.querySelector(`.preset-btn[data-preset="${preset}"]`);
+    if(btn)btn.classList.add('active');
+    // Also sync inputs to that preset
+    if(preset==='today'){document.getElementById('date-from').value=fmt(today);document.getElementById('date-to').value=fmt(today);}
+    else if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);document.getElementById('date-from').value=fmt(y);document.getElementById('date-to').value=fmt(y);}
+    else{const m=parseInt(preset,10);if(m){const from=new Date(today);from.setDate(today.getDate()-m);document.getElementById('date-from').value=fmt(from);}}
+  }
+}
+
 /* ===== Boot ===== */
 function goBack(){
   // Prefer history if there's a referrer from /paid, else go to /paid
@@ -836,6 +902,7 @@ function goBack(){
 (function(){const t=localStorage.getItem('nuovo_theme');if(t==='light')document.documentElement.classList.add('light');})();
 
 window.addEventListener('load',()=>{
+  initDateToggle();
   const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
   const exp=tokenExpiry();
   if(window.location.hash.includes('access_token'))return; // OAuth callback IIFE already ran
@@ -846,7 +913,6 @@ window.addEventListener('load',()=>{
     return;
   }
   if(cached){
-    // Token might be still valid even without exp set — try once
     token=cached;
     showDashboard();
     refresh();
