@@ -111,6 +111,21 @@ input[type="date"]{background:var(--bg2);border:0.5px solid var(--border);border
 .prod-tbl.row .gold{color:var(--gold)}
 .prod-tbl.row .win{color:var(--green)}
 
+/* Profitability grid */
+.prof-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:0.5px solid var(--border);border-radius:10px;overflow:hidden}
+@media(max-width:900px){.prof-grid{grid-template-columns:repeat(2,1fr)}}
+.prof-cell{background:var(--bg2);padding:16px 18px}
+.prof-cell.big{background:var(--bg3)}
+.prof-lbl{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.prof-val{font-family:'Fraunces',serif;font-weight:300;font-size:26px;color:var(--text);font-feature-settings:'tnum';line-height:1.1}
+.prof-val.gold{color:var(--gold)}
+.prof-val.green{color:var(--green)}
+.prof-val.red{color:var(--red)}
+.prof-cap{margin-top:6px;font-family:'DM Mono',monospace;font-size:9.5px;color:var(--dim)}
+.prof-note{margin-top:16px;font-family:'Fraunces',serif;font-size:13px;line-height:1.6;color:var(--muted);padding:12px 16px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--amber)}
+.prof-note.warn{border-left-color:var(--amber)}
+.prof-note.ok{border-left-color:var(--green)}
+
 /* Verdict strip */
 .verdict{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);border:0.5px solid var(--border2);border-radius:14px;padding:24px 28px;margin-bottom:32px}
 .verdict-pills{display:flex;flex-wrap:wrap;gap:18px 32px;margin-bottom:18px}
@@ -268,6 +283,25 @@ input[type="date"]{background:var(--bg2);border:0.5px solid var(--border);border
       Direct ROAS is <em>last-click only</em>. For luxury / high-ticket products, sales typically close offline via phone or WhatsApp after the paid click — those purchases later land under Direct (or WhatsApp) in true-source attribution, not under the campaign that drove the lead.
       <strong>Treat leads as the truer near-term output of paid spend.</strong>
     </p>
+  </section>
+
+  <!-- Profitability -->
+  <section class="card">
+    <div class="ct">
+      <h2 id="prof-title">Profitability</h2>
+      <span class="tip" id="prof-tip">Costs pulled from the Profit page · prorated to this category</span>
+    </div>
+    <div class="prof-grid" id="prof-grid">
+      <div class="prof-cell"><div class="prof-lbl">Category revenue</div><div class="prof-val gold" id="p-rev">—</div><div class="prof-cap" id="p-rev-cap">true Shopify revenue</div></div>
+      <div class="prof-cell"><div class="prof-lbl">Product / fulfilment cost</div><div class="prof-val red" id="p-cost">—</div><div class="prof-cap" id="p-cost-cap">from saved order costs</div></div>
+      <div class="prof-cell"><div class="prof-lbl">Transaction fees</div><div class="prof-val red" id="p-fees">—</div><div class="prof-cap">Shopify Payments fees</div></div>
+      <div class="prof-cell"><div class="prof-lbl">Ad spend</div><div class="prof-val red" id="p-spend">—</div><div class="prof-cap">this campaign (GA4)</div></div>
+      <div class="prof-cell"><div class="prof-lbl">Gross profit</div><div class="prof-val" id="p-gross">—</div><div class="prof-cap">rev − cost − fees</div></div>
+      <div class="prof-cell"><div class="prof-lbl">Net profit</div><div class="prof-val" id="p-net">—</div><div class="prof-cap">after ad spend</div></div>
+      <div class="prof-cell big"><div class="prof-lbl">Gross margin</div><div class="prof-val" id="p-gmargin">—</div><div class="prof-cap">gross profit ÷ revenue</div></div>
+      <div class="prof-cell big"><div class="prof-lbl">Net margin</div><div class="prof-val" id="p-nmargin">—</div><div class="prof-cap">net profit ÷ revenue</div></div>
+    </div>
+    <div class="prof-note" id="prof-note"></div>
   </section>
 
   <!-- Products sold -->
@@ -450,6 +484,26 @@ function classifyOrderChannel(order){
   return 'Other';
 }
 
+/* ===== Cost model (reads the same localStorage the Profit page writes) ===== */
+function lsGet(k,fb){try{const v=JSON.parse(localStorage.getItem(k));return v==null?fb:v;}catch(e){return fb;}}
+function getOrderCosts(){return lsGet('nuovo_order_costs',{});}      // numericOrderId → fulfillment cost (£, inc VAT)
+function getDdpFlags(){return lsGet('nuovo_order_ddp',{});}          // numericOrderId → true (Alibaba DDP, no reclaimable VAT)
+function getVatConfig(){return lsGet('nuovo_vat_config',{showExVat:true,vatRate:0.20,costsIncVat:true,spendIncVat:false});}
+// Strip VAT from a gross amount when ex-VAT view is on
+function exVatRev(gross){const v=getVatConfig();return v.showExVat?gross/(1+v.vatRate):gross;}
+function exVatCost(rawCost,isDdp){const v=getVatConfig();return(v.showExVat&&v.costsIncVat&&!isDdp)?rawCost/(1+v.vatRate):rawCost;}
+function exVatSpend(rawSpend){const v=getVatConfig();return(v.showExVat&&v.spendIncVat)?rawSpend/(1+v.vatRate):rawSpend;}
+// Sum real Shopify transaction fees on an order (Shopify Payments only populates these)
+function orderTxFees(o){
+  let fee=0;
+  ((o.transactions)||[]).forEach(t=>{
+    if((t.kind==='SALE'||t.kind==='CAPTURE')&&t.status==='SUCCESS'&&t.fees&&t.fees.length){
+      t.fees.forEach(f=>{fee+=parseFloat((f.amount&&f.amount.amount)||0);});
+    }
+  });
+  return fee;
+}
+
 /* ===== Formatters ===== */
 function fmtGBP(v){if(v===null||v===undefined||isNaN(v))return'—';if(v>=100)return'£'+Math.round(v).toLocaleString('en-GB');return'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtInt(v){if(v===null||v===undefined||isNaN(v)||v===0)return'—';return v.toLocaleString('en-GB');}
@@ -629,6 +683,13 @@ async function refresh(){
   const byProduct={}; // normTitle → {name, units, revenue, orders:Set}
   const sourceRev={}; // source → revenue
   const dailyCatRev={}; // YYYY-MM-DD → revenue
+  // Cost accumulators (from the Profit page's saved per-order costs)
+  const orderCosts=getOrderCosts();
+  const ddpFlags=getDdpFlags();
+  let costEntered=0, costMissing=0;      // category orders with / without a cost saved
+  let totFulfillRaw=0, totFulfillExVat=0;// prorated fulfillment cost (category share)
+  let totFeesRaw=0;                       // prorated transaction fees (category share)
+  let totCatRevExVat=0;                   // category revenue, ex-VAT
   orders.forEach(o=>{
     const lineItems=((o.lineItems&&o.lineItems.edges)||[]).map(e=>e.node).filter(Boolean);
     const matchingLis=lineItems.filter(li=>cat.match(li.title||''));
@@ -653,23 +714,55 @@ async function refresh(){
     catRevenue+=orderCatRev;
     if(orderSource==='Paid')catPaidRevenue+=orderCatRev;
     sourceRev[orderSource]=(sourceRev[orderSource]||0)+orderCatRev;
-    // Daily revenue bucket by createdAt (UK day)
     const dayKey=(o.createdAt||'').slice(0,10);
     if(dayKey)dailyCatRev[dayKey]=(dailyCatRev[dayKey]||0)+orderCatRev;
+
+    // ----- Cost proration: attribute order-level cost/fees to the category by
+    // the category's share of this order's line-item revenue. An order with
+    // £1,000 lighting + £500 sauna and £600 cost attributes £400 to lighting. -----
+    const orderLineRev=lineItems.reduce((a,li)=>a+(parseInt(li.quantity||0)*parseFloat((li.originalUnitPriceSet&&li.originalUnitPriceSet.shopMoney&&li.originalUnitPriceSet.shopMoney.amount)||0)),0);
+    const catShare=orderLineRev>0?orderCatRev/orderLineRev:1;
+    const numericId=String(o.id).split('/').pop();
+    const isDdp=!!ddpFlags[numericId];
+    const rawOrderCost=orderCosts[numericId]!=null?parseFloat(orderCosts[numericId]):null;
+    if(rawOrderCost!=null&&!isNaN(rawOrderCost)){
+      costEntered++;
+      const catCost=rawOrderCost*catShare;
+      totFulfillRaw+=catCost;
+      totFulfillExVat+=exVatCost(catCost,isDdp);
+    }else{
+      costMissing++;
+    }
+    const catFees=orderTxFees(o)*catShare;
+    totFeesRaw+=catFees;
+    totCatRevExVat+=exVatRev(orderCatRev);
   });
   const catOrders=catOrderIds.size;
+
+  // ----- Profitability roll-up (category level) -----
+  const vatOn=getVatConfig().showExVat;
+  const profRevenue=vatOn?totCatRevExVat:catRevenue;     // revenue basis for margin
+  const profFulfill=vatOn?totFulfillExVat:totFulfillRaw; // cost basis
+  const profFees=totFeesRaw;                              // fees have no reclaimable VAT
+  const profAdSpend=exVatSpend(spend);
+  const grossProfit=profRevenue-profFulfill-profFees;    // before ad spend
+  const netProfit=grossProfit-profAdSpend;               // after this campaign's spend
+  const grossMargin=profRevenue>0?grossProfit/profRevenue:null;
+  const netMargin=profRevenue>0?netProfit/profRevenue:null;
+  const profitability={vatOn,profRevenue,profFulfill,profFees,profAdSpend,grossProfit,netProfit,grossMargin,netMargin,costEntered,costMissing,catOrders};
 
   // ---- KPI math ----
   const directROAS=spend>0?purchaseRev/spend:0;
   const costPerLead=leads>0&&spend>0?spend/leads:0;
   const blendedCatROAS=spend>0?catPaidRevenue/spend:0;
 
-  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catUnits,catOrders,catPaidRevenue,byProduct,sourceRev,dailyCatRev,eventsByProduct,directROAS,costPerLead,blendedCatROAS};
+  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catUnits,catOrders,catPaidRevenue,byProduct,sourceRev,dailyCatRev,eventsByProduct,directROAS,costPerLead,blendedCatROAS,profitability};
 
   // ---- Render ----
   renderKPIs();
   renderCharts();
   renderLeads();
+  renderProfitability();
   renderProducts();
   renderVerdict();
 
@@ -789,6 +882,51 @@ function renderLeads(){
   document.getElementById('l-whatsapp').textContent=d.contacts.whatsapp||'—';
   document.getElementById('l-chat').textContent=d.contacts.chat||'—';
   document.getElementById('l-total').textContent=d.leads>0?`${d.leads} / ${d.costPerLead>0?fmtGBP(d.costPerLead):'—'}`:'—';
+}
+
+function renderProfitability(){
+  const d=lastData;
+  const p=d.profitability;
+  const catLbl=d.cat.mixed?'store-wide':d.cat.label;
+  document.getElementById('prof-title').textContent=d.cat.mixed?'Profitability (store-wide)':`Profitability — ${d.cat.label}`;
+  document.getElementById('prof-tip').textContent=`Costs from Profit page · prorated to ${catLbl} · ${p.vatOn?'ex-VAT':'inc-VAT'}`;
+  document.getElementById('p-rev-cap').textContent=p.vatOn?'true Shopify revenue · ex-VAT':'true Shopify revenue · inc-VAT';
+  document.getElementById('p-cost-cap').textContent=p.costEntered>0?`${p.costEntered}/${p.catOrders} orders costed`:'no order costs entered yet';
+
+  document.getElementById('p-rev').textContent=p.profRevenue>0?fmtGBP(p.profRevenue):'—';
+  document.getElementById('p-cost').textContent=p.profFulfill>0?'−'+fmtGBP(p.profFulfill):'—';
+  document.getElementById('p-fees').textContent=p.profFees>0?'−'+fmtGBP(p.profFees):'—';
+  document.getElementById('p-spend').textContent=p.profAdSpend>0?'−'+fmtGBP(p.profAdSpend):'—';
+
+  const gp=document.getElementById('p-gross');
+  gp.textContent=p.profRevenue>0?fmtGBP(p.grossProfit):'—';
+  gp.className='prof-val '+(p.grossProfit>0?'green':p.grossProfit<0?'red':'');
+  const np=document.getElementById('p-net');
+  np.textContent=p.profRevenue>0?fmtGBP(p.netProfit):'—';
+  np.className='prof-val '+(p.netProfit>0?'green':p.netProfit<0?'red':'');
+
+  const gm=document.getElementById('p-gmargin');
+  gm.textContent=p.grossMargin!=null?fmtPct(p.grossMargin):'—';
+  gm.className='prof-val '+(p.grossMargin>=0.3?'green':p.grossMargin<0.1&&p.grossMargin!=null?'red':'');
+  const nm=document.getElementById('p-nmargin');
+  nm.textContent=p.netMargin!=null?fmtPct(p.netMargin):'—';
+  nm.className='prof-val '+(p.netMargin>=0.2?'green':p.netMargin<0&&p.netMargin!=null?'red':'');
+
+  // Note — data-completeness + plain read
+  const note=document.getElementById('prof-note');
+  if(p.catOrders===0){
+    note.className='prof-note';note.textContent='No category orders in this period — nothing to cost yet.';
+  }else if(p.costEntered===0){
+    note.className='prof-note warn';
+    note.innerHTML=`<strong>No order costs entered.</strong> Margin shown is revenue minus fees and ad spend only — add fulfilment costs on the Profit page (they sync here automatically) to see true margin.`;
+  }else if(p.costMissing>0){
+    note.className='prof-note warn';
+    note.innerHTML=`<strong>${p.costEntered} of ${p.catOrders} category orders have costs entered.</strong> The ${p.costMissing} uncosted order${p.costMissing===1?'':'s'} ${p.costMissing===1?'is':'are'} treated as £0 cost, so the real margin is likely lower. Fill them in on the Profit page.`;
+  }else{
+    note.className='prof-note ok';
+    const gmTxt=p.grossMargin!=null?fmtPct(p.grossMargin):'—';
+    note.innerHTML=`<strong>All ${p.catOrders} category orders costed.</strong> Gross margin ${gmTxt} after product cost + fees; net ${p.netMargin!=null?fmtPct(p.netMargin):'—'} after £${Math.round(p.profAdSpend)} ad spend.`;
+  }
 }
 
 function sortProducts(items){
