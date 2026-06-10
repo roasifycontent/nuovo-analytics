@@ -229,7 +229,10 @@ input[type="date"]{background:var(--bg2);border:0.5px solid var(--border);border
     <div class="chart-wrap">
       <h3>True Source Mix</h3>
       <div class="sub">Category revenue by Shopify first-visit source</div>
-      <div class="chart-canvas tall"><canvas id="source-donut"></canvas></div>
+      <div class="chart-canvas tall" style="position:relative">
+        <canvas id="source-donut"></canvas>
+        <div id="source-donut-empty" class="empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center">No category orders in this period</div>
+      </div>
     </div>
   </section>
 
@@ -504,9 +507,9 @@ async function refresh(){
 
   const ds=[{startDate:dr.startDate,endDate:dr.endDate}];
 
-  let spendData, spendDailyData, convData, dailyConvData, funnelData, contactData, shopifyResp;
+  let spendData, spendDailyData, convData, dailyConvData, funnelData, contactData, productEventsData, shopifyResp;
   try{
-    [spendData, spendDailyData, convData, dailyConvData, funnelData, contactData, shopifyResp] = await Promise.all([
+    [spendData, spendDailyData, convData, dailyConvData, funnelData, contactData, productEventsData, shopifyResp] = await Promise.all([
       // 1. SPEND total — cost metrics ONLY (no event-scoped fields)
       safeGa4({dateRanges:ds,dimensions:[{name:'googleAdsCampaignName'}],metrics:[
         {name:'advertiserAdCost'},{name:'advertiserAdClicks'},{name:'advertiserAdImpressions'}
@@ -541,7 +544,18 @@ async function refresh(){
         {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
         {filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}
       ]}}}),
-      // 7. Shopify orders for the date range (server-side endpoint)
+      // 7. PER-PRODUCT events scoped to this campaign — itemName + eventName breakdown
+      //    so the products table can show real Sess / ATC / Chkt for THIS campaign
+      //    (eventCount is event-scoped, mixes safely with itemName).
+      safeGa4({dateRanges:ds,dimensions:[{name:'itemName'},{name:'eventName'}],metrics:[
+        {name:'eventCount'}
+      ],dimensionFilter:{andGroup:{expressions:[
+        campaignFilter,
+        {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+        {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
+        {filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase']}}}
+      ]}}}),
+      // 8. Shopify orders for the date range (server-side endpoint)
       fetchShopifyOrders(startYmd,endYmd)
     ]);
   }catch(e){
@@ -590,6 +604,22 @@ async function refresh(){
     spendByDate[ymd]=parseFloat(r.metricValues[0].value||0);
   });
 
+  // Per-product event map (keyed by normalised item title for join with Shopify)
+  // Each entry: { sess (view_item), atc, checkout, orders }
+  const eventsByProduct={};
+  (productEventsData.rows||[]).forEach(r=>{
+    const item=r.dimensionValues[0].value;
+    const ev=r.dimensionValues[1].value;
+    const c=parseInt(r.metricValues[0].value||0);
+    if(!item||item==='(not set)')return;
+    const key=normTitle(item);
+    if(!eventsByProduct[key])eventsByProduct[key]={sess:0,atc:0,checkout:0,orders:0};
+    if(ev==='view_item')eventsByProduct[key].sess+=c;
+    else if(ev==='add_to_cart')eventsByProduct[key].atc+=c;
+    else if(ev==='begin_checkout')eventsByProduct[key].checkout+=c;
+    else if(ev==='purchase')eventsByProduct[key].orders+=c;
+  });
+
   // ---- Shopify aggregate: category orders, revenue, units, source mix ----
   const VALID=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
   const orders=(shopifyResp.orders||[]).filter(o=>VALID.has(o.displayFinancialStatus));
@@ -634,7 +664,7 @@ async function refresh(){
   const costPerLead=leads>0&&spend>0?spend/leads:0;
   const blendedCatROAS=spend>0?catPaidRevenue/spend:0;
 
-  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catUnits,catOrders,catPaidRevenue,byProduct,sourceRev,dailyCatRev,directROAS,costPerLead,blendedCatROAS};
+  lastData={campaignName,cat,dr,spend,clicks,impressions,sessions,engaged,transactions,purchaseRev,funnel,contacts,leads,spendByDate,catRevenue,catUnits,catOrders,catPaidRevenue,byProduct,sourceRev,dailyCatRev,eventsByProduct,directROAS,costPerLead,blendedCatROAS};
 
   // ---- Render ----
   renderKPIs();
@@ -721,14 +751,19 @@ function renderCharts(){
     });
   }
 
-  // 3. True-source donut
+  // 3. True-source donut — overlay pattern so the canvas is never destroyed on
+  // an empty state (otherwise the next refresh can't find the canvas to draw).
   if(charts.donut)charts.donut.destroy();
   const ctx3=document.getElementById('source-donut');
-  if(ctx3){
+  const emptyEl=document.getElementById('source-donut-empty');
+  if(ctx3&&emptyEl){
     const entries=Object.entries(d.sourceRev).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
     if(entries.length===0){
-      ctx3.parentElement.innerHTML='<div class="empty">No category orders in this period</div>';
+      emptyEl.style.display='flex';
+      ctx3.style.display='none';
     }else{
+      emptyEl.style.display='none';
+      ctx3.style.display='block';
       const lbls=entries.map(e=>e[0]);
       const data=entries.map(e=>e[1]);
       const colors=lbls.map(chartColor);
@@ -768,7 +803,11 @@ function sortProducts(items){
 function renderProducts(){
   const d=lastData;
   const el=document.getElementById('prod-table');
-  const items=Object.values(d.byProduct).map(p=>({name:p.name,units:p.units,revenue:p.revenue,orders:p.orders.size,aov:p.orders.size>0?p.revenue/p.orders.size:0}));
+  const items=Object.values(d.byProduct).map(p=>{
+    const key=normTitle(p.name);
+    const ev=d.eventsByProduct[key]||{sess:0,atc:0,checkout:0,orders:0};
+    return{name:p.name,units:p.units,revenue:p.revenue,orders:p.orders.size,aov:p.orders.size>0?p.revenue/p.orders.size:0,sess:ev.sess,atc:ev.atc,checkout:ev.checkout};
+  });
   if(items.length===0){
     el.innerHTML='<div class="empty">No products sold in this category for the selected date range.</div>';
     return;
@@ -787,13 +826,12 @@ function renderProducts(){
     <span></span>
   </div>`;
   const rows=sorted.map(p=>{
-    const sess='—',atc='—',chk='—'; // GA4 per-product attribution to this campaign requires item-scope queries — left as — for clarity
     const short=p.name.length>56?p.name.slice(0,56)+'…':p.name;
     return`<div class="prod-tbl row" title="${p.name.replace(/"/g,'&quot;')}">
       <span class="pname">${short}</span>
-      <span>${sess}</span>
-      <span>${atc}</span>
-      <span>${chk}</span>
+      <span>${p.sess>0?fmtInt(p.sess):'—'}</span>
+      <span>${p.atc>0?fmtInt(p.atc):'—'}</span>
+      <span>${p.checkout>0?fmtInt(p.checkout):'—'}</span>
       <span class="${p.orders>0?'win':''}">${p.orders||'—'}</span>
       <span class="${p.units>0?'win':''}">${p.units||'—'}</span>
       <span class="gold">${p.revenue>0?fmtGBP(p.revenue):'—'}</span>
