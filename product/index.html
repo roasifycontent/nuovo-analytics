@@ -450,6 +450,26 @@ async function ga4(body){
   return r.json();
 }
 const safe=async(q)=>{try{return await ga4(q);}catch(e){if(isAuthError(e)){showReauth();throw e;}console.warn('Query failed:',e.message);return{rows:[]};}};
+// Shopify orders for the current date range — used to compute real orders-per-item
+// (GA4 won't give us this; transactions metric is event-scoped and incompatible
+// with itemName dimension).
+function ga4DateToYmd(token){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(token))return token;
+  const d=new Date();
+  if(token==='yesterday')d.setDate(d.getDate()-1);
+  else{const m=token.match(/^(\d+)daysAgo$/);if(m)d.setDate(d.getDate()-parseInt(m[1],10));}
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+async function fetchShopifyOrdersForItems(){
+  try{
+    const s=ga4DateToYmd(dateRange.startDate);
+    const e=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/shopify-orders?startDate=${s}&endDate=${e}`);
+    if(!r.ok){console.warn('[shopify-orders]',r.status);return[];}
+    const data=await r.json();
+    return data.orders||[];
+  }catch(e){console.warn('[shopify-orders] fetch failed:',e.message);return[];}
+}
 
 // --- Formatting ---
 function fmtGBP(v){if(v>=100)return'£'+Math.round(v).toLocaleString('en-GB');return'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -521,7 +541,7 @@ async function refresh(){
 
   try{
     // Query 1: Main product table
-    const [productData, transactionData, keyEventsData, contactData] = await Promise.all([
+    const [productData, shopifyOrders, keyEventsData, contactData] = await Promise.all([
       safe({
         dateRanges:dr,
         dimensions:[{name:'itemName'}],
@@ -535,16 +555,11 @@ async function refresh(){
         orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],
         limit:50
       }),
-      // Query 1b: Orders (= GA4 transactions) per item — separate so item-scoped
-      // metrics above don't conflict. itemsPurchased counts UNITS (5 of one product
-      // in one order = 5), transactions counts ORDERS (5 of one product in one order = 1).
-      // Orders is what you actually want for "how many times did this product sell".
-      safe({
-        dateRanges:dr,
-        dimensions:[{name:'itemName'}],
-        metrics:[{name:'transactions'}],
-        limit:200
-      }),
+      // Query 1b: Real orders per item — from Shopify. GA4 rejects `transactions`
+      // paired with `itemName` (event-scoped + item-scoped INVALID_ARGUMENT), so we
+      // fall back to the source of truth: Shopify line items. Counts distinct orders
+      // containing each product title (1 order with 5 units of the same product = 1).
+      fetchShopifyOrdersForItems(),
       // Query 2: Key events by page (for phone/form attribution)
       safe({
         dateRanges:dr,
@@ -557,12 +572,24 @@ async function refresh(){
       fetchContactsByPage()
     ]);
 
-    // Build orders-by-item map from the transactions query
-    const ordersByItem={};
-    (transactionData.rows||[]).forEach(r=>{
-      const name=r.dimensionValues[0].value;
-      if(!name||name==='(not set)')return;
-      ordersByItem[name]=parseInt(r.metricValues[0].value||0);
+    // Build orders-by-item map from Shopify line items. Match keys are normalised
+    // (lowercase + alphanumeric only) so trailing whitespace, smart quotes, em-dashes
+    // etc. don't break the join between GA4 itemName and Shopify product title.
+    const VALID_FIN=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+    const normTitle=t=>(t||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+    const ordersByItem={}; // normalised title → orders count
+    (shopifyOrders||[]).forEach(o=>{
+      if(!VALID_FIN.has(o.displayFinancialStatus))return;
+      const seenInOrder=new Set();
+      const lis=(o.lineItems&&o.lineItems.edges)||[];
+      lis.forEach(le=>{
+        const title=le.node&&le.node.title;
+        if(!title)return;
+        const key=normTitle(title);
+        if(!key||seenInOrder.has(key))return;
+        seenInOrder.add(key);
+        ordersByItem[key]=(ordersByItem[key]||0)+1;
+      });
     });
 
     // Build product map
@@ -576,7 +603,7 @@ async function refresh(){
       const checkout=parseInt(r.metricValues[2].value||0);
       const units=parseInt(r.metricValues[3].value||0); // itemsPurchased — units sold
       const revenue=parseFloat(r.metricValues[4].value||0);
-      const purchases=ordersByItem[name]||0; // ORDERS — distinct purchase events for this item
+      const purchases=ordersByItem[normTitle(name)]||0; // ORDERS — distinct Shopify orders for this item
       const slug=toSlug(name);
       const p={
         name,slug,sessions,atc,checkout,purchases,units,revenue,

@@ -533,7 +533,7 @@ async function refresh(){
       ],orderBys:[{dimension:{dimensionName:'date'}}]}),
       // Product performance
       safe({dateRanges:dr,dimensions:[{name:'itemName'}],metrics:[
-        {name:'itemRevenue'},{name:'transactions'}
+        {name:'itemRevenue'},{name:'itemsPurchased'}
       ],orderBys:[{metric:{metricName:'itemRevenue'},desc:true}],limit:10}),
       // Today revenue
       safe({dateRanges:[{startDate:'today',endDate:'today'}],metrics:[{name:'totalRevenue'}]}),
@@ -610,7 +610,7 @@ function renderAll(){
   renderHero(d.chMap,d.gAdSpendTotal,d.newUsersTotal);
   renderChannelCompare(d.chMap,d.gAdSpendTotal,d.shopifyAttr);
   renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
-  renderProducts(d.products);
+  renderProducts(d.products,d.shopifyAttr);
 }
 
 // --- Hero metrics ---
@@ -965,24 +965,45 @@ function renderPnL(todayData,todayGAdSpend,dailyTrend,dailyAdSpend){
 }
 
 // --- Product performance ---
-function renderProducts(products){
+function renderProducts(products,shopifyPayload){
   const rows=products.rows||[];
   const el=document.getElementById('prod-table');
   if(!rows.length){el.innerHTML='<div class="ld">No product data in this period</div>';return;}
 
   const totRev=rows.reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0)||1;
 
-  el.innerHTML=`<div class="tbl-row tbl-hdr prod"><span>Product</span><span style="text-align:right">Revenue</span><span style="text-align:right" title="Orders containing this product — 1 order with 5 units counts as 1 order">Orders</span><span style="text-align:right" title="Average order value — revenue ÷ orders">AOV</span><span style="text-align:right">% Rev</span></div>`+
+  // Build orders-per-item from Shopify line items (GA4 can't give us this for
+  // item-scoped queries). Normalised key handles small punctuation differences
+  // between GA4's itemName and Shopify's product title.
+  const VALID_FIN=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+  const normTitle=t=>(t||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+  const ordersByItem={};
+  const shopOrders=(shopifyPayload&&shopifyPayload.orders)||[];
+  shopOrders.forEach(o=>{
+    if(!VALID_FIN.has(o.displayFinancialStatus))return;
+    const seenInOrder=new Set();
+    const lis=(o.lineItems&&o.lineItems.edges)||[];
+    lis.forEach(le=>{
+      const title=le.node&&le.node.title;
+      if(!title)return;
+      const key=normTitle(title);
+      if(!key||seenInOrder.has(key))return;
+      seenInOrder.add(key);
+      ordersByItem[key]=(ordersByItem[key]||0)+1;
+    });
+  });
+
+  el.innerHTML=`<div class="tbl-row tbl-hdr prod"><span>Product</span><span style="text-align:right">Revenue</span><span style="text-align:right" title="Real orders from Shopify containing this product (1 order × 5 units = 1)">Orders</span><span style="text-align:right" title="Average order value — itemRevenue ÷ Shopify orders for this product">AOV</span><span style="text-align:right">% Rev</span></div>`+
     rows.map(r=>{
       const name=r.dimensionValues[0].value;
       const rev=parseFloat(r.metricValues[0].value||0);
-      const orders=parseInt(r.metricValues[1].value||0); // transactions — orders containing this item
+      const orders=ordersByItem[normTitle(name)]||0;
       const aov=orders>0?rev/orders:0;
       const pct=Math.round(rev/totRev*100);
       return`<div class="tbl-row prod">
         <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name.slice(0,45)}</span>
         <span class="tnum gold">${fmtGBP(rev)}</span>
-        <span class="tnum">${orders}</span>
+        <span class="tnum">${orders>0?orders:'—'}</span>
         <span class="tnum mu">${aov>0?fmtGBP(aov):'—'}</span>
         <span class="tnum mu">${pct}%</span>
       </div>`;
