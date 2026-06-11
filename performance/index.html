@@ -415,7 +415,7 @@ async function fetchBingSheetSpend(){
   try{
     const s=ga4DateToYmd(dateRange.startDate);
     const e=ga4DateToYmd(dateRange.endDate);
-    const r=await fetch(`/api/bing-spend?startDate=${s}&endDate=${e}`);
+    const r=await fetch(`/api/bing-spend?startDate=${s}&endDate=${e}`,{cache:'no-store'});
     if(!r.ok){
       let err='Bing '+r.status;
       try{const j=await r.json();err=j.error||err;}catch(_){}

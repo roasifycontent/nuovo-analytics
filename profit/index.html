@@ -849,7 +849,7 @@ async function fetchShopifyOrders(start,end){
 // returns { daily, total, error } so a sheet outage doesn't take the page down.
 async function fetchBingSpendFromSheet(start,end){
   try{
-    const r=await fetch(`/api/bing-spend?startDate=${start}&endDate=${end}`);
+    const r=await fetch(`/api/bing-spend?startDate=${start}&endDate=${end}`,{cache:'no-store'});
     if(!r.ok){
       let err='Bing '+r.status;
       try{const j=await r.json();err=j.error||err;}catch(_){}

@@ -534,7 +534,9 @@ async function fetchBingSheetSpend(){
   try{
     const s=ga4DateToYmd(dateRange.startDate);
     const e=ga4DateToYmd(dateRange.endDate);
-    const r=await fetch(`/api/bing-spend?startDate=${s}&endDate=${e}`);
+    // no-store: never let the browser replay a cached copy — a stale cached
+    // response is how yesterday's spend silently failed to appear (Jun 2026).
+    const r=await fetch(`/api/bing-spend?startDate=${s}&endDate=${e}`,{cache:'no-store'});
     if(!r.ok){
       let err='Bing '+r.status;
       try{const j=await r.json();err=j.error||err;}catch(_){}
