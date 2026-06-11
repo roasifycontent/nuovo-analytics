@@ -122,7 +122,11 @@ module.exports = async (req, res) => {
         total += v;
       }
     });
-    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+    // s-maxage: Vercel's CDN caches for 1h (protects the sheet from hammering).
+    // max-age=0 + must-revalidate: browsers must always re-ask the CDN — otherwise a
+    // user's browser can hold a stale copy for an hour after the sheet updates
+    // (which is exactly what hid the 10 Jun fix from the dashboard).
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600');
     res.status(200).json({
       daily: filtered,
       total,
