@@ -20,20 +20,57 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 let _cache = null; // { fetchedAt: number, daily: {...} }
 
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Normalise a non-YYYY-MM-DD date cell. The sheet's Apps Script sometimes writes a
+// raw Date object instead of a string (its end-of-day update pass); depending on the
+// cell type that exports as "Wed Jun 10 2026 ..." or as an EMPTY string. Handle both:
+// parse month-name and dd/mm/yyyy formats, and for an empty/unparseable date fall
+// back to prevDate+1 — the history tab is a strict daily append, so the row after
+// 2026-06-09 is 2026-06-10.
+function normaliseDate(s, prevDate) {
+  if (s) {
+    // "Wed Jun 10 2026 00:00:00 GMT+0100 (...)" / "Jun 10 2026" / "June 10, 2026"
+    let m = s.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})/);
+    if (m) {
+      const mon = MONTHS[m[1].slice(0, 3).toLowerCase()];
+      if (mon) return `${m[3]}-${pad2(mon)}-${pad2(parseInt(m[2], 10))}`;
+    }
+    // UK dd/mm/yyyy
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${pad2(parseInt(m[2], 10))}-${pad2(parseInt(m[1], 10))}`;
+  }
+  if (prevDate) {
+    const d = new Date(prevDate + 'T12:00:00Z'); // noon avoids DST edge cases
+    d.setUTCDate(d.getUTCDate() + 1);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  }
+  return null;
+}
+
 function parseCsv(text) {
-  // Two-column CSV: "YYYY-MM-DD","spend". Header row first. Blank spend → 0.
+  // Two-column CSV: "date","spend". Header row first. Blank spend → 0.
   const daily = {};
   const lines = text.split(/\r?\n/);
+  let prevDate = null;
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    const m = line.match(/^"([^"]*)","([^"]*)"\s*$/);
+    // Greedy first group so a date containing a comma ("June 10, 2026") still splits
+    // on the LAST "," delimiter.
+    const m = line.match(/^"(.*)","([^"]*)"\s*$/);
     if (!m) continue;
-    const date = m[1].trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    let date = m[1].trim();
     const raw = m[2].trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      date = normaliseDate(date, prevDate);
+      if (!date) continue;
+    }
     const spend = raw === '' ? 0 : parseFloat(raw);
     daily[date] = Number.isFinite(spend) ? spend : 0;
+    prevDate = date;
   }
   return daily;
 }
