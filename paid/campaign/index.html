@@ -598,14 +598,16 @@ async function refresh(){
         {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
         {filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}
       ]}},limit:5000}),
-      // 7. PER-PRODUCT events — sessionCampaignName + itemName + eventName, matched
-      //    client-side. eventCount pairs naturally with item events.
-      safeGa4({dateRanges:ds,dimensions:[{name:'sessionCampaignName'},{name:'itemName'},{name:'eventName'}],metrics:[
-        {name:'eventCount'}
+      // 7. PER-PRODUCT engagement — item-scoped METRICS by [campaign, item], matched
+      //    client-side. itemName + eventName + eventCount is INCOMPATIBLE in GA4
+      //    (verified live: 400 "remove eventCount"). Item-scoped metrics are the
+      //    supported way to get per-item views / ATC / checkout, and they DO accept
+      //    the session-scoped google/cpc filter. Confirmed returns data.
+      safeGa4({dateRanges:ds,dimensions:[{name:'sessionCampaignName'},{name:'itemName'}],metrics:[
+        {name:'itemsViewed'},{name:'itemsAddedToCart'},{name:'itemsCheckedOut'}
       ],dimensionFilter:{andGroup:{expressions:[
         {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
-        {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
-        {filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase']}}}
+        {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
       ]}},limit:10000}),
       // 8. Shopify orders for the date range (server-side endpoint)
       fetchShopifyOrders(startYmd,endYmd)
@@ -661,22 +663,19 @@ async function refresh(){
     spendByDate[ymd]=parseFloat(r.metricValues[0].value||0);
   });
 
-  // Per-product event map (keyed by normalised item title for join with Shopify)
-  // Each entry: { sess (view_item), atc, checkout, orders }
-  // dim0 = sessionCampaignName, dim1 = itemName, dim2 = eventName — match our campaign
+  // Per-product engagement (keyed by normalised item title for join with Shopify).
+  // dim0 = sessionCampaignName, dim1 = itemName; metrics = itemsViewed (sess),
+  // itemsAddedToCart (atc), itemsCheckedOut (checkout). Match our campaign.
   const eventsByProduct={};
   (productEventsData.rows||[]).forEach(r=>{
     if(r.dimensionValues[0].value!==campaignName)return;
     const item=r.dimensionValues[1].value;
-    const ev=r.dimensionValues[2].value;
-    const c=parseInt(r.metricValues[0].value||0);
     if(!item||item==='(not set)')return;
     const key=normTitle(item);
     if(!eventsByProduct[key])eventsByProduct[key]={sess:0,atc:0,checkout:0,orders:0};
-    if(ev==='view_item')eventsByProduct[key].sess+=c;
-    else if(ev==='add_to_cart')eventsByProduct[key].atc+=c;
-    else if(ev==='begin_checkout')eventsByProduct[key].checkout+=c;
-    else if(ev==='purchase')eventsByProduct[key].orders+=c;
+    eventsByProduct[key].sess+=parseInt(r.metricValues[0].value||0);
+    eventsByProduct[key].atc+=parseInt(r.metricValues[1].value||0);
+    eventsByProduct[key].checkout+=parseInt(r.metricValues[2].value||0);
   });
 
   // ---- Shopify aggregate: category orders, revenue, units, source mix ----
