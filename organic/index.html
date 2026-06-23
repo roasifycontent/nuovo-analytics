@@ -226,6 +226,12 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
     <!-- Insights -->
     <div id="insights"></div>
 
+    <!-- Landing pages: organic sales + the search terms driving them -->
+    <div class="card">
+      <div class="ct"><span>Landing pages — organic sales &amp; search terms</span><span class="ct-tip">GA4 sales/funnel per page · click a row to see the search terms driving it</span></div>
+      <div id="lp-combined"><div class="ld"><span class="sp"></span>Loading...</div></div>
+    </div>
+
     <!-- Top keywords -->
     <div class="card">
       <div class="ct"><span>Top performing keywords</span><span class="ct-tip">From Google Search Console</span></div>
@@ -642,7 +648,7 @@ async function refresh(){
 
   try{
     // Parallel - GA4 queries
-    const [bySource, kpiData, contacts, byPage, byCountry, byDevice, byDate, blogPages] = await Promise.all([
+    const [bySource, kpiData, contacts, byPage, byCountry, byDevice, byDate, blogPages, lpEvents] = await Promise.all([
       ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       ga4({dateRanges:[dateRange],metrics:[{name:'totalRevenue'},{name:'keyEvents'},{name:'keyEvents:form_submit'}],dimensionFilter:orgFil}),
       fetchContacts(orgFil),
@@ -650,7 +656,11 @@ async function refresh(){
       ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:orgFil,orderBys:[{metric:{metricName:'sessions'},desc:true}]}),
       ga4({dateRanges:[dateRange],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:orgFil,orderBys:[{dimension:{dimensionName:'date'}}]}),
-      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:30})
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'},{name:'engagementRate'},{name:'keyEvents:phone_calls'},{name:'keyEvents:form_submit'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'landingPagePlusQueryString',stringFilter:{matchType:'CONTAINS',value:'/pages/'}}}]}},orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:30}),
+      // Per-landing-page funnel + contact events (organic) — ATC / checkout / forms /
+      // purchases / calls / WhatsApp / chat by landing page. landingPage (session-scoped)
+      // + eventName (event-scoped) + eventCount is a compatible GA4 combo.
+      ga4({dateRanges:[dateRange],dimensions:[{name:'landingPagePlusQueryString'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[orgFil,{filter:{fieldName:'eventName',inListFilter:{values:['add_to_cart','begin_checkout','form_submit','purchase','click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}]}},limit:2000})
     ]);
 
     renderHero(bySource);
@@ -660,15 +670,19 @@ async function refresh(){
     renderDevices(byDevice);
     renderTrend(byDate);
     renderBlogs(blogPages);
+    // Sales/funnel per landing page now; search terms get layered in once GSC resolves.
+    renderLandingCombined(byPage, lpEvents, null);
 
     // GSC queries - separate try because scope might be missing
     try{
       await gscFindSite(); // pre-discover the site URL
-      const [kwData, kwPrev, kwOpps, gscPages] = await Promise.all([
+      const [kwData, kwPrev, kwOpps, gscPages, pageQuery] = await Promise.all([
         gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:100,startRow:0}),
         gsc({startDate:gscRangePrev.startDate,endDate:gscRangePrev.endDate,dimensions:['query'],rowLimit:100,startRow:0}),
         gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['query'],rowLimit:200,startRow:0}),
-        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['page'],rowLimit:30,startRow:0})
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['page'],rowLimit:30,startRow:0}),
+        // page + query → the search terms driving each landing page
+        gsc({startDate:gscRange.startDate,endDate:gscRange.endDate,dimensions:['page','query'],rowLimit:5000,startRow:0})
       ]);
       renderKeywords(kwData);
       renderRising(kwData, kwPrev);
@@ -676,6 +690,8 @@ async function refresh(){
       updateAvgPosCTR(kwData);
       renderGSCPages(gscPages);
       buildInsights(kwData, kwPrev, byPage);
+      // Re-render the landing-page table now enriched with per-page search terms
+      renderLandingCombined(byPage, lpEvents, pageQuery);
     } catch(gscErr){
       console.error('GSC error:',gscErr);
       if(gscErr.message==='GSC_NO_SCOPE'){
@@ -871,6 +887,85 @@ function renderGSCPages(data){
 }
 
 function cleanPath(p){return(p||'/').replace('https://www.nuovoluxury.co.uk','').slice(0,46)||'/';}
+
+// ===== Landing pages: organic sales + the search terms driving them =====
+// Joins GA4 per-landing-page sales/funnel with GSC page→query keywords.
+// NOTE: Google does not expose keyword→sale (keyword is stripped from the
+// session), so revenue/ATC/etc attach to the LANDING PAGE, and the search
+// terms shown are those GSC recorded driving clicks to that same page.
+let lpRows=[], lpKwMap={}, lpSort='revenue', lpDir=-1;
+function normLP(p){return (p||'').replace(/^https?:\/\/(www\.)?nuovoluxury\.co\.uk/i,'').split('?')[0].replace(/\/+$/,'').toLowerCase()||'/';}
+function renderLandingCombined(byPage, lpEvents, pageQuery){
+  const el=document.getElementById('lp-combined');
+  if(!el)return;
+  // Per-page event map from GA4 (eventCount by landingPage + eventName)
+  const ev={};
+  ((lpEvents&&lpEvents.rows)||[]).forEach(r=>{
+    const p=normLP(r.dimensionValues[0].value), name=r.dimensionValues[1].value, c=parseInt(r.metricValues[0].value||0);
+    if(!ev[p])ev[p]={atc:0,checkout:0,forms:0,purchases:0,calls:0,whatsapp:0,chat:0};
+    if(name==='add_to_cart')ev[p].atc+=c;
+    else if(name==='begin_checkout')ev[p].checkout+=c;
+    else if(name==='form_submit')ev[p].forms+=c;
+    else if(name==='purchase')ev[p].purchases+=c;
+    else if(name==='click_to_call_ga4')ev[p].calls+=c;
+    else if(name==='whatsapp_click')ev[p].whatsapp+=c;
+    else if(name==='tidio_conversation_started')ev[p].chat+=c;
+  });
+  // Per-page keyword map from GSC (page + query)
+  lpKwMap={};
+  if(pageQuery&&pageQuery.rows){
+    pageQuery.rows.forEach(r=>{
+      const p=normLP(r.keys[0]);
+      if(!lpKwMap[p])lpKwMap[p]=[];
+      lpKwMap[p].push({q:r.keys[1],clicks:r.clicks||0,impr:r.impressions||0,pos:r.position||0});
+    });
+    Object.values(lpKwMap).forEach(a=>a.sort((x,y)=>y.clicks-x.clicks));
+  }
+  // Base rows from GA4 landing-page query (sessions/revenue/orders)
+  lpRows=((byPage&&byPage.rows)||[]).map(r=>{
+    const full=r.dimensionValues[0].value, path=cleanPath(full), np=normLP(full);
+    const e=ev[np]||{atc:0,checkout:0,forms:0,purchases:0,calls:0,whatsapp:0,chat:0};
+    const kws=lpKwMap[np]||[];
+    return {path, full, np,
+      sessions:parseInt(r.metricValues[0].value||0),
+      revenue:parseFloat(r.metricValues[1].value||0),
+      orders:parseInt(r.metricValues[3].value||0),
+      atc:e.atc, checkout:e.checkout, forms:e.forms, calls:e.calls, whatsapp:e.whatsapp,
+      clicks:kws.reduce((a,k)=>a+k.clicks,0), kwCount:kws.length};
+  }).filter(r=>r.path!=='(not set)' && !r.path.includes('?currency=') && (r.sessions>0||r.revenue>0));
+  drawLP();
+}
+function lpHdr(k,l){return `<span onclick="lpSortBy('${k}')" style="text-align:right;cursor:pointer${lpSort===k?';color:var(--gold)':''}">${l}${lpSort===k?(lpDir<0?' ↓':' ↑'):''}</span>`;}
+const LP_COLS='1fr 54px 46px 50px 50px 46px 54px 60px 78px';
+function drawLP(){
+  const el=document.getElementById('lp-combined');
+  const rows=[...lpRows].sort((a,b)=>lpDir*((a[lpSort]||0)-(b[lpSort]||0))).slice(0,30);
+  if(!rows.length){el.innerHTML='<div class="ld">No organic landing-page data in this period</div>';return;}
+  let html=`<div style="display:grid;grid-template-columns:${LP_COLS};gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:var(--dim)"><span>Landing page</span>${lpHdr('sessions','Sess')}${lpHdr('atc','ATC')}${lpHdr('checkout','Chkt')}${lpHdr('forms','Forms')}${lpHdr('calls','Calls')}${lpHdr('orders','Orders')}${lpHdr('clicks','GSC clk')}${lpHdr('revenue','Revenue')}</div>`;
+  rows.forEach((r,i)=>{
+    html+=`<div class="lp-row" onclick="lpToggle(${i})" style="display:grid;grid-template-columns:${LP_COLS};gap:8px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:12px">
+      <span class="tpath" title="${r.full}">${r.kwCount?'▸ ':''}${r.path}</span>
+      <span class="tnum">${r.sessions||'—'}</span>
+      <span class="tnum">${r.atc||'—'}</span>
+      <span class="tnum">${r.checkout||'—'}</span>
+      <span class="tnum">${r.forms||'—'}</span>
+      <span class="tnum">${r.calls||'—'}</span>
+      <span class="tnum ${r.orders>0?'green':''}">${r.orders||'—'}</span>
+      <span class="tnum mu">${r.clicks||'—'}</span>
+      <span class="tnum gold">${r.revenue>0?'£'+Math.round(r.revenue).toLocaleString():'—'}</span>
+    </div>
+    <div id="lp-exp-${i}" style="display:none;border-bottom:0.5px solid var(--border);background:var(--bg3)">${lpKwHtml(r.np)}</div>`;
+  });
+  el.innerHTML=html;
+}
+function lpKwHtml(np){
+  const kws=(lpKwMap[np]||[]).slice(0,12);
+  if(!kws.length)return '<div style="padding:10px 16px;color:var(--dim);font-size:12px">'+(gscSiteUrl?'No Search Console terms recorded for this page in range.':'Enable Search Console to see the search terms driving this page.')+'</div>';
+  return '<div style="padding:8px 16px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin-bottom:6px">Search terms driving this page</div>'+
+    kws.map(k=>`<div style="display:grid;grid-template-columns:1fr 64px 78px 52px;gap:8px;padding:4px 0;font-size:12px"><span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k.q}</span><span class="tnum green">${k.clicks} clk</span><span class="tnum mu">${k.impr.toLocaleString()} imp</span><span style="text-align:right"><span class="pos-badge ${posClass(k.pos)}">${k.pos.toFixed(1)}</span></span></div>`).join('')+'</div>';
+}
+function lpToggle(i){const e=document.getElementById('lp-exp-'+i);if(e)e.style.display=e.style.display==='none'?'block':'none';}
+function lpSortBy(k){if(lpSort===k)lpDir*=-1;else{lpSort=k;lpDir=-1;}drawLP();}
 
 let allPages=[], pagesSort='sessions', pagesSortDir=-1, pagesSearch='', pagesLimit=15;
 
