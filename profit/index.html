@@ -650,8 +650,9 @@ function ukToday(){return _ukYmdFmt.format(new Date());}
 function addDays(ymd,n){const d=new Date(`${ymd}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return _ukYmdFmt.format(d);}
 function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
 
-// ===== Date range =====
-function saveDateRange(preset){localStorage.setItem('nuovo_profit_date_range',JSON.stringify({dateRange,preset:preset||null}));}
+// ===== Date range (single shared store across every page) =====
+function loadSharedDateRange(){try{const s=JSON.parse(localStorage.getItem('nuovo_date_range'));if(s&&(s.preset||s.from))return s;}catch(e){}return null;}
+function saveSharedDateRange(preset,from,to){localStorage.setItem('nuovo_date_range',JSON.stringify({preset:preset||null,from:from||null,to:to||null}));}
 // Compute a {startDate,endDate} for a named preset. 'today' / 'NdaysAgo' stay as
 // tokens (resolveDateRange expands them); month/ytd presets resolve to absolute
 // dates computed purely from the UK 'today' string to avoid any timezone drift.
@@ -687,7 +688,7 @@ function applyPreset(preset){
   if(df)df.value='';if(dt)dt.value='';
   setDrActive(preset);
   const lbl=document.getElementById('dr-label');if(lbl)lbl.textContent=drLabelFor(preset)||'Range';
-  saveDateRange(preset);
+  saveSharedDateRange(preset);
 }
 function drPick(preset){applyPreset(preset);drClose();refresh();}
 function drApplyCustom(){
@@ -696,30 +697,22 @@ function drApplyCustom(){
   dateRange={startDate:from,endDate:to};
   setDrActive(null);
   document.getElementById('dr-label').textContent=fmtDateShort(from)+' → '+fmtDateShort(to);
-  saveDateRange(null);
+  saveSharedDateRange('custom',from,to);
   drClose();refresh();
 }
 function restoreDateRange(){
-  const saved=localStorage.getItem('nuovo_profit_date_range');
-  if(saved){
-    try{
-      const s=JSON.parse(saved);
-      dateRange=s.dateRange;
-      if(s.preset){
-        setDrActive(s.preset);
-        const lbl=drLabelFor(s.preset);if(lbl)document.getElementById('dr-label').textContent=lbl;
-      }else{
-        // custom range
-        const f=dateRange.startDate,t=dateRange.endDate;
-        const df=document.getElementById('date-from'),dt=document.getElementById('date-to');
-        if(df&&/^\d{4}-\d{2}-\d{2}$/.test(f))df.value=f;
-        if(dt&&/^\d{4}-\d{2}-\d{2}$/.test(t))dt.value=t;
-        document.getElementById('dr-label').textContent=fmtDateShort(f)+' → '+fmtDateShort(t);
-      }
-      return;
-    }catch(e){}
+  const s=loadSharedDateRange();
+  if(s&&s.preset==='custom'&&s.from&&s.to){
+    dateRange={startDate:s.from,endDate:s.to};
+    const df=document.getElementById('date-from'),dt=document.getElementById('date-to');
+    if(df)df.value=s.from;if(dt)dt.value=s.to;
+    document.getElementById('dr-label').textContent=fmtDateShort(s.from)+' → '+fmtDateShort(s.to);
+  } else {
+    const preset=(s&&s.preset)?s.preset:'30';
+    dateRange=presetRange(preset);
+    setDrActive(preset);
+    const lbl=document.getElementById('dr-label');if(lbl)lbl.textContent=drLabelFor(preset)||'Range';
   }
-  applyPreset('30'); // default — no refresh here, the load handler triggers it
 }
 function resolveDateRange(){
   // Convert preset-style range to actual YYYY-MM-DD dates anchored in UK time.

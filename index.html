@@ -884,9 +884,9 @@ const safe=async(q)=>{try{return await ga4(q);}catch(e){console.warn('Query fail
 function fmt(v){return '£'+Math.round(v).toLocaleString('en-GB')}
 
 // Date range
-function saveDateRange(preset){
-  localStorage.setItem('nuovo_date_range_home',JSON.stringify({dateRange,preset:preset||null}));
-}
+// ===== Date range (single shared store across every page) =====
+function loadSharedDateRange(){try{const s=JSON.parse(localStorage.getItem('nuovo_date_range'));if(s&&(s.preset||s.from))return s;}catch(e){}return null;}
+function saveSharedDateRange(preset,from,to){localStorage.setItem('nuovo_date_range',JSON.stringify({preset:preset||null,from:from||null,to:to||null}));}
 // ===== Date-range dropdown =====
 function _drToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 function _drAddDays(ymd,n){const d=new Date(ymd+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
@@ -912,7 +912,7 @@ function applyPreset(preset){
   if(df)df.value='';if(dt)dt.value='';
   setDrActive(preset);
   const lbl=document.getElementById('dr-label');if(lbl)lbl.textContent=drLabelFor(preset)||'Range';
-  saveDateRange(preset);
+  saveSharedDateRange(preset);
 }
 function drPick(preset){applyPreset(preset);drClose();loadPreviews();}
 function drApplyCustom(){
@@ -921,31 +921,22 @@ function drApplyCustom(){
   dateRange={startDate:from,endDate:to};
   setDrActive(null);
   document.getElementById('dr-label').textContent=_drFmtShort(from)+' → '+_drFmtShort(to);
-  saveDateRange(null);
+  saveSharedDateRange('custom',from,to);
   drClose();loadPreviews();
 }
 function restoreDateRange(){
-  const saved=localStorage.getItem('nuovo_date_range_home');
-  if(saved){
-    try{
-      const s=JSON.parse(saved);
-      if(s.preset){
-        dateRange=presetRange(s.preset);
-        setDrActive(s.preset);
-        const lbl=drLabelFor(s.preset);if(lbl)document.getElementById('dr-label').textContent=lbl;
-        return;
-      }else if(s.dateRange){
-        dateRange=s.dateRange;
-        const f=dateRange.startDate,t=dateRange.endDate;
-        const df=document.getElementById('date-from'),dt=document.getElementById('date-to');
-        if(df&&/^\d{4}-\d{2}-\d{2}$/.test(f))df.value=f;
-        if(dt&&/^\d{4}-\d{2}-\d{2}$/.test(t))dt.value=t;
-        document.getElementById('dr-label').textContent=_drFmtShort(f)+' → '+_drFmtShort(t);
-        return;
-      }
-    }catch(e){}
+  const s=loadSharedDateRange();
+  if(s&&s.preset==='custom'&&s.from&&s.to){
+    dateRange={startDate:s.from,endDate:s.to};
+    const df=document.getElementById('date-from'),dt=document.getElementById('date-to');
+    if(df)df.value=s.from;if(dt)dt.value=s.to;
+    document.getElementById('dr-label').textContent=_drFmtShort(s.from)+' → '+_drFmtShort(s.to);
+  } else {
+    const preset=(s&&s.preset)?s.preset:'30';
+    dateRange=presetRange(preset);
+    setDrActive(preset);
+    const lbl=document.getElementById('dr-label');if(lbl)lbl.textContent=drLabelFor(preset)||'Range';
   }
-  applyPreset('30');
 }
 
 async function loadPreviews(){
