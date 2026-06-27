@@ -202,7 +202,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     </div>
     <div class="sumrow">
       <div class="sum"><div class="suml">Total AI sessions</div><div class="sumv" id="stot">—</div><span class="delta" id="dtot"></span></div>
-      <div class="sum"><div class="suml">Revenue tracked</div><div class="sumv gold" id="srev">—</div><span class="delta" id="drev"></span></div>
+      <div class="sum"><div class="suml">Revenue (Shopify true-source)</div><div class="sumv gold" id="srev">—</div><span class="delta" id="drev"></span></div>
       <div class="sum"><div class="suml">Engagement rate</div><div class="sumv" id="seng">—</div><span class="delta" id="deng"></span></div>
       <div class="sum"><div class="suml">Key event rate</div><div class="sumv" id="sconv">—</div><span class="delta" id="dconv"></span></div>
     </div>
@@ -528,6 +528,50 @@ function restoreDateRange(){
   }
 }
 
+// ===== Server-side Shopify sales, attributed to the AI engine =====
+// GA4 revenue is last-click and misses high-ticket sales that close later. The
+// Shopify customer-journey records the true first-visit source on each order, so
+// we attribute REAL revenue + orders to the specific AI engine that referred it.
+function ga4DateToYmd(tok){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(tok))return tok;
+  if(tok==='today')return _drToday();
+  if(tok==='yesterday')return _drAddDays(_drToday(),-1);
+  const m=String(tok).match(/^(\d+)daysAgo$/);if(m)return _drAddDays(_drToday(),-parseInt(m[1],10));
+  return _drToday();
+}
+function shopifyAiEngine(order){
+  const fv=order.customerJourneySummary&&order.customerJourneySummary.firstVisit;
+  if(!fv)return null;
+  const utm=fv.utmParameters||{};
+  const s=((utm.source||'')+' '+(fv.source||'')+' '+(fv.referrerUrl||'')).toLowerCase();
+  if(/chatgpt|openai/.test(s))return 'chatgpt';
+  if(/perplexity/.test(s))return 'perplexity';
+  if(/copilot/.test(s))return 'copilot';
+  if(/gemini|bard/.test(s))return 'gemini';
+  if(/claude/.test(s))return 'claude';
+  return null;
+}
+async function fetchShopifyAiSales(startTok,endTok){
+  try{
+    const s=ga4DateToYmd(startTok),e=ga4DateToYmd(endTok);
+    const r=await fetch(`/api/shopify-orders?startDate=${s}&endDate=${e}`,{cache:'no-store'});
+    if(!r.ok)return{__error:true};
+    const data=await r.json();
+    const VALID=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+    const out={};
+    (data.orders||[]).forEach(o=>{
+      if(!VALID.has(o.displayFinancialStatus))return;
+      const eng=shopifyAiEngine(o);if(!eng)return;
+      if(!out[eng])out[eng]={revenue:0,orders:0};
+      const total=parseFloat((o.currentTotalPriceSet&&o.currentTotalPriceSet.shopMoney&&o.currentTotalPriceSet.shopMoney.amount)||0);
+      const refund=parseFloat((o.totalRefundedSet&&o.totalRefundedSet.shopMoney&&o.totalRefundedSet.shopMoney.amount)||0);
+      out[eng].revenue+=Math.max(0,total-refund);
+      out[eng].orders+=1;
+    });
+    return out;
+  }catch(e){return{__error:true};}
+}
+
 async function refresh(){
   document.getElementById('fst').textContent='Fetching...';
   if(!token){signOut();return;}
@@ -551,7 +595,11 @@ async function refresh(){
     const results=await Promise.all(queries);
     const[bs,bd,bp,bev,bcontact]=results;
     prevData=compareMode?results[5]:null;
-    render(bs,bd,bp,bev,bcontact);
+    // Sales come from server-side Shopify true-source attribution (current + prev for the delta)
+    const shopAiSales=await fetchShopifyAiSales(dateRange.startDate,dateRange.endDate);
+    let prevShopAiSales=null;
+    if(compareMode){const pp=getPrevPeriod(dateRange);prevShopAiSales=await fetchShopifyAiSales(pp.startDate,pp.endDate);}
+    render(bs,bd,bp,bev,bcontact,shopAiSales,prevShopAiSales);
 
     // Fetch additional sections in parallel
     const[revPages, convPages, devices, countries, pageEvents] = await Promise.all([
@@ -613,7 +661,7 @@ function isAuthError(e){return e.status===401||e.status===403||/invalid.*credent
 
 function themeColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
 
-function render(bs,bd,bp,bev,bcontact){
+function render(bs,bd,bp,bev,bcontact,shopAiSales,prevShopAiSales){
   const t={};for(const k of Object.keys(SOURCES))t[k]={sessions:0,engaged:0,revenue:0,ke:0,atc:0,checkout:0,purchase:0,form:0,calls:0,whatsapp:0,chat:0};
   (bs.rows||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;t[k].sessions+=parseInt(r.metricValues[0].value||0);t[k].engaged+=parseInt(r.metricValues[1].value||0);t[k].revenue+=parseFloat(r.metricValues[2].value||0);t[k].ke+=parseInt(r.metricValues[3].value||0);});
   // Break key events down by event type (raw event counts, same source as the landing-page table)
@@ -623,6 +671,14 @@ function render(bs,bd,bp,bev,bcontact){
   (((bcontact&&bcontact.rows))||[]).forEach(r=>{const k=cat(r.dimensionValues[0].value);if(!k||!t[k])return;const ck=contactKey(r.dimensionValues[1].value);if(ck)t[k][ck]+=parseInt(r.metricValues[0].value||0);});
   // Contacts count toward the Key Event Rate
   Object.values(t).forEach(v=>{v.ke+=(v.calls||0)+(v.whatsapp||0)+(v.chat||0);});
+  // SALES override: revenue + orders come from server-side Shopify true-source
+  // attribution, not GA4 last-click. Falls back to GA4 only if the fetch failed.
+  if(shopAiSales&&!shopAiSales.__error){
+    for(const k of Object.keys(SOURCES)){
+      t[k].revenue=shopAiSales[k]?shopAiSales[k].revenue:0;
+      t[k].purchase=shopAiSales[k]?shopAiSales[k].orders:0;
+    }
+  }
   const tot=Object.values(t).reduce((a,b)=>a+b.sessions,0),rev=Object.values(t).reduce((a,b)=>a+b.revenue,0),eng=Object.values(t).reduce((a,b)=>a+b.engaged,0),ke=Object.values(t).reduce((a,b)=>a+b.ke,0);
   document.getElementById('ncg').textContent=t.chatgpt.sessions.toLocaleString();
   document.getElementById('ncl').textContent=t.claude.sessions.toLocaleString();
@@ -644,7 +700,9 @@ function render(bs,bd,bp,bev,bcontact){
     setDelta('dcp',t.copilot.sessions,pt.copilot.sessions);
     setDelta('dgm',t.gemini.sessions,pt.gemini.sessions);
     setDelta('dtot',tot,ptot);
-    setDelta('drev',rev,prev);
+    // Prev revenue from Shopify too (keeps the delta consistent with current)
+    const prevRev=(prevShopAiSales&&!prevShopAiSales.__error)?Object.keys(SOURCES).reduce((a,k)=>a+(prevShopAiSales[k]?prevShopAiSales[k].revenue:0),0):prev;
+    setDelta('drev',rev,prevRev);
     const engRate=tot>0?eng/tot:0,prevEngRate=ptot>0?peng/ptot:0;
     setDelta('deng',engRate,prevEngRate);
     const keRate=tot>0?ke/tot:0,prevKeRate=ptot>0?pke/ptot:0;
