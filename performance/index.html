@@ -394,18 +394,6 @@ function loadSharedDateRange(){
 function saveSharedDateRange(preset, from, to){
   localStorage.setItem('nuovo_date_range', JSON.stringify({ preset, from:from||null, to:to||null }));
 }
-// Compute internal dateRange for a preset token (shared by clicks + restore)
-function computePresetRange(preset){
-  const today=new Date(),fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  if(preset==='today')return{startDate:'today',endDate:'today'};
-  if(preset==='yesterday'){const y=new Date(today);y.setDate(today.getDate()-1);return{startDate:fmt(y),endDate:fmt(y)};}
-  return{startDate:`${preset}daysAgo`,endDate:'today'};
-}
-function highlightPreset(preset){
-  document.querySelectorAll('.preset-btn').forEach(b=>{
-    b.classList.toggle('active',b.getAttribute('data-preset')===preset);
-  });
-}
 // ===== Date-range dropdown (shared nuovo_date_range) =====
 function _drToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 function _drAddDays(ymd,n){const d=new Date(ymd+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
