@@ -569,7 +569,11 @@ let sortCol='date',sortDesc=true;
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
     token=hash.get('access_token');
+    // Write BOTH the shared key (kept fresh by the GIS silent-refresh on the other
+    // pages) and the legacy key, plus an expiry, so Profit rides the shared session.
+    localStorage.setItem('nuovo_access_token',token);
     localStorage.setItem('nuovo_token',token);
+    if(hash.get('expires_in'))localStorage.setItem('nuovo_token_expiry',String(Date.now()+parseInt(hash.get('expires_in'),10)*1000));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
     window.history.replaceState(null,'',window.location.pathname);
   }
@@ -612,9 +616,13 @@ function withCountryFilter(body){
   else b.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,b.dimensionFilter]}};
   return b;
 }
+// Always use the freshest token: the shared nuovo_access_token is kept current by
+// the GIS silent-refresh on the other dashboards, so prefer it over this page's
+// possibly-stale `token` global (Profit has no refresher of its own).
+function freshToken(){return localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token')||token;}
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const hdrs={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+  const hdrs={'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'};
   let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
@@ -887,9 +895,12 @@ async function refresh(){
     // Total per day
     dates.forEach(d=>{const r=dailyAdSpend[d];r.total=r.google+r.microsoft+r.meta+r.tiktok+r.other;});
 
-    // Detect Google Ads not flowing
+    // Detect Google Ads not flowing — distinguish an expired GA4 session (auth error)
+    // from a genuine "no cost data" situation so the banner isn't misleading.
     const googleTotal=Object.values(dailyAdSpend).reduce((a,d)=>a+d.google,0);
-    if(googleTotal===0){
+    if(googleSpendResp&&googleSpendResp.authError){
+      addBanner('warn','<strong>Google Ads spend couldn\'t load — GA4 session expired.</strong> Open any other dashboard (Performance / Paid) to refresh the sign-in, then come back and hit ↻.','google-auth');
+    }else if(googleTotal===0){
       addBanner('warn','Google Ads cost data not flowing from GA4 — check GA4 Admin → Google Ads links. Enter manually in settings if needed.','google-warn');
     }
 
@@ -937,22 +948,26 @@ async function fetchGoogleAdSpend(start,end){
   // dimensionFilter, and THAT (not the source/medium filter) is what made GA4 return
   // 400 INVALID_ARGUMENT for this cost-metric query.
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
+  const body=JSON.stringify({
+    dateRanges:[{startDate:start,endDate:end}],
+    dimensions:[{name:'date'}],
+    metrics:[{name:'advertiserAdCost'}],
+    dimensionFilter:{andGroup:{expressions:[
+      {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
+      {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
+    ]}},
+    orderBys:[{dimension:{dimensionName:'date'}}]
+  });
+  const call=t=>fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},body});
   try{
-    const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({
-        dateRanges:[{startDate:start,endDate:end}],
-        dimensions:[{name:'date'}],
-        metrics:[{name:'advertiserAdCost'}],
-        dimensionFilter:{andGroup:{expressions:[
-          {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
-          {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}}
-        ]}},
-        orderBys:[{dimension:{dimensionName:'date'}}]
-      })});
+    let r=await call(freshToken());
+    // On 401 the token expired mid-session — re-read the shared token (another tab's
+    // silent refresh may have updated it) and retry once before giving up.
+    if(r.status===401){await new Promise(res=>setTimeout(res,400));r=await call(freshToken());}
     if(r.ok)return await r.json();
     const e=await r.json().catch(()=>({}));console.error('[GA4]',r.status,e.error?.message||'');
-  }catch(e){}
-  return {rows:[]};
+    return {rows:[],authError:r.status===401||r.status===403};
+  }catch(e){return {rows:[]};}
 }
 
 // ===== Order normalisation =====
@@ -1920,7 +1935,7 @@ function exportCSV(){
 window.addEventListener('load',()=>{
   restoreDateRange();
   updateVatPill();
-  const saved=localStorage.getItem('nuovo_token');
+  const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
   if(saved){token=saved;launch();}
 });
 </script>
