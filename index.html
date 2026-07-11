@@ -23,7 +23,7 @@
   --google:#4285F4;
   --bing:#0078d4;
   --accent-warm:#e8c896;
-  --glow:rgba(212,168,67,0.04);
+  --glow:rgba(212,168,67,0.05);
   --card-shadow:none;
 }
 html.light{
@@ -31,9 +31,9 @@ html.light{
   --bg2:#ffffff;
   --bg3:#eae7e1;
   --bg-card:#ffffff;
-  --border:rgba(0,0,0,0.06);
-  --border2:rgba(0,0,0,0.10);
-  --border-gold:rgba(184,144,46,0.25);
+  --border:rgba(0,0,0,0.07);
+  --border2:rgba(0,0,0,0.11);
+  --border-gold:rgba(184,144,46,0.28);
   --text:#1a1a1a;
   --muted:#6b6560;
   --dim:#9a958e;
@@ -43,59 +43,27 @@ html.light{
   --google:#1a73e8;
   --bing:#0063b1;
   --accent-warm:#c49a3c;
-  --glow:rgba(184,144,46,0.06);
-  --card-shadow:0 2px 20px rgba(0,0,0,0.06);
+  --glow:rgba(184,144,46,0.07);
+  --card-shadow:0 2px 20px rgba(0,0,0,0.05);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;min-height:100vh;transition:background 0.3s,color 0.3s}
+body::before{content:'';position:fixed;top:-45%;left:50%;transform:translateX(-50%);width:1500px;height:950px;background:radial-gradient(ellipse at center,var(--glow) 0%,transparent 58%);pointer-events:none;z-index:0}
 
-/* Background atmosphere */
-body::before{
-  content:'';
-  position:fixed;
-  top:-40%;
-  left:50%;
-  transform:translateX(-50%);
-  width:1400px;
-  height:900px;
-  background:radial-gradient(ellipse at center,var(--glow) 0%,transparent 55%);
-  pointer-events:none;
-  z-index:0;
-}
+.page{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:0 32px}
 
-.page{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 32px}
-
-/* Top bar */
-.topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:24px 0;
-  border-bottom:0.5px solid var(--border);
-  margin-bottom:80px;
-}
+/* ===== Top bar ===== */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0;border-bottom:0.5px solid var(--border);margin-bottom:44px;gap:16px;flex-wrap:wrap}
 .brand{display:flex;align-items:baseline;gap:14px}
-.brand-mark{
-  font-family:'Fraunces',serif;
-  font-size:22px;
-  font-weight:400;
-  letter-spacing:-0.01em;
-  color:var(--text);
-}
+.brand-mark{font-family:'Fraunces',serif;font-size:21px;font-weight:400;letter-spacing:-0.01em;color:var(--text)}
 .brand-mark em{font-style:italic;color:var(--gold);font-weight:500}
-.brand-tag{
-  font-size:10px;
-  letter-spacing:0.25em;
-  color:var(--dim);
-  text-transform:uppercase;
-  padding-left:14px;
-  border-left:0.5px solid var(--border2);
-}
-.utility{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.date-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.dbtn{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:border-color 0.2s;letter-spacing:0.05em}
-.dbtn:hover{border-color:var(--gold)}
-.dbtn.active{background:var(--gold);color:#0a0a0b;border-color:var(--gold)}
+.brand-tag{font-size:10px;letter-spacing:0.25em;color:var(--dim);text-transform:uppercase;padding-left:14px;border-left:0.5px solid var(--border2)}
+.utility{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.util-link{font-size:11px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;text-decoration:none;transition:color 0.3s}
+.util-link:hover{color:var(--gold)}
+.theme-toggle{background:none;border:0.5px solid var(--border2);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;color:var(--muted);transition:border-color 0.3s,transform 0.3s}
+.theme-toggle:hover{border-color:var(--gold);transform:scale(1.08)}
+
 /* Date-range dropdown */
 .dr{position:relative;display:inline-block;font-family:'DM Mono',monospace}
 .dr-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:160px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;padding:7px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.02em;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s}
@@ -118,410 +86,91 @@ body::before{
 .dr-custom-row .arr{color:var(--dim);font-size:11px}
 .dr-apply{margin:9px 10px 4px;background:var(--gold);color:#1a1812;border:none;border-radius:7px;padding:8px;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:opacity 0.15s}
 .dr-apply:hover{opacity:0.9}
-.date-input{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:5px 8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;width:115px}
-html.light .date-input{color:var(--muted)!important}
-.util-link{
-  font-size:11px;
-  color:var(--muted);
-  letter-spacing:0.15em;
-  text-transform:uppercase;
-  text-decoration:none;
-  transition:color 0.3s;
-}
-.util-link:hover{color:var(--gold)}
-.theme-toggle{
-  background:none;
-  border:0.5px solid var(--border2);
-  border-radius:50%;
-  width:34px;
-  height:34px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  font-size:15px;
-  line-height:1;
-  color:var(--muted);
-  transition:border-color 0.3s,transform 0.3s;
-}
-.theme-toggle:hover{border-color:var(--gold);transform:scale(1.08)}
-.user-orb{
-  width:32px;
-  height:32px;
-  border-radius:50%;
-  background:var(--bg2);
-  border:0.5px solid var(--border2);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:11px;
-  color:var(--gold);
-  letter-spacing:0.05em;
-  font-weight:500;
-}
 
-/* Hero */
-.hero{
-  text-align:left;
-  margin-bottom:72px;
-  padding-bottom:56px;
-  border-bottom:0.5px solid var(--border);
-  position:relative;
-}
-.hero-eyebrow{
-  font-size:11px;
-  letter-spacing:0.3em;
-  color:var(--dim);
-  text-transform:uppercase;
-  margin-bottom:28px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.hero-eyebrow::after{
-  content:'';
-  height:0.5px;
-  flex:1;
-  background:var(--border);
-  max-width:80px;
-}
-.hero-title{
-  font-family:'Fraunces',serif;
-  font-size:68px;
-  font-weight:300;
-  letter-spacing:-0.02em;
-  line-height:1.05;
-  margin-bottom:28px;
-}
-.hero-title em{
-  font-style:italic;
-  font-weight:400;
-  background:linear-gradient(135deg,var(--gold),var(--accent-warm));
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-.hero-sub{
-  font-size:15px;
-  color:var(--muted);
-  max-width:540px;
-  line-height:1.7;
-  letter-spacing:0.01em;
-}
-.hero-meta{
-  margin-top:36px;
-  display:flex;
-  gap:32px;
-  font-family:'DM Mono',monospace;
-  font-size:11px;
-  color:var(--dim);
-  letter-spacing:0.1em;
-  text-transform:uppercase;
-}
-.hero-meta strong{color:var(--muted);font-weight:400}
-.hero-meta span{display:flex;align-items:center;gap:8px}
-.live-dot{
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:var(--chatgpt);
-  animation:pulse 2s ease-in-out infinite;
-}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}
+/* ===== Hero ===== */
+.hero{margin-bottom:40px}
+.hero-eyebrow{font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:0.28em;color:var(--dim);text-transform:uppercase;margin-bottom:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hero-eyebrow .live-dot{width:6px;height:6px;border-radius:50%;background:var(--chatgpt);animation:pulse 2s ease-in-out infinite}
+.hero-eyebrow b{color:var(--muted);font-weight:400}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+.hero-title{font-family:'Fraunces',serif;font-size:52px;font-weight:300;letter-spacing:-0.02em;line-height:1.02;margin-bottom:20px}
+.hero-title em{font-style:italic;font-weight:400;background:linear-gradient(135deg,var(--gold),var(--accent-warm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:14.5px;color:var(--muted);max-width:520px;line-height:1.65}
 
-/* Quick stats banner */
-.quick-stats{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:16px;
-  margin-bottom:72px;
-}
-.qs{
-  background:var(--bg-card);
-  border:0.5px solid var(--border);
-  border-radius:12px;
-  padding:24px 22px;
-  position:relative;
-  overflow:hidden;
-  box-shadow:var(--card-shadow);
-  transition:border-color 0.3s,transform 0.3s;
-}
-.qs:hover{border-color:var(--border-gold);transform:translateY(-1px)}
-.qs::before{
-  content:'';
-  position:absolute;
-  top:0;left:0;right:0;
-  height:2px;
-  background:linear-gradient(90deg,transparent,var(--gold),transparent);
-  opacity:0;
-  transition:opacity 0.3s;
-}
-.qs:hover::before{opacity:0.6}
-.qs-label{
-  font-family:'DM Mono',monospace;
-  font-size:10px;
-  letter-spacing:0.18em;
-  color:var(--dim);
-  text-transform:uppercase;
-  margin-bottom:10px;
-}
-.qs-val{
-  font-family:'Fraunces',serif;
-  font-size:28px;
-  font-weight:400;
-  letter-spacing:-0.01em;
-  color:var(--text);
-  line-height:1;
-  margin-bottom:6px;
-}
-.qs-val.gold{background:linear-gradient(135deg,var(--gold),var(--accent-warm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.qs-sub{
-  font-family:'DM Mono',monospace;
-  font-size:10px;
-  color:var(--dim);
-  letter-spacing:0.05em;
-}
+/* ===== KPI band ===== */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:56px}
+.kpi{position:relative;background:var(--bg-card);border:0.5px solid var(--border);border-radius:14px;padding:22px 22px 20px;overflow:hidden;box-shadow:var(--card-shadow);transition:border-color 0.3s,transform 0.3s}
+.kpi:hover{border-color:var(--border-gold);transform:translateY(-2px)}
+.kpi::before{content:'';position:absolute;top:0;left:20px;right:20px;height:2px;border-radius:2px;background:var(--kaccent,var(--border2));opacity:0.55}
+.kpi-lbl{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:0.16em;color:var(--dim);text-transform:uppercase;margin-bottom:16px}
+.kpi-lbl .ld{width:5px;height:5px;border-radius:50%;background:var(--chatgpt);animation:pulse 2s ease-in-out infinite}
+.kpi-val{font-family:'Fraunces',serif;font-size:38px;font-weight:300;letter-spacing:-0.02em;color:var(--text);line-height:1;margin-bottom:8px;font-feature-settings:'tnum'}
+.kpi-val.gold{background:linear-gradient(135deg,var(--gold),var(--accent-warm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.kpi-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:0.04em}
 
-/* Section heading */
-.section-head{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  margin-bottom:32px;
-}
-.section-num{
-  font-family:'DM Mono',monospace;
-  font-size:11px;
-  color:var(--dim);
-  letter-spacing:0.2em;
-}
-.section-title{
-  font-family:'Fraunces',serif;
-  font-size:28px;
-  font-weight:400;
-  letter-spacing:-0.01em;
-}
-.section-title em{font-style:italic;color:var(--gold)}
+/* ===== Section head ===== */
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;gap:16px}
+.sec-title{font-family:'Fraunces',serif;font-size:22px;font-weight:400;letter-spacing:-0.01em}
+.sec-title em{font-style:italic;color:var(--gold)}
+.sec-num{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--dim);letter-spacing:0.16em;text-transform:uppercase}
 
-/* Dashboard cards */
-.dash-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:20px;
-  margin-bottom:72px;
-}
-.dash-card{
-  position:relative;
-  background:var(--bg-card);
-  border:0.5px solid var(--border2);
-  border-radius:12px;
-  padding:36px;
-  text-decoration:none;
-  color:inherit;
-  display:flex;
-  flex-direction:column;
-  min-height:320px;
-  transition:all 0.4s cubic-bezier(0.16,1,0.3,1);
-  overflow:hidden;
-  box-shadow:var(--card-shadow);
-}
-.dash-card::before{
-  content:'';
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:1px;
-  background:linear-gradient(90deg,transparent 0%,var(--gold) 50%,transparent 100%);
-  opacity:0;
-  transition:opacity 0.4s;
-}
-.dash-card:hover{
-  border-color:var(--border-gold);
-  transform:translateY(-3px);
-  box-shadow:var(--card-shadow),0 8px 30px rgba(212,168,67,0.06);
-}
-.dash-card:hover::before{opacity:0.8}
-.dash-card:hover .dash-arrow{
-  transform:translateX(6px);
-  color:var(--gold);
-}
-.dash-card.featured{border-color:var(--border-gold)}
-.dash-card.featured::after{
-  content:'';
-  position:absolute;
-  top:0;right:0;
-  width:120px;height:120px;
-  background:radial-gradient(circle at top right,rgba(212,168,67,0.08),transparent 70%);
-  pointer-events:none;
-}
+/* ===== Dashboard cards ===== */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:64px}
+.card{position:relative;background:var(--bg-card);border:0.5px solid var(--border);border-radius:16px;padding:24px 24px 22px;text-decoration:none;color:inherit;display:flex;flex-direction:column;min-height:230px;overflow:hidden;box-shadow:var(--card-shadow);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1),border-color 0.35s,box-shadow 0.35s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);opacity:0.9}
+.card::after{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 22%,transparent),transparent 68%);opacity:0;transition:opacity 0.4s;pointer-events:none}
+.card:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--accent) 45%,var(--border2));box-shadow:var(--card-shadow),0 14px 40px color-mix(in srgb,var(--accent) 14%,transparent)}
+.card:hover::after{opacity:1}
+.card:hover .c-go{transform:translateX(5px);border-color:var(--accent);color:var(--accent)}
+.c-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.c-name{display:flex;align-items:center;gap:9px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted)}
+.c-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.c-core{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:0.12em;color:var(--accent);border:0.5px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:20px;padding:2px 7px;text-transform:uppercase}
+.c-go{width:30px;height:30px;border-radius:50%;border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:16px;color:var(--muted);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1),color 0.3s,border-color 0.3s}
+.c-title{font-family:'Fraunces',serif;font-size:25px;font-weight:300;letter-spacing:-0.015em;line-height:1.08;margin-bottom:9px}
+.c-title em{font-style:italic;color:var(--accent)}
+.c-desc{font-size:12.5px;color:var(--muted);line-height:1.55;margin-bottom:20px;flex:1}
+.c-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding-top:16px;border-top:0.5px solid var(--border)}
+.c-kpi-lbl{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:0.14em;color:var(--dim);text-transform:uppercase;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-kpi-val{font-family:'Fraunces',serif;font-size:20px;font-weight:400;letter-spacing:-0.01em;color:var(--text);line-height:1;font-feature-settings:'tnum'}
+.c-kpi-val.accent{color:var(--accent)}
+.c-kpi-val.sm{font-size:13px}
+.c-kpi-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);margin-top:5px}
+/* feature-tag variant (Products / Profit — no live numbers) */
+.c-tags{display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:0.5px solid var(--border)}
+.c-tag{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted)}
+.c-tag::before{content:'';width:14px;height:0.5px;background:var(--accent);flex-shrink:0}
 
-.dash-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  margin-bottom:28px;
-}
-.dash-eyebrow{
-  font-family:'DM Mono',monospace;
-  font-size:10px;
-  letter-spacing:0.25em;
-  color:var(--gold);
-  text-transform:uppercase;
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-.dash-eyebrow::before{
-  content:'';
-  width:24px;
-  height:0.5px;
-  background:var(--gold);
-}
-.dash-arrow{
-  font-family:'Fraunces',serif;
-  font-size:24px;
-  color:var(--muted);
-  transition:all 0.4s cubic-bezier(0.16,1,0.3,1);
-  line-height:1;
-}
+/* ===== Coming soon ===== */
+.soon{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:64px}
+.soon-card{border:0.5px dashed var(--border2);border-radius:12px;padding:18px 20px;transition:border-color 0.3s}
+.soon-card:hover{border-color:var(--dim)}
+.soon-eyebrow{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;color:var(--dim);text-transform:uppercase;margin-bottom:10px}
+.soon-title{font-family:'Fraunces',serif;font-size:18px;font-weight:400;color:var(--muted);margin-bottom:6px}
+.soon-title em{font-style:italic;color:var(--gold-soft)}
+.soon-desc{font-size:11.5px;color:var(--dim);line-height:1.45}
 
-.dash-title{
-  font-family:'Fraunces',serif;
-  font-size:34px;
-  font-weight:300;
-  letter-spacing:-0.015em;
-  line-height:1.1;
-  margin-bottom:14px;
-}
-.dash-title em{font-style:italic;color:var(--gold)}
-.dash-desc{
-  font-size:13.5px;
-  color:var(--muted);
-  line-height:1.65;
-  margin-bottom:28px;
-  flex:1;
-}
+/* ===== Footer ===== */
+.foot{padding:32px 0 56px;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.foot-mark{font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:var(--dim)}
+.foot-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:0.15em;text-transform:uppercase}
 
-.dash-stats{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:20px;
-  padding-top:22px;
-  border-top:0.5px solid var(--border);
+@media(max-width:1000px){
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .soon{grid-template-columns:1fr 1fr}
 }
-.stat{}
-.stat-lbl{
-  font-family:'DM Mono',monospace;
-  font-size:9px;
-  letter-spacing:0.18em;
-  color:var(--dim);
-  text-transform:uppercase;
-  margin-bottom:8px;
-}
-.stat-val{
-  font-family:'Fraunces',serif;
-  font-size:22px;
-  font-weight:400;
-  letter-spacing:-0.01em;
-  color:var(--text);
-  line-height:1;
-}
-.stat-val.gold{color:var(--gold)}
-.stat-val.small{font-size:15px}
-.stat-sub{
-  font-family:'DM Mono',monospace;
-  font-size:10px;
-  color:var(--dim);
-  margin-top:6px;
-  letter-spacing:0.05em;
-}
-
-/* Coming soon cards */
-.coming-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:16px;
-  margin-bottom:80px;
-}
-.coming-card{
-  background:transparent;
-  border:0.5px dashed var(--border2);
-  border-radius:10px;
-  padding:24px;
-  display:flex;
-  flex-direction:column;
-  min-height:180px;
-  transition:border-color 0.3s;
-}
-.coming-card:hover{border-color:var(--dim)}
-.coming-eyebrow{
-  font-family:'DM Mono',monospace;
-  font-size:9px;
-  letter-spacing:0.2em;
-  color:var(--dim);
-  text-transform:uppercase;
-  margin-bottom:16px;
-}
-.coming-title{
-  font-family:'Fraunces',serif;
-  font-size:22px;
-  font-weight:400;
-  letter-spacing:-0.01em;
-  margin-bottom:8px;
-  color:var(--muted);
-}
-.coming-desc{
-  font-size:12px;
-  color:var(--dim);
-  line-height:1.5;
-  flex:1;
-}
-.coming-tag{
-  font-family:'DM Mono',monospace;
-  font-size:10px;
-  color:var(--gold-soft);
-  letter-spacing:0.1em;
-  text-transform:uppercase;
-  margin-top:12px;
-}
-
-/* Footer */
-.foot{
-  padding:40px 0 60px;
-  border-top:0.5px solid var(--border);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-.foot-mark{
-  font-family:'Fraunces',serif;
-  font-style:italic;
-  font-size:14px;
-  color:var(--dim);
-}
-.foot-meta{
-  font-family:'DM Mono',monospace;
-  font-size:10px;
-  color:var(--dim);
-  letter-spacing:0.15em;
-  text-transform:uppercase;
-}
-
-@media(max-width:880px){
+@media(max-width:700px){
   .page{padding:0 20px}
-  .hero-title{font-size:42px}
-  .dash-grid{grid-template-columns:1fr}
-  .dash-card{padding:28px;min-height:auto}
-  .dash-title{font-size:28px}
-  .coming-grid{grid-template-columns:1fr}
-  .hero-meta{flex-direction:column;gap:8px}
-  .topbar{margin-bottom:48px}
-  .quick-stats{grid-template-columns:repeat(2,1fr)}
+  .topbar{margin-bottom:32px}
+  .hero-title{font-size:38px}
+  .cards{grid-template-columns:1fr}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .soon{grid-template-columns:1fr}
+  .kpi-val{font-size:32px}
 }
-@media(max-width:540px){
-  .quick-stats{grid-template-columns:1fr}
-  .hero-title{font-size:34px}
+@media(max-width:420px){
+  .kpis{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -535,27 +184,25 @@ html.light .date-input{color:var(--muted)!important}
       <div class="brand-tag">Analytics</div>
     </div>
     <nav class="utility">
-      <div class="date-bar">
-        <div class="dr" id="dr">
-          <button class="dr-trigger" onclick="drToggle(event)">
-            <span id="dr-label">Last 30 days</span>
-            <svg viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <div class="dr-panel" id="dr-panel">
-            <button class="dr-opt" data-preset="today" onclick="drPick('today')">Today</button>
-            <button class="dr-opt" data-preset="yesterday" onclick="drPick('yesterday')">Yesterday</button>
-            <button class="dr-opt" data-preset="7" onclick="drPick('7')">Last 7 days</button>
-            <button class="dr-opt" data-preset="30" onclick="drPick('30')">Last 30 days</button>
-            <button class="dr-opt" data-preset="90" onclick="drPick('90')">Last 90 days</button>
-            <div class="dr-sep"></div>
-            <button class="dr-opt" data-preset="thismonth" onclick="drPick('thismonth')">This month</button>
-            <button class="dr-opt" data-preset="lastmonth" onclick="drPick('lastmonth')">Last month</button>
-            <button class="dr-opt" data-preset="ytd" onclick="drPick('ytd')">Year to date</button>
-            <div class="dr-sep"></div>
-            <div class="dr-custom-lbl">Custom range</div>
-            <div class="dr-custom-row"><input type="date" id="date-from"><span class="arr">→</span><input type="date" id="date-to"></div>
-            <button class="dr-apply" onclick="drApplyCustom()">Apply range</button>
-          </div>
+      <div class="dr" id="dr">
+        <button class="dr-trigger" onclick="drToggle(event)">
+          <span id="dr-label">Last 30 days</span>
+          <svg viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="dr-panel" id="dr-panel">
+          <button class="dr-opt" data-preset="today" onclick="drPick('today')">Today</button>
+          <button class="dr-opt" data-preset="yesterday" onclick="drPick('yesterday')">Yesterday</button>
+          <button class="dr-opt" data-preset="7" onclick="drPick('7')">Last 7 days</button>
+          <button class="dr-opt" data-preset="30" onclick="drPick('30')">Last 30 days</button>
+          <button class="dr-opt" data-preset="90" onclick="drPick('90')">Last 90 days</button>
+          <div class="dr-sep"></div>
+          <button class="dr-opt" data-preset="thismonth" onclick="drPick('thismonth')">This month</button>
+          <button class="dr-opt" data-preset="lastmonth" onclick="drPick('lastmonth')">Last month</button>
+          <button class="dr-opt" data-preset="ytd" onclick="drPick('ytd')">Year to date</button>
+          <div class="dr-sep"></div>
+          <div class="dr-custom-lbl">Custom range</div>
+          <div class="dr-custom-row"><input type="date" id="date-from"><span class="arr">→</span><input type="date" id="date-to"></div>
+          <button class="dr-apply" onclick="drApplyCustom()">Apply range</button>
         </div>
       </div>
       <a href="https://www.nuovoluxury.co.uk" target="_blank" class="util-link">Store ↗</a>
@@ -564,239 +211,138 @@ html.light .date-input{color:var(--muted)!important}
   </header>
 
   <section class="hero">
-    <div class="hero-eyebrow">Private analytics terminal</div>
-    <h1 class="hero-title">
-      Where your<br>
-      <em>numbers</em> live.
-    </h1>
-    <p class="hero-sub">
-      A focused workspace for tracking what matters across Nuovo Luxury — AI referrals, paid acquisition, conversion behaviour and emerging traffic sources.
-    </p>
-    <div class="hero-meta">
-      <span><span class="live-dot"></span><strong id="status">Live</strong></span>
-      <span>Property <strong>346978985</strong></span>
-      <span id="date-line">—</span>
+    <div class="hero-eyebrow">
+      <span><span class="live-dot"></span> <strong id="status">Live</strong></span>
+      <span>·</span><span>Property <b>346978985</b></span>
+      <span>·</span><span id="date-line">—</span>
+    </div>
+    <h1 class="hero-title">Your store, in <em>numbers</em>.</h1>
+    <p class="hero-sub">One workspace for the whole business — revenue, paid &amp; organic acquisition, AI referrals, conversion behaviour and true profit.</p>
+  </section>
+
+  <!-- Headline metrics -->
+  <section class="kpis">
+    <div class="kpi" style="--kaccent:var(--gold)">
+      <div class="kpi-lbl"><span class="ld"></span> Total Revenue</div>
+      <div class="kpi-val gold" id="qs-rev">—</div>
+      <div class="kpi-sub">all channels</div>
+    </div>
+    <div class="kpi" style="--kaccent:var(--google)">
+      <div class="kpi-lbl">Total Sessions</div>
+      <div class="kpi-val" id="qs-sessions">—</div>
+      <div class="kpi-sub">site-wide</div>
+    </div>
+    <div class="kpi" style="--kaccent:var(--chatgpt)">
+      <div class="kpi-lbl">Blended ROAS</div>
+      <div class="kpi-val" id="qs-roas">—</div>
+      <div class="kpi-sub">revenue ÷ ad spend</div>
+    </div>
+    <div class="kpi" style="--kaccent:#8b7ff5">
+      <div class="kpi-lbl">Conversion Rate</div>
+      <div class="kpi-val" id="qs-cvr">—</div>
+      <div class="kpi-sub">transactions ÷ sessions</div>
     </div>
   </section>
 
-  <!-- Quick stats banner -->
-  <section class="quick-stats">
-    <div class="qs">
-      <div class="qs-label">Total Revenue</div>
-      <div class="qs-val gold" id="qs-rev">—</div>
-      <div class="qs-sub">all channels</div>
-    </div>
-    <div class="qs">
-      <div class="qs-label">Total Sessions</div>
-      <div class="qs-val" id="qs-sessions">—</div>
-      <div class="qs-sub">site-wide</div>
-    </div>
-    <div class="qs">
-      <div class="qs-label">Blended ROAS</div>
-      <div class="qs-val" id="qs-roas">—</div>
-      <div class="qs-sub">revenue / ad spend</div>
-    </div>
-    <div class="qs">
-      <div class="qs-label">Conv. Rate</div>
-      <div class="qs-val" id="qs-cvr">—</div>
-      <div class="qs-sub">transactions / sessions</div>
-    </div>
-  </section>
-
+  <!-- Dashboards -->
   <section>
-    <div class="section-head">
-      <div>
-        <div class="section-num">01 / Active dashboards</div>
-      </div>
-      <div class="section-num" id="dashboard-count">6 available</div>
+    <div class="sec-head">
+      <div class="sec-title">Your <em>dashboards</em></div>
+      <div class="sec-num" id="dashboard-count">6 live</div>
     </div>
 
-    <div class="dash-grid">
+    <div class="cards">
 
-      <a href="/performance" class="dash-card featured">
-        <div class="dash-head">
-          <div class="dash-eyebrow">Performance</div>
-          <span class="dash-arrow">→</span>
-        </div>
-        <h2 class="dash-title">The <em>full</em><br>picture.</h2>
-        <p class="dash-desc">Channel attribution, blended MER, daily P&L, product performance and Microsoft Ads spend — your single source of truth for business performance.</p>
-        <div class="dash-stats">
-          <div class="stat">
-            <div class="stat-lbl">MER</div>
-            <div class="stat-val gold" id="perf-mer">—</div>
-            <div class="stat-sub">revenue / total spend</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Channels</div>
-            <div class="stat-val small">5+</div>
-            <div class="stat-sub">attributed</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Products</div>
-            <div class="stat-val small">Top 10</div>
-            <div class="stat-sub">by revenue</div>
-          </div>
+      <a href="/performance" class="card" style="--accent:var(--gold)">
+        <div class="c-top"><div class="c-name"><span class="c-dot"></span> Performance <span class="c-core">Core</span></div><span class="c-go">→</span></div>
+        <h2 class="c-title">The <em>full</em> picture</h2>
+        <p class="c-desc">Channel attribution, blended MER &amp; daily P&amp;L — your single source of truth.</p>
+        <div class="c-kpis">
+          <div><div class="c-kpi-lbl">MER</div><div class="c-kpi-val accent" id="perf-mer">—</div></div>
+          <div><div class="c-kpi-lbl">Revenue</div><div class="c-kpi-val" id="perf-rev">—</div></div>
+          <div><div class="c-kpi-lbl">Sessions</div><div class="c-kpi-val" id="perf-sess">—</div></div>
         </div>
       </a>
 
-      <a href="/ai" class="dash-card">
-        <div class="dash-head">
-          <div class="dash-eyebrow">AI Traffic</div>
-          <span class="dash-arrow">→</span>
-        </div>
-        <h2 class="dash-title">From <em>algorithms</em>,<br>to your store.</h2>
-        <p class="dash-desc">Track sessions, revenue and conversions from ChatGPT, Claude, Perplexity and Copilot — the channel that didn't exist three years ago.</p>
-        <div class="dash-stats">
-          <div class="stat">
-            <div class="stat-lbl">Sessions</div>
-            <div class="stat-val" id="ai-sessions">—</div>
-            <div class="stat-sub">AI referrals</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Revenue</div>
-            <div class="stat-val gold" id="ai-rev">—</div>
-            <div class="stat-sub">tracked</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Top source</div>
-            <div class="stat-val small" id="ai-top">—</div>
-            <div class="stat-sub" id="ai-top-sub">—</div>
-          </div>
+      <a href="/ai" class="card" style="--accent:#8b7ff5">
+        <div class="c-top"><div class="c-name"><span class="c-dot"></span> AI Traffic</div><span class="c-go">→</span></div>
+        <h2 class="c-title">From <em>algorithms</em>, to sales</h2>
+        <p class="c-desc">ChatGPT, Claude, Perplexity &amp; Gemini — sessions and true Shopify revenue.</p>
+        <div class="c-kpis">
+          <div><div class="c-kpi-lbl">Sessions</div><div class="c-kpi-val" id="ai-sessions">—</div></div>
+          <div><div class="c-kpi-lbl">Revenue</div><div class="c-kpi-val accent" id="ai-rev">—</div></div>
+          <div><div class="c-kpi-lbl">Top</div><div class="c-kpi-val sm" id="ai-top">—</div><div class="c-kpi-sub" id="ai-top-sub">—</div></div>
         </div>
       </a>
 
-      <a href="/paid" class="dash-card">
-        <div class="dash-head">
-          <div class="dash-eyebrow">Paid Acquisition</div>
-          <span class="dash-arrow">→</span>
-        </div>
-        <h2 class="dash-title">Every <em>pound</em><br>accounted for.</h2>
-        <p class="dash-desc">Google Ads and Microsoft Ads performance side by side — ROAS, CPA, cost per form, cost per call, and the full conversion funnel.</p>
-        <div class="dash-stats">
-          <div class="stat">
-            <div class="stat-lbl">Ad Spend</div>
-            <div class="stat-val" id="paid-spend">—</div>
-            <div class="stat-sub">across channels</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Revenue</div>
-            <div class="stat-val gold" id="paid-rev">—</div>
-            <div class="stat-sub">tracked</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">ROAS</div>
-            <div class="stat-val small" id="paid-roas">—</div>
-            <div class="stat-sub">return on spend</div>
-          </div>
+      <a href="/paid" class="card" style="--accent:var(--google)">
+        <div class="c-top"><div class="c-name"><span class="c-dot"></span> Paid Ads</div><span class="c-go">→</span></div>
+        <h2 class="c-title">Every <em>pound</em> accounted for</h2>
+        <p class="c-desc">Google &amp; Microsoft Ads side by side — ROAS, CPA and the full funnel.</p>
+        <div class="c-kpis">
+          <div><div class="c-kpi-lbl">Ad spend</div><div class="c-kpi-val" id="paid-spend">—</div></div>
+          <div><div class="c-kpi-lbl">Revenue</div><div class="c-kpi-val accent" id="paid-rev">—</div></div>
+          <div><div class="c-kpi-lbl">ROAS</div><div class="c-kpi-val sm" id="paid-roas">—</div></div>
         </div>
       </a>
 
-      <a href="/organic" class="dash-card">
-        <div class="dash-head">
-          <div class="dash-eyebrow">Organic SEO</div>
-          <span class="dash-arrow">→</span>
-        </div>
-        <h2 class="dash-title">The <em>compounding</em><br>traffic engine.</h2>
-        <p class="dash-desc">Keyword rankings from Search Console, organic revenue from GA4, rising queries, page-2 opportunities and content performance — all in one view.</p>
-        <div class="dash-stats">
-          <div class="stat">
-            <div class="stat-lbl">Sessions</div>
-            <div class="stat-val" id="org-sessions">—</div>
-            <div class="stat-sub">organic search</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Revenue</div>
-            <div class="stat-val gold" id="org-rev">—</div>
-            <div class="stat-sub">tracked</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Avg position</div>
-            <div class="stat-val small" id="org-pos">—</div>
-            <div class="stat-sub">across keywords</div>
-          </div>
+      <a href="/organic" class="card" style="--accent:#16a34a">
+        <div class="c-top"><div class="c-name"><span class="c-dot"></span> Organic SEO</div><span class="c-go">→</span></div>
+        <h2 class="c-title">The <em>compounding</em> engine</h2>
+        <p class="c-desc">Search Console rankings, organic revenue, rising queries &amp; landing-page sales.</p>
+        <div class="c-kpis">
+          <div><div class="c-kpi-lbl">Sessions</div><div class="c-kpi-val" id="org-sessions">—</div></div>
+          <div><div class="c-kpi-lbl">Revenue</div><div class="c-kpi-val accent" id="org-rev">—</div></div>
+          <div><div class="c-kpi-lbl">Avg pos</div><div class="c-kpi-val sm" id="org-pos">—</div></div>
         </div>
       </a>
 
-      <a href="/product" class="dash-card">
-        <div class="dash-head">
-          <div class="dash-eyebrow">Products</div>
-          <span class="dash-arrow">→</span>
-        </div>
-        <h2 class="dash-title">Every <em>product</em>,<br>every event, one view.</h2>
-        <p class="dash-desc">Per-product sessions, add-to-cart, checkout, phone calls, form submits, purchases and revenue — with channel breakdown and leak detection.</p>
-        <div class="dash-stats">
-          <div class="stat">
-            <div class="stat-lbl">Metrics</div>
-            <div class="stat-val small">12</div>
-            <div class="stat-sub">per product</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Channels</div>
-            <div class="stat-val small">Per item</div>
-            <div class="stat-sub">breakdown</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Leaks</div>
-            <div class="stat-val small">Detected</div>
-            <div class="stat-sub">high ATC low CVR</div>
-          </div>
+      <a href="/product" class="card" style="--accent:#e8955a">
+        <div class="c-top"><div class="c-name"><span class="c-dot"></span> Products</div><span class="c-go">→</span></div>
+        <h2 class="c-title">Every <em>product</em>, one view</h2>
+        <p class="c-desc">Per-product funnel — sessions, ATC, checkout, orders, revenue &amp; leaks.</p>
+        <div class="c-tags">
+          <div class="c-tag">Full funnel per product &amp; category</div>
+          <div class="c-tag">Channel breakdown per item</div>
+          <div class="c-tag">Leak detection — high ATC, low CVR</div>
         </div>
       </a>
 
-      <a href="/profit" class="dash-card featured">
-        <div class="dash-head">
-          <div class="dash-eyebrow">Profit</div>
-          <span class="dash-arrow">→</span>
-        </div>
-        <h2 class="dash-title">What you <em>actually</em><br>made today.</h2>
-        <p class="dash-desc">Every Shopify order minus ad spend, payment fees, and fulfillment cost — true net profit per order, per product, and in total.</p>
-        <div class="dash-stats">
-          <div class="stat">
-            <div class="stat-lbl">Source</div>
-            <div class="stat-val small">Shopify</div>
-            <div class="stat-sub">+ GA4 ad spend</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Method</div>
-            <div class="stat-val small">Blended</div>
-            <div class="stat-sub">daily ad ÷ orders</div>
-          </div>
-          <div class="stat">
-            <div class="stat-lbl">Costs</div>
-            <div class="stat-val small">Per order</div>
-            <div class="stat-sub">manually entered</div>
-          </div>
+      <a href="/profit" class="card" style="--accent:#0d9488">
+        <div class="c-top"><div class="c-name"><span class="c-dot"></span> Profit <span class="c-core">Core</span></div><span class="c-go">→</span></div>
+        <h2 class="c-title">What you <em>actually</em> made</h2>
+        <p class="c-desc">True net profit — Shopify orders minus ad spend, payment fees &amp; fulfilment.</p>
+        <div class="c-tags">
+          <div class="c-tag">Net profit per order &amp; per product</div>
+          <div class="c-tag">Real Shopify fees + Google/Bing spend</div>
+          <div class="c-tag">Ex-VAT margins, daily P&amp;L timeline</div>
         </div>
       </a>
 
     </div>
   </section>
 
+  <!-- Coming soon -->
   <section>
-    <div class="section-head">
-      <div>
-        <div class="section-num">02 / Coming soon</div>
-      </div>
+    <div class="sec-head">
+      <div class="sec-title">On the <em>roadmap</em></div>
+      <div class="sec-num">Planned</div>
     </div>
-
-    <div class="coming-grid">
-      <div class="coming-card">
-        <div class="coming-eyebrow">Social / Referral</div>
-        <h3 class="coming-title"><em style="font-style:italic;color:var(--gold-soft)">Social</em> referrals</h3>
-        <p class="coming-desc">Instagram, TikTok, Pinterest, YouTube traffic and conversions — discover which content drives sales.</p>
-        <div class="coming-tag">— Planned</div>
+    <div class="soon">
+      <div class="soon-card">
+        <div class="soon-eyebrow">Social / Referral</div>
+        <h3 class="soon-title"><em>Social</em> referrals</h3>
+        <p class="soon-desc">Instagram, TikTok, Pinterest &amp; YouTube traffic and the content that drives sales.</p>
       </div>
-      <div class="coming-card">
-        <div class="coming-eyebrow">Email / CRM</div>
-        <h3 class="coming-title"><em style="font-style:italic;color:var(--gold-soft)">Customer</em> lifetime</h3>
-        <p class="coming-desc">Klaviyo flows, segments, LTV analysis, repeat purchase patterns.</p>
-        <div class="coming-tag">— Planned</div>
+      <div class="soon-card">
+        <div class="soon-eyebrow">Email / CRM</div>
+        <h3 class="soon-title"><em>Customer</em> lifetime</h3>
+        <p class="soon-desc">Klaviyo flows, segments, LTV and repeat-purchase patterns.</p>
       </div>
-      <div class="coming-card">
-        <div class="coming-eyebrow">Shopify</div>
-        <h3 class="coming-title"><em style="font-style:italic;color:var(--gold-soft)">Store</em> intelligence</h3>
-        <p class="coming-desc">Product velocity, inventory turnover, margin analysis, attribution truth.</p>
-        <div class="coming-tag">— Planned</div>
+      <div class="soon-card">
+        <div class="soon-eyebrow">Shopify</div>
+        <h3 class="soon-title"><em>Store</em> intelligence</h3>
+        <p class="soon-desc">Product velocity, inventory turnover, margin analysis and attribution truth.</p>
       </div>
     </div>
   </section>
@@ -828,15 +374,17 @@ document.getElementById('footer-time').textContent=now.toLocaleString('en-GB',{h
 // GA4
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const PROP='346978985';
-let token=localStorage.getItem('nuovo_token');
-let dateRange={startDate:'28daysAgo',endDate:'today'};
+let token=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
+let dateRange={startDate:'30daysAgo',endDate:'today'};
 
 // OAuth — capture token from hash redirect
 (function(){
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
     token=hash.get('access_token');
+    localStorage.setItem('nuovo_access_token',token);
     localStorage.setItem('nuovo_token',token);
+    if(hash.get('expires_in'))localStorage.setItem('nuovo_token_expiry',String(Date.now()+parseInt(hash.get('expires_in'),10)*1000));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
     window.history.replaceState(null,'',window.location.pathname);
   }
@@ -861,10 +409,11 @@ function withCountryFilter(body){
   else b.dimensionFilter={andGroup:{expressions:[EXCLUDE_COUNTRY,b.dimensionFilter]}};
   return b;
 }
+function freshToken(){return localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token')||token;}
 let tokenExpired=false;
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const hdrs={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+  const hdrs={'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'};
   let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
   if(r.status===401||r.status===403){tokenExpired=true;throw new Error('Token expired');}
   if(!r.ok){
@@ -883,7 +432,6 @@ async function ga4(body){
 const safe=async(q)=>{try{return await ga4(q);}catch(e){console.warn('Query failed:',e.message);return{rows:[]};}};
 function fmt(v){return '£'+Math.round(v).toLocaleString('en-GB')}
 
-// Date range
 // ===== Date range (single shared store across every page) =====
 function loadSharedDateRange(){try{const s=JSON.parse(localStorage.getItem('nuovo_date_range'));if(s&&(s.preset||s.from))return s;}catch(e){}return null;}
 function saveSharedDateRange(preset,from,to){localStorage.setItem('nuovo_date_range',JSON.stringify({preset:preset||null,from:from||null,to:to||null}));}
@@ -946,20 +494,19 @@ async function loadPreviews(){
   }
   tokenExpired=false;
   const dr=[dateRange];
-  document.getElementById('status').textContent='Fetching...';
+  document.getElementById('status').textContent='Fetching…';
   document.getElementById('date-line').textContent='As of '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
 
   try{
-    // All queries use selected date range
     const [siteData, adSpendData, orgData, aiData, paidRevData] = await Promise.all([
       safe({dateRanges:dr,metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'transactions'}]}),
       safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'advertiserAdCost'}]}),
       safe({dateRanges:dr,metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}}}),
-      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:'chatgpt|claude|perplexity|copilot\\.microsoft|copilot\\.bing'}}}}),
+      safe({dateRanges:dr,dimensions:[{name:'sessionSource'}],metrics:[{name:'sessions'},{name:'totalRevenue'}],dimensionFilter:{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:'chatgpt|claude|perplexity|copilot\\.microsoft|copilot\\.bing|gemini'}}}}),
       safe({dateRanges:dr,metrics:[{name:'totalRevenue'}],dimensionFilter:{andGroup:{expressions:[{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},{filter:{fieldName:'sessionSource',inListFilter:{values:['google','bing']}}}]}}})
     ]);
 
-    // Quick stats
+    // Headline metrics
     const siteRow=(siteData.rows||[])[0];
     const spend=(adSpendData.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
     if(siteRow){
@@ -971,6 +518,8 @@ async function loadPreviews(){
       document.getElementById('qs-roas').textContent=spend>0?(rev/spend).toFixed(2)+'x':'—';
       document.getElementById('qs-cvr').textContent=sess>0&&txns>0?(txns/sess*100).toFixed(2)+'%':'—';
       if(spend>0) document.getElementById('perf-mer').textContent=(rev/spend).toFixed(2)+'x';
+      document.getElementById('perf-rev').textContent=rev>0?fmt(rev):'—';
+      document.getElementById('perf-sess').textContent=sess>0?sess.toLocaleString():'—';
     }
 
     // Organic card
@@ -984,7 +533,7 @@ async function loadPreviews(){
       if(scope.includes('webmasters')){
         const t=new Date(),end=new Date(t);end.setDate(t.getDate()-3);const start=new Date(end);start.setDate(end.getDate()-28);
         const fmtD2=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({startDate:fmtD2(start),endDate:fmtD2(end),dimensions:['query'],rowLimit:50})});
+        const gscR=await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent('https://www.nuovoluxury.co.uk/')}/searchAnalytics/query`,{method:'POST',headers:{'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'},body:JSON.stringify({startDate:fmtD2(start),endDate:fmtD2(end),dimensions:['query'],rowLimit:50})});
         if(gscR.ok){const gscD=await gscR.json();const r=gscD.rows||[];let imp=0,pos=0;r.forEach(x=>{imp+=x.impressions||0;pos+=(x.position||0)*(x.impressions||0);});if(imp>0)document.getElementById('org-pos').textContent='#'+(pos/imp).toFixed(1);}
       }
     }catch(e){}
@@ -1003,8 +552,9 @@ async function loadPreviews(){
     else if(topSrc.includes('claude'))topName='Claude';
     else if(topSrc.includes('perplexity'))topName='Perplexity';
     else if(topSrc.includes('copilot'))topName='Copilot';
-    document.getElementById('ai-top').textContent=topName;
-    document.getElementById('ai-top-sub').textContent=topSrcSess>0?topSrcSess.toLocaleString()+' sessions':'—';
+    else if(topSrc.includes('gemini'))topName='Gemini';
+    document.getElementById('ai-top').textContent=topSrcSess>0?topName:'—';
+    document.getElementById('ai-top-sub').textContent=topSrcSess>0?topSrcSess.toLocaleString()+' sess':'—';
 
     // Paid card
     const paidRev=parseFloat(((paidRevData.rows||[])[0]?.metricValues[0]?.value)||0);
