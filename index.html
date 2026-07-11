@@ -354,6 +354,7 @@ body::before{content:'';position:fixed;top:-45%;left:50%;transform:translateX(-5
 
 </div>
 
+<script src="https://accounts.google.com/gsi/client" async></script>
 <script>
 // Theme
 function applyTheme(t){
@@ -374,17 +375,64 @@ document.getElementById('footer-time').textContent=now.toLocaleString('en-GB',{h
 // GA4
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const PROP='346978985';
-let token=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
+let token=null;
 let dateRange={startDate:'30daysAgo',endDate:'today'};
+
+// ===== Silent token refresh via the GIS token client — so the home page
+// self-heals when the ~1h GA4 token expires (instead of freezing the numbers
+// when you change the date). Mirrors the dashboards' auth. =====
+const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',email:'nuovo_user_email',legacy:'nuovo_token'};
+const OAUTH_SCOPE='https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly';
+let _tokenClient=null,_refreshTimer=null,_refreshing=null;
+function storeToken(tok,expiresIn){
+  if(!tok)return;
+  token=tok;
+  localStorage.setItem(TK.tok,tok);
+  localStorage.setItem(TK.legacy,tok);
+  localStorage.setItem(TK.exp,String(Date.now()+((parseInt(expiresIn,10)||3600)*1000)));
+  scheduleTokenRefresh();
+}
+function tokenExpiry(){return parseInt(localStorage.getItem(TK.exp)||'0',10);}
+function getTokenClient(){
+  if(_tokenClient)return _tokenClient;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return null;
+  _tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:OAUTH_SCOPE,
+    callback:(resp)=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;
+      if(resp&&resp.access_token){storeToken(resp.access_token,resp.expires_in);cb&&cb(true);}else{cb&&cb(false);}},
+    error_callback:()=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;cb&&cb(false);}
+  });
+  return _tokenClient;
+}
+function silentRefresh(){
+  if(_refreshing)return _refreshing;
+  const tc=getTokenClient();
+  if(!tc)return Promise.resolve(false);
+  _refreshing=new Promise(res=>{tc.__cb=(ok)=>{_refreshing=null;res(ok);};
+    try{const hint=localStorage.getItem(TK.email);tc.requestAccessToken(hint?{prompt:'',login_hint:hint}:{prompt:''});}
+    catch(e){_refreshing=null;res(false);}});
+  return _refreshing;
+}
+function scheduleTokenRefresh(){
+  if(_refreshTimer)clearTimeout(_refreshTimer);
+  const exp=tokenExpiry();if(!exp)return;
+  _refreshTimer=setTimeout(()=>silentRefresh(),Math.max(10000,exp-Date.now()-5*60*1000));
+}
+async function ensureFreshToken(){
+  const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
+  const exp=tokenExpiry();
+  if(cached&&exp&&exp-Date.now()>5*60*1000){token=cached;scheduleTokenRefresh();return true;}
+  if(!cached)return false;
+  token=cached; // use the (possibly stale) token, then try to renew it silently
+  const ok=await silentRefresh();
+  return ok||!!token;
+}
 
 // OAuth — capture token from hash redirect
 (function(){
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
-    token=hash.get('access_token');
-    localStorage.setItem('nuovo_access_token',token);
-    localStorage.setItem('nuovo_token',token);
-    if(hash.get('expires_in'))localStorage.setItem('nuovo_token_expiry',String(Date.now()+parseInt(hash.get('expires_in'),10)*1000));
+    storeToken(hash.get('access_token'),hash.get('expires_in'));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
     window.history.replaceState(null,'',window.location.pathname);
   }
@@ -413,14 +461,18 @@ function freshToken(){return localStorage.getItem('nuovo_access_token')||localSt
 let tokenExpired=false;
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const hdrs={'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'};
-  let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
+  const mk=()=>({'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'});
+  let r=await fetch(url,{method:'POST',headers:mk(),body:JSON.stringify(withCountryFilter(body))});
+  // Token expired mid-session → renew silently and retry once (mk() re-reads the fresh token).
+  if((r.status===401||r.status===403)&&await silentRefresh()){
+    r=await fetch(url,{method:'POST',headers:mk(),body:JSON.stringify(withCountryFilter(body))});
+  }
   if(r.status===401||r.status===403){tokenExpired=true;throw new Error('Token expired');}
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
     const msg=e.error?.message||'';
     if(/remove country|incompatible/i.test(msg)){
-      r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      r=await fetch(url,{method:'POST',headers:mk(),body:JSON.stringify(body)});
       if(r.status===401||r.status===403){tokenExpired=true;throw new Error('Token expired');}
       if(r.ok)return r.json();
       throw new Error('API '+r.status);
@@ -578,7 +630,7 @@ async function loadPreviews(){
 
 // Init
 restoreDateRange();
-loadPreviews();
+ensureFreshToken().then(()=>loadPreviews());
 </script>
 </body>
 </html>
