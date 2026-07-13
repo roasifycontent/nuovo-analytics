@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>N</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0a0a0b;--bg2:#111113;--bg3:#17171a;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0efe8;--muted:#a8a49e;--dim:#6a6660;--gold:#d4a843;--red:#f87171;--green:#10b981;--amber:#f59e0b;--chart-grid:rgba(255,255,255,0.04);--chart-tick:#7a7975}
@@ -564,16 +565,66 @@ let productFilter=null;
 let activeChips={missing:false,profitable:false,loss:false,refunded:false,unfulfilled:false};
 let sortCol='date',sortDesc=true;
 
+// ===== Silent token refresh via the GIS token client =====
+// Profit previously had NO refresher of its own and relied on another dashboard tab
+// keeping nuovo_access_token fresh. With only Profit open, the GA4 token expired after
+// ~1h and Google Ads spend silently dropped to £0. This ports the same GIS silent-refresh
+// used on Paid/Home so the token renews itself.
+const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',email:'nuovo_user_email',legacy:'nuovo_token'};
+const OAUTH_SCOPE='https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly';
+let _tokenClient=null,_refreshTimer=null,_refreshing=null;
+function storeToken(tok,expiresIn){
+  if(!tok)return;
+  token=tok;
+  localStorage.setItem(TK.tok,tok);
+  localStorage.setItem(TK.legacy,tok);
+  localStorage.setItem(TK.exp,String(Date.now()+((parseInt(expiresIn,10)||3600)*1000)));
+  scheduleTokenRefresh();
+}
+function tokenExpiry(){return parseInt(localStorage.getItem(TK.exp)||'0',10);}
+function getTokenClient(){
+  if(_tokenClient)return _tokenClient;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return null;
+  _tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:OAUTH_SCOPE,
+    callback:(resp)=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;
+      if(resp&&resp.access_token){storeToken(resp.access_token,resp.expires_in);cb&&cb(true);}else{cb&&cb(false);}},
+    error_callback:()=>{const cb=_tokenClient.__cb;_tokenClient.__cb=null;cb&&cb(false);}
+  });
+  return _tokenClient;
+}
+function silentRefresh(){
+  if(_refreshing)return _refreshing;
+  const tc=getTokenClient();
+  if(!tc)return Promise.resolve(false);
+  _refreshing=new Promise(res=>{tc.__cb=(ok)=>{_refreshing=null;res(ok);};
+    try{const hint=localStorage.getItem(TK.email);tc.requestAccessToken(hint?{prompt:'',login_hint:hint}:{prompt:''});}
+    catch(e){_refreshing=null;res(false);}});
+  return _refreshing;
+}
+function scheduleTokenRefresh(){
+  if(_refreshTimer)clearTimeout(_refreshTimer);
+  const exp=tokenExpiry();if(!exp)return;
+  _refreshTimer=setTimeout(()=>silentRefresh(),Math.max(10000,exp-Date.now()-5*60*1000));
+}
+async function ensureFreshToken(){
+  const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
+  const exp=tokenExpiry();
+  if(cached&&exp&&exp-Date.now()>5*60*1000){token=cached;scheduleTokenRefresh();return true;}
+  // No prior token → never signed in. Do NOT call the token client here (its popup gets
+  // blocked without a user gesture). The silent path only runs to renew an existing session.
+  if(!cached)return false;
+  token=cached;
+  const ok=await silentRefresh();
+  return ok||!!token;
+}
+
 // ===== OAuth =====
 (function(){
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
-    token=hash.get('access_token');
-    // Write BOTH the shared key (kept fresh by the GIS silent-refresh on the other
-    // pages) and the legacy key, plus an expiry, so Profit rides the shared session.
-    localStorage.setItem('nuovo_access_token',token);
-    localStorage.setItem('nuovo_token',token);
-    if(hash.get('expires_in'))localStorage.setItem('nuovo_token_expiry',String(Date.now()+parseInt(hash.get('expires_in'),10)*1000));
+    // Store via the shared helper so an expiry is written and the refresh timer is armed.
+    storeToken(hash.get('access_token'),hash.get('expires_in'));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
     window.history.replaceState(null,'',window.location.pathname);
   }
@@ -622,13 +673,17 @@ function withCountryFilter(body){
 function freshToken(){return localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token')||token;}
 async function ga4(body){
   const url=`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`;
-  const hdrs={'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'};
-  let r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(withCountryFilter(body))});
+  const mk=()=>({'Authorization':'Bearer '+freshToken(),'Content-Type':'application/json'});
+  let r=await fetch(url,{method:'POST',headers:mk(),body:JSON.stringify(withCountryFilter(body))});
+  // Token expired mid-session → silently refresh via GIS and retry once with the new token.
+  if((r.status===401||r.status===403)&&await silentRefresh()){
+    r=await fetch(url,{method:'POST',headers:mk(),body:JSON.stringify(withCountryFilter(body))});
+  }
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
     const msg=e.error?.message||'';if(msg)console.error('[GA4]',r.status,msg);
     if(/remove country|incompatible/i.test(msg)){
-      r=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      r=await fetch(url,{method:'POST',headers:mk(),body:JSON.stringify(body)});
       if(r.ok)return r.json();
     }
     const err=new Error(msg||'API '+r.status);err.status=r.status;throw err;
@@ -961,9 +1016,8 @@ async function fetchGoogleAdSpend(start,end){
   const call=t=>fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},body});
   try{
     let r=await call(freshToken());
-    // On 401 the token expired mid-session — re-read the shared token (another tab's
-    // silent refresh may have updated it) and retry once before giving up.
-    if(r.status===401){await new Promise(res=>setTimeout(res,400));r=await call(freshToken());}
+    // On 401 the token expired mid-session — silently refresh via GIS and retry once.
+    if(r.status===401&&await silentRefresh()){r=await call(freshToken());}
     if(r.ok)return await r.json();
     const e=await r.json().catch(()=>({}));console.error('[GA4]',r.status,e.error?.message||'');
     return {rows:[],authError:r.status===401||r.status===403};
@@ -1940,7 +1994,12 @@ window.addEventListener('load',()=>{
   restoreDateRange();
   updateVatPill();
   const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
-  if(saved){token=saved;launch();}
+  if(saved){
+    token=saved;
+    // Renew the token before the first fetch so Google Ads spend loads even if the
+    // cached token is stale/expired (GIS silent-refresh, no user gesture needed).
+    ensureFreshToken().then(()=>launch());
+  }
 });
 </script>
 </body>
