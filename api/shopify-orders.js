@@ -59,7 +59,9 @@ query GetOrders($first: Int!, $after: String, $q: String!) {
               title
               variantTitle
               quantity
+              currentQuantity
               originalUnitPriceSet { shopMoney { amount } }
+              discountedTotalSet { shopMoney { amount } }
             }
           }
         }
@@ -85,6 +87,8 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Orders change in real time (edits, refunds, fulfilment) — never serve stale.
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   const domain = process.env.SHOPIFY_STORE_DOMAIN;
@@ -144,7 +148,18 @@ module.exports = async (req, res) => {
       const ordersData = data.data && data.data.orders;
       if (!ordersData) break;
 
-      ordersData.edges.forEach(e => allOrders.push(e.node));
+      ordersData.edges.forEach(e => {
+        const o = e.node;
+        // Reflect Shopify order edits: currentQuantity is the truthful post-edit
+        // count (a removed line item is 0). Consumers read `quantity`, so remap it
+        // to currentQuantity — otherwise removed items still count as sold.
+        if (o.lineItems && o.lineItems.edges) {
+          o.lineItems.edges.forEach(le => {
+            if (le.node && le.node.currentQuantity != null) le.node.quantity = le.node.currentQuantity;
+          });
+        }
+        allOrders.push(o);
+      });
 
       if (!ordersData.pageInfo.hasNextPage) break;
       after = ordersData.pageInfo.endCursor;

@@ -918,7 +918,7 @@ async function refresh(){
 }
 
 async function fetchShopifyOrders(start,end){
-  const r=await fetch(`/api/shopify-orders?startDate=${start}&endDate=${end}`);
+  const r=await fetch(`/api/shopify-orders?startDate=${start}&endDate=${end}`,{cache:'no-store'});
   if(!r.ok){
     const e=await r.json().catch(()=>({error:'Shopify '+r.status}));
     throw new Error(e.error||'Shopify request failed');
