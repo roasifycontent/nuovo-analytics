@@ -52,6 +52,7 @@ query GetOrders($first: Int!, $after: String, $q: String!) {
         totalRefundedSet { shopMoney { amount currencyCode } }
         totalShippingPriceSet { shopMoney { amount } }
         totalTaxSet { shopMoney { amount } }
+        currentTotalTaxSet { shopMoney { amount } }
         originalTotalPriceSet { shopMoney { amount } }
         lineItems(first: 25) {
           edges {

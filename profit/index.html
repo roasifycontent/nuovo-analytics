@@ -1024,9 +1024,13 @@ function normaliseOrder(o){
   const isUnpaid=['PENDING','AUTHORIZED','VOIDED','EXPIRED'].includes(o.displayFinancialStatus);
   // Effective revenue (post-refund)
   const grossRev=Math.max(0,totalAmt-refundedAmt);
-  // VAT — use Shopify's actual totalTaxSet (accurate for multi-rate / zero-rated orders).
-  // Pro-rate VAT on refunds.
-  const totalVat=parseFloat(o.totalTaxSet?.shopMoney?.amount||0);
+  // VAT — use Shopify's CURRENT tax (currentTotalTaxSet), which reflects order edits
+  // and matches currentTotalPriceSet used for revenue above. Falls back to the original
+  // totalTaxSet if the current field is missing. Using the original here would strip
+  // pre-edit VAT off a post-edit total (e.g. edited order #131198: -£512.67 VAT off a
+  // £1,627 order instead of -£271.17). Still accurate for multi-rate / zero-rated orders.
+  const currentVatRaw=o.currentTotalTaxSet?.shopMoney?.amount;
+  const totalVat=currentVatRaw!=null?parseFloat(currentVatRaw):parseFloat(o.totalTaxSet?.shopMoney?.amount||0);
   let vatRefunded=0;
   if(refundedAmt>0&&totalAmt+refundedAmt>0){
     vatRefunded=totalVat*(refundedAmt/(totalAmt+refundedAmt));
