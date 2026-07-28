@@ -52,7 +52,9 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
 .reauth-card .btn-google:hover{background:#f0f0f0}
 #dashboard{display:none}
 /* Hero stats */
-.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:1100px){.hero{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.hero{grid-template-columns:repeat(2,1fr)}}
 .stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .stat:nth-child(1)::before{background:var(--gold)}
@@ -262,6 +264,11 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-s
         <div class="stat-val" id="h-events">—</div>
         <div class="stat-sub">ATC + chkt + calls + WhatsApp + chat + forms + orders</div>
       </div>
+      <div class="stat" title="All form submissions AND phone calls across the whole site (including the contact & home pages that don't tie to one product)">
+        <div class="stat-lbl">Form leads (site-wide)</div>
+        <div class="stat-val" id="h-forms">—</div>
+        <div class="stat-sub" id="h-forms-sub">all pages · incl. contact page</div>
+      </div>
     </div>
 
     <!-- Category mini-dashboards -->
@@ -390,6 +397,9 @@ async function ensureFreshToken(){
 }
 let dateRange={startDate:'28daysAgo',endDate:'today'};
 let allProducts=[];
+// Store-wide contact/lead totals across ALL pages (not just product pages) — most form
+// submissions and calls land on the contact/home page and never attribute to one product.
+let storeLeads={forms:0,calls:0,whatsapp:0,chat:0};
 // Contact metrics — unique people (totalUsers) per eventName, attributed to a product by URL path.
 // The live site fires the call event as `phone_calls` (gtag('event','phone_calls',…)).
 // `click_to_call_ga4` is a legacy name kept so historical calls still count (a single
@@ -696,6 +706,11 @@ async function refresh(){
       }
     });
 
+    // Store-wide lead totals — sum EVERY row (all pages), independent of product attribution.
+    storeLeads={forms:0,calls:0,whatsapp:0,chat:0};
+    (keyEventsData.rows||[]).forEach(r=>{storeLeads.forms+=parseInt(r.metricValues[0].value||0);});
+    (contactData.rows||[]).forEach(r=>{const ck=contactKey(r.dimensionValues[1].value);if(ck)storeLeads[ck]+=parseInt(r.metricValues[0].value||0);});
+
     allProducts=products;
     renderHero(products);
     renderCategories(products);
@@ -733,6 +748,11 @@ function renderHero(products){
     document.getElementById('h-top-rev').textContent='—';
   }
   document.getElementById('h-events').textContent=totalEvents>0?totalEvents.toLocaleString('en-GB'):'—';
+  // Site-wide leads — forms headline, calls in the sub-line (both counted across all pages)
+  document.getElementById('h-forms').textContent=storeLeads.forms>0?storeLeads.forms.toLocaleString('en-GB'):'—';
+  document.getElementById('h-forms-sub').textContent=storeLeads.calls>0
+    ?`${storeLeads.calls} phone call${storeLeads.calls===1?'':'s'} · all pages`
+    :'all pages · incl. contact page';
 }
 
 // --- Sort ---
