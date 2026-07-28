@@ -400,12 +400,15 @@ let allProducts=[];
 // Store-wide contact/lead totals across ALL pages (not just product pages) — most form
 // submissions and calls land on the contact/home page and never attribute to one product.
 let storeLeads={forms:0,calls:0,whatsapp:0,chat:0};
+// Per-category lead totals, attributed by URL keyword (so a form on /products/pergo* or a
+// pergola landing/collection page counts toward Pergolas even without an exact product match).
+let catLeads={};
 // Contact metrics — unique people (totalUsers) per eventName, attributed to a product by URL path.
-// The live site fires the call event as `phone_calls` (gtag('event','phone_calls',…)).
-// `click_to_call_ga4` is a legacy name kept so historical calls still count (a single
-// click only ever fires one of the two, so no double-counting).
-const CONTACT_EVENTS=['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
-function contactKey(ev){return (ev==='phone_calls'||ev==='click_to_call_ga4')?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+// Calls: use `phone_calls` ONLY. The site double-fires the same phone click as both
+// `phone_calls` and the legacy `click_to_call_ga4` (near-identical counts in GA4:
+// 38 vs 36), so counting both would double the real number. `phone_calls` is canonical.
+const CONTACT_EVENTS=['phone_calls','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return ev==='phone_calls'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
 async function fetchContactsByPage(){
   const q=m=>({dateRanges:[dateRange],dimensions:[{name:'pagePath'},{name:'eventName'}],metrics:[{name:m}],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}},limit:1000});
   try{return await ga4(q('totalUsers'));}
@@ -681,35 +684,51 @@ async function refresh(){
       slugMap[slug]=p;
     });
 
-    // Attribute key events to products by URL path
+    // ===== Attribute forms & contact events (unified) =====
+    // Product match: exact slug-in-path first, then handle-aware — the GA4 itemName slug is
+    // often longer than the real Shopify handle (e.g. "pergoenvision-pergola-glass-garden-
+    // room" vs URL /products/pergoenvision-pergola), so also match when the URL's
+    // /products/<handle> prefix-matches a product slug.
+    function matchSlug(path){
+      for(const slug of Object.keys(slugMap)){if(slug.length>3&&path.includes(slug))return slug;}
+      const m=path.match(/\/products\/([a-z0-9-]+)/);
+      if(m&&m[1].length>3){
+        const handle=m[1];let best=null,bestLen=0;
+        for(const slug of Object.keys(slugMap)){
+          if(slug.length>3&&(slug.startsWith(handle)||handle.startsWith(slug))){
+            const len=Math.min(slug.length,handle.length);
+            if(len>bestLen){bestLen=len;best=slug;}
+          }
+        }
+        return best;
+      }
+      return null;
+    }
+    storeLeads={forms:0,calls:0,whatsapp:0,chat:0};
+    catLeads={};CATEGORIES.forEach(c=>catLeads[c.key]={forms:0,calls:0,whatsapp:0,chat:0});
+    // Forms — count store-wide, attribute to a product where possible, else to a category
+    // by URL keyword (catches pergola landing/collection pages that hit no single product).
     (keyEventsData.rows||[]).forEach(r=>{
       const path=(r.dimensionValues[0].value||'').toLowerCase();
-      const evt=r.dimensionValues[1].value;
       const count=parseInt(r.metricValues[0].value||0);
-      // Find matching product slug in path
-      for(const slug of Object.keys(slugMap)){
-        if(slug.length>3&&path.includes(slug)){
-          slugMap[slug].forms+=count;
-          break;
-        }
-      }
+      storeLeads.forms+=count;
+      const slug=matchSlug(path);
+      const catKey=slug?categoryFor(slugMap[slug].name):catForPath(path);
+      if(slug)slugMap[slug].forms+=count;
+      if(catKey&&catLeads[catKey])catLeads[catKey].forms+=count;
     });
-
-    // Attribute contact events (Calls / WhatsApp / Chat) to products by URL path — unique people
+    // Calls / WhatsApp / Chat — same unified attribution (unique people via totalUsers).
     (contactData.rows||[]).forEach(r=>{
-      const path=(r.dimensionValues[0].value||'').toLowerCase();
       const ck=contactKey(r.dimensionValues[1].value);
       if(!ck)return;
+      const path=(r.dimensionValues[0].value||'').toLowerCase();
       const count=parseInt(r.metricValues[0].value||0);
-      for(const slug of Object.keys(slugMap)){
-        if(slug.length>3&&path.includes(slug)){slugMap[slug][ck]+=count;break;}
-      }
+      storeLeads[ck]+=count;
+      const slug=matchSlug(path);
+      const catKey=slug?categoryFor(slugMap[slug].name):catForPath(path);
+      if(slug)slugMap[slug][ck]+=count;
+      if(catKey&&catLeads[catKey])catLeads[catKey][ck]+=count;
     });
-
-    // Store-wide lead totals — sum EVERY row (all pages), independent of product attribution.
-    storeLeads={forms:0,calls:0,whatsapp:0,chat:0};
-    (keyEventsData.rows||[]).forEach(r=>{storeLeads.forms+=parseInt(r.metricValues[0].value||0);});
-    (contactData.rows||[]).forEach(r=>{const ck=contactKey(r.dimensionValues[1].value);if(ck)storeLeads[ck]+=parseInt(r.metricValues[0].value||0);});
 
     allProducts=products;
     renderHero(products);
@@ -773,15 +792,19 @@ function sortProducts(list){
 // Sauna before Hot tubs / Swim spas (so "Sauna in hot tub style" doesn't land in
 // Hot tubs), Sauna before Lighting ("Sauna Lamp" → Saunas not Lighting).
 // Hot tubs explicitly excludes "heat pump" (accessory, not a hot tub itself).
+// `pathMatch` maps a URL path to a category (for attributing form/call events that land
+// on category/landing/collection pages, not just exact product pages). Keywords are chosen
+// to appear in the real Shopify handles — e.g. every pergola product lives at /products/pergo*.
 const CATEGORIES=[
-  {key:'steam',label:'Steam showers',match:n=>/steam\s*(shower|room|cabin|generator)|shower\s*cabin/i.test(n)},
-  {key:'sauna',label:'Saunas',match:n=>/sauna/i.test(n)},
-  {key:'hottub',label:'Hot tubs',match:n=>/hot\s*tub/i.test(n)&&!/heat\s*pump/i.test(n)},
-  {key:'swimspa',label:'Swim spas',match:n=>/swim\s*spa/i.test(n)},
-  {key:'icebath',label:'Ice baths & cold plunge',match:n=>/ice\s*bath|ice\s*tub|chill\s*tubs?|cold\s*plunge|plunge\s*pool/i.test(n)},
-  {key:'pergola',label:'Pergolas',match:n=>/pergola/i.test(n)},
-  {key:'lighting',label:'Lighting',match:n=>/\b(lighting|chandelier|sconce|pendant)\b/i.test(n)||/\b(lamp|lamps)\b/i.test(n)||/\blight\b/i.test(n)}
+  {key:'steam',label:'Steam showers',match:n=>/steam\s*(shower|room|cabin|generator)|shower\s*cabin/i.test(n),pathMatch:/steam/i},
+  {key:'sauna',label:'Saunas',match:n=>/sauna/i.test(n),pathMatch:/sauna/i},
+  {key:'hottub',label:'Hot tubs',match:n=>/hot\s*tub/i.test(n)&&!/heat\s*pump/i.test(n),pathMatch:/hot-?tub|whirlpool/i},
+  {key:'swimspa',label:'Swim spas',match:n=>/swim\s*spa/i.test(n),pathMatch:/swim-?spa/i},
+  {key:'icebath',label:'Ice baths & cold plunge',match:n=>/ice\s*bath|ice\s*tub|chill\s*tubs?|cold\s*plunge|plunge\s*pool/i.test(n),pathMatch:/ice-?bath|ice-?tub|chill-?tub|cold-?plunge|plunge/i},
+  {key:'pergola',label:'Pergolas',match:n=>/pergola/i.test(n),pathMatch:/pergo/i},
+  {key:'lighting',label:'Lighting',match:n=>/\b(lighting|chandelier|sconce|pendant)\b/i.test(n)||/\b(lamp|lamps)\b/i.test(n)||/\blight\b/i.test(n),pathMatch:/light|chandelier|sconce|pendant|lamp/i}
 ];
+function catForPath(path){for(const c of CATEGORIES){if(c.pathMatch&&c.pathMatch.test(path||''))return c.key;}return null;}
 function categoryFor(name){
   for(const c of CATEGORIES)if(c.match(name||''))return c.key;
   return null;
@@ -840,6 +863,10 @@ function renderCategories(products){
       a.calls+=p.calls;a.whatsapp+=p.whatsapp;a.chat+=p.chat;a.forms+=p.forms;
       return a;
     },{sessions:0,atc:0,checkout:0,purchases:0,units:0,revenue:0,calls:0,whatsapp:0,chat:0,forms:0});
+    // Card lead totals come from category-level attribution (includes landing/collection
+    // pages that don't map to one product), so they're >= the sum of the per-product rows.
+    const cl=catLeads[c.key]||{forms:0,calls:0,whatsapp:0,chat:0};
+    totals.calls=cl.calls;totals.whatsapp=cl.whatsapp;totals.forms=cl.forms;totals.chat=cl.chat;
     const top=sorted.slice(0,6);
     const isEmpty=items.length===0;
     const s=catSortState[c.key];

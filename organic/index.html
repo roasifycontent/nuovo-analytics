@@ -655,9 +655,10 @@ function gscDates(days){
 }
 
 // Contact metrics — unique people (totalUsers) per eventName, shown as 3 separate cards.
-// Live site fires the call event as `phone_calls`; `click_to_call_ga4` kept for legacy history.
-const CONTACT_EVENTS=['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
-function contactKey(ev){return (ev==='phone_calls'||ev==='click_to_call_ga4')?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+// Calls: `phone_calls` ONLY. The site double-fires the same click as phone_calls AND the
+// legacy click_to_call_ga4 (near-equal counts in GA4), so counting both would double it.
+const CONTACT_EVENTS=['phone_calls','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return ev==='phone_calls'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
 async function fetchContacts(baseFil){
   const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
   const dimensionFilter=baseFil?{andGroup:{expressions:[baseFil,evFil]}}:evFil;
@@ -946,7 +947,7 @@ function renderLandingCombined(byPage, lpEvents, pageQuery){
     else if(name==='begin_checkout')ev[p].checkout+=c;
     else if(name==='form_submit')ev[p].forms+=c;
     else if(name==='purchase')ev[p].purchases+=c;
-    else if(name==='click_to_call_ga4'||name==='phone_calls')ev[p].calls+=c;
+    else if(name==='phone_calls')ev[p].calls+=c;
     else if(name==='whatsapp_click')ev[p].whatsapp+=c;
     else if(name==='tidio_conversation_started')ev[p].chat+=c;
   });

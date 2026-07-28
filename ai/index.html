@@ -350,9 +350,10 @@ const PAGE_COLS=[{k:'pg',l:'Page'},{k:'sess',l:'Sess.'},{k:'form',l:'Forms'},{k:
 function cat(s){s=(s||'').toLowerCase();for(const[k,v]of Object.entries(SOURCES))if(v.terms.some(t=>s.includes(t)))return k;return null;}
 
 // Contact metrics — unique people (totalUsers) per eventName, shown as 3 separate columns.
-// Live site fires the call event as `phone_calls`; `click_to_call_ga4` kept for legacy history.
-const CONTACT_EVENTS=['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
-function contactKey(ev){return (ev==='phone_calls'||ev==='click_to_call_ga4')?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+// Calls: `phone_calls` ONLY. The site double-fires the same click as phone_calls AND the
+// legacy click_to_call_ga4 (near-equal counts in GA4), so counting both would double it.
+const CONTACT_EVENTS=['phone_calls','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return ev==='phone_calls'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
 async function fetchContacts(url,dr,fil){
   const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
   const dimensionFilter={andGroup:{expressions:[fil,evFil]}};
@@ -752,7 +753,7 @@ function rPages(bp, pe){
   pageRows=(bp.rows||[]).slice(0,8).map(r=>{
     const pg=r.dimensionValues[0].value,e=getEvts(pg);
     const sess=parseInt(r.metricValues[0].value||0),users=parseInt(r.metricValues[2].value||0);
-    return{pg,sess,users,eng:parseFloat(r.metricValues[1].value||0),form:e.form_submit,call:e.click_to_call_ga4+e.phone_calls,atc:e.add_to_cart,checkout:e.begin_checkout,purchase:e.purchase,cvr:users>0?e.purchase/users:0};
+    return{pg,sess,users,eng:parseFloat(r.metricValues[1].value||0),form:e.form_submit,call:e.phone_calls,atc:e.add_to_cart,checkout:e.begin_checkout,purchase:e.purchase,cvr:users>0?e.purchase/users:0};
   });
   renderPages();
 }
