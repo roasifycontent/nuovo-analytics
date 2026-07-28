@@ -430,9 +430,10 @@ async function ensureFreshToken(){
 
 let cache={google:{},bing:{}};
 // Contact metrics — unique people (totalUsers) per eventName: Calls / WhatsApp / Chat (shown separately)
-const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+// Live site fires the call event as `phone_calls`; `click_to_call_ga4` kept for legacy history.
+const CONTACT_EVENTS=['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
 let contactTotals={calls:0,whatsapp:0,chat:0};
-function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+function contactKey(ev){return (ev==='phone_calls'||ev==='click_to_call_ga4')?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
 async function fetchContacts(baseFil){
   const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
   const dimensionFilter={andGroup:{expressions:[baseFil,evFil]}};
@@ -684,19 +685,19 @@ async function refresh(){
       // Countries
       ga4({dateRanges:[dateRange],dimensions:[{name:'country'}],metrics:[{name:'sessions'},{name:'totalRevenue'},{name:'keyEvents'}],dimensionFilter:paidFil,orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
       // Funnel events
-      ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','click_to_call_ga4']}}}]}}}),
+      ga4({dateRanges:[dateRange],dimensions:[{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','add_payment_info','purchase','form_submit','phone_calls','click_to_call_ga4']}}}]}}}),
       // Contact events (Calls / WhatsApp / Chat) — unique people via totalUsers
       fetchContacts(paidFil),
       // Per-campaign event breakdown — so the "Key ev." total can be shown as ATC /
       // Chkout / Purch / Forms / Calls / WhatsApp / Chat per campaign.
-      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'},{name:'sessionCampaignName'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['add_to_cart','begin_checkout','purchase','form_submit','click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}]}},limit:500})
+      ga4({dateRanges:[dateRange],dimensions:[{name:'sessionSource'},{name:'sessionCampaignName'},{name:'eventName'}],metrics:[{name:'eventCount'}],dimensionFilter:{andGroup:{expressions:[paidFil,{filter:{fieldName:'eventName',inListFilter:{values:['add_to_cart','begin_checkout','purchase','form_submit','phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}]}},limit:500})
     ]);
 
     contactTotals={calls:0,whatsapp:0,chat:0};
     (contacts.rows||[]).forEach(r=>{const ck=contactKey(r.dimensionValues[0].value);if(ck)contactTotals[ck]+=parseInt(r.metricValues[0].value||0);});
 
     // Build per-campaign event breakdown: source__campaign -> {atc, checkout, purchase, form, calls, whatsapp, chat}
-    const EV_LABEL={add_to_cart:'atc',begin_checkout:'checkout',purchase:'purchase',form_submit:'form',click_to_call_ga4:'calls',whatsapp_click:'whatsapp',tidio_conversation_started:'chat'};
+    const EV_LABEL={add_to_cart:'atc',begin_checkout:'checkout',purchase:'purchase',form_submit:'form',phone_calls:'calls',click_to_call_ga4:'calls',whatsapp_click:'whatsapp',tidio_conversation_started:'chat'};
     const campEvMap={};
     (campaignEvents.rows||[]).forEach(r=>{
       const ev=EV_LABEL[r.dimensionValues[2].value];if(!ev)return;

@@ -300,8 +300,9 @@ const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
 const AI_TERMS=['chatgpt','claude','perplexity','copilot.microsoft','copilot.bing'];
 // Contact metrics — tracked as unique people (totalUsers) per eventName, shown as 3 separate metrics.
-const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
-function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+// Live site fires the call event as `phone_calls`; `click_to_call_ga4` kept for legacy history.
+const CONTACT_EVENTS=['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return (ev==='phone_calls'||ev==='click_to_call_ga4')?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
 async function fetchChannelContacts(){
   const evFil={filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}};
   const q=m=>({dateRanges:[dateRange],dimensions:[{name:'sessionDefaultChannelGroup'},{name:'sessionSource'},{name:'eventName'}],metrics:[{name:m}],dimensionFilter:evFil});
@@ -865,7 +866,7 @@ function renderChannelCompare(chMap,gAdSpendTotal,shopifyPayload){
     <span style="text-align:right" title="Return on ad spend — revenue ÷ ad spend">ROAS${s('rev / spend')}</span>
     <span style="text-align:right" title="This channel's share of total GA4 revenue">% Rev${s('share')}</span>
     <span style="text-align:right" title="form_submit + generate_lead events on your site">Forms${s('lead forms')}</span>
-    <span style="text-align:right" title="Phone-click events (click_to_call_ga4) on your site">Calls${s('phone clk')}</span>
+    <span style="text-align:right" title="Phone-click events (phone_calls) on your site">Calls${s('phone clk')}</span>
     <span style="text-align:right" title="WhatsApp icon click events on your site (GA4 tracking)">WhatsApp${s('on-site clk')}</span>
     <span style="text-align:right" title="Tidio chat conversations started">Chat${s('Tidio')}</span>
     <span style="text-align:right" title="Add-to-cart events">ATC${s('add to cart')}</span>

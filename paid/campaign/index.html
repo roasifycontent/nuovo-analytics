@@ -628,7 +628,7 @@ async function refresh(){
       ],dimensionFilter:{andGroup:{expressions:[
         {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'google'}}},
         {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'cpc'}}},
-        {filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}
+        {filter:{fieldName:'eventName',inListFilter:{values:['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started']}}}
       ]}},limit:5000}),
       // 7. PER-PRODUCT engagement — item-scoped METRICS by [campaign, item], matched
       //    client-side. itemName + eventName + eventCount is INCOMPATIBLE in GA4
@@ -681,7 +681,7 @@ async function refresh(){
     if(r.dimensionValues[0].value!==campaignName)return;
     const ev=r.dimensionValues[1].value;
     const c=parseInt(r.metricValues[0].value||0);
-    if(ev==='click_to_call_ga4')contacts.calls+=c;
+    if(ev==='click_to_call_ga4'||ev==='phone_calls')contacts.calls+=c;
     else if(ev==='whatsapp_click')contacts.whatsapp+=c;
     else if(ev==='tidio_conversation_started')contacts.chat+=c;
   });

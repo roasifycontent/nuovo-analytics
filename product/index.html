@@ -391,8 +391,11 @@ async function ensureFreshToken(){
 let dateRange={startDate:'28daysAgo',endDate:'today'};
 let allProducts=[];
 // Contact metrics — unique people (totalUsers) per eventName, attributed to a product by URL path.
-const CONTACT_EVENTS=['click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
-function contactKey(ev){return ev==='click_to_call_ga4'?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
+// The live site fires the call event as `phone_calls` (gtag('event','phone_calls',…)).
+// `click_to_call_ga4` is a legacy name kept so historical calls still count (a single
+// click only ever fires one of the two, so no double-counting).
+const CONTACT_EVENTS=['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started'];
+function contactKey(ev){return (ev==='phone_calls'||ev==='click_to_call_ga4')?'calls':ev==='whatsapp_click'?'whatsapp':ev==='tidio_conversation_started'?'chat':null;}
 async function fetchContactsByPage(){
   const q=m=>({dateRanges:[dateRange],dimensions:[{name:'pagePath'},{name:'eventName'}],metrics:[{name:m}],dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:CONTACT_EVENTS}}},limit:1000});
   try{return await ga4(q('totalUsers'));}
@@ -987,7 +990,7 @@ async function toggleExpand(row,productName,slug){
         dateRanges:[dateRange],
         dimensions:[{name:'sessionDefaultChannelGroup'},{name:'pagePath'},{name:'eventName'}],
         metrics:[{name:'eventCount'}],
-        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['click_to_call_ga4','whatsapp_click','tidio_conversation_started','generate_lead','form_submit','contact_form_submit']}}},
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_calls','click_to_call_ga4','whatsapp_click','tidio_conversation_started','generate_lead','form_submit','contact_form_submit']}}},
         limit:1000
       }):Promise.resolve({rows:[]})
     ]);
