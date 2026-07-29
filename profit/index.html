@@ -806,6 +806,32 @@ function setOrderCost(orderId,cost){const c=getOrderCosts();if(cost==null||cost=
 // DDP orders (e.g. Alibaba DDP): the cost carries no reclaimable VAT, so VAT is never stripped from it.
 function getDdpFlags(){return lsGet('nuovo_order_ddp',{});}
 function setDdpFlag(orderId,on){const f=getDdpFlags();if(on)f[orderId]=true;else delete f[orderId];lsSet('nuovo_order_ddp',f);}
+
+// ===== Seeded fulfillment costs =====
+// Supplier payments recorded in the repo so they reach every browser (order costs
+// otherwise live only in this device's localStorage). Each seed is applied at most
+// once per browser (tracked in nuovo_seeded_costs) and never overwrites a cost the
+// user has already entered, so later edits or deletes in the UI stick.
+// cost is the storage-base figure: for DDP orders the raw amount paid (no VAT
+// stripping applies); for non-DDP, the inc-VAT amount.
+const COST_SEEDS=[
+  // Order #131199 — Alibaba DDP payment GBP 115.26 (Alibaba order no. 309171859001023018, paid 07/28/2026 22:50 PST)
+  {key:'131199-alibaba-ddp',orderId:'13245936664955',cost:115.26,ddp:true}
+];
+function applyCostSeeds(){
+  const done=lsGet('nuovo_seeded_costs',{});
+  let changed=false;
+  COST_SEEDS.forEach(s=>{
+    if(done[s.key])return;
+    if(getOrderCosts()[s.orderId]==null){
+      if(s.ddp)setDdpFlag(s.orderId,true);
+      setOrderCost(s.orderId,s.cost);
+    }
+    done[s.key]=true;changed=true;
+  });
+  if(changed)lsSet('nuovo_seeded_costs',done);
+}
+applyCostSeeds();
 function getFeeConfig(){
   const c=lsGet('nuovo_fee_config',{mode:'actual',uk:{pct:1.5,fixed:0.25},int:{pct:2.5,fixed:0.25}});
   // One-time migration: bump pre-actual users to actual mode (real Shopify fees + estimate fallback)
@@ -1917,7 +1943,7 @@ function resetAdSpend(){
 // "never wipe costs" guard. Token/date/theme/alert keys are deliberately excluded.
 function isCostKey(k){
   if(!k)return false;
-  if(['nuovo_order_costs','nuovo_order_ddp','nuovo_operating_costs','nuovo_fee_config','nuovo_vat_config','nuovo_other_label','nuovo_value_per_click'].includes(k))return true;
+  if(['nuovo_order_costs','nuovo_order_ddp','nuovo_seeded_costs','nuovo_operating_costs','nuovo_fee_config','nuovo_vat_config','nuovo_other_label','nuovo_value_per_click'].includes(k))return true;
   if(/^nuovo_shared_.*_spend$/.test(k))return true;        // manual ad spend per platform (profit)
   if(k.indexOf('nuovo_spend_mode_')===0)return true;        // spend entry mode
   if(k.indexOf('nuovo_microsoft_spend_')===0)return true;   // MS Spend (performance)
