@@ -1084,7 +1084,19 @@ function normaliseOrder(o){
   // pre-edit VAT off a post-edit total (e.g. edited order #131198: -£512.67 VAT off a
   // £1,627 order instead of -£271.17). Still accurate for multi-rate / zero-rated orders.
   const currentVatRaw=o.currentTotalTaxSet?.shopMoney?.amount;
-  const totalVat=currentVatRaw!=null?parseFloat(currentVatRaw):parseFloat(o.totalTaxSet?.shopMoney?.amount||0);
+  let totalVat=currentVatRaw!=null?parseFloat(currentVatRaw):parseFloat(o.totalTaxSet?.shopMoney?.amount||0);
+  // Shopify sometimes records £0 tax on a UK tax-inclusive order because "Charge tax on
+  // this variant" was left unticked on the product (e.g. #131201 Valiryo £1,499, #131157).
+  // Commercially the price DID include VAT and it is owed to HMRC, so a stored £0 would
+  // leave revenue un-stripped in ex-VAT view while costs still strip — inflating profit.
+  // Derive VAT at the standard rate for those, so ex-VAT revenue and profit stay honest.
+  const vc=getVatConfig();
+  const isUkIncVat=o.taxesIncluded!==false&&(o.currencyCode||'GBP')==='GBP';
+  let vatDerived=false;
+  if(totalVat===0&&isUkIncVat&&totalAmt>0){
+    totalVat=totalAmt-(totalAmt/(1+vc.vatRate));
+    vatDerived=true;
+  }
   let vatRefunded=0;
   if(refundedAmt>0&&totalAmt+refundedAmt>0){
     vatRefunded=totalVat*(refundedAmt/(totalAmt+refundedAmt));
@@ -1105,6 +1117,7 @@ function normaliseOrder(o){
     grossRev,
     grossRevExVat,
     vatAmount,
+    vatDerived,
     totalAmt,
     refundedAmt,
     txFee,
@@ -1571,7 +1584,7 @@ function renderTable(){
       <td class="muted">${fmtDateShort(o.date)}</td>
       <td><div class="customer-cell" title="${escapeHtml(o.customer)}">${escapeHtml(o.customer)||'—'}</div></td>
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
-      <td class="nm">${fmtGBP(r.revenue)}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
+      <td class="nm"${o.vatDerived?` title="Shopify recorded £0 VAT on this order (&quot;Charge tax&quot; was off for the variant), so VAT was derived at the standard rate — the price still included VAT and is owed to HMRC."`:''}>${fmtGBP(r.revenue)}${o.vatDerived?'<span style="color:var(--amber);font-size:10px;display:block">VAT derived</span>':''}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
       <td class="nm muted fee-cell" title="${o.txFeeSource==='actual'?`Actual fee from Shopify (${escapeHtml(o.gateway||'')})`:o.txFeeSource==='estimate_forced'?`Forced estimate — real fee was ${fmtGBP(o.txFeeReal||0)} (${escapeHtml(o.gateway||'')})`:`Estimated — ${escapeHtml(o.gateway||'no gateway data')} doesn't return fee data`}"><span class="fee-dot ${o.txFeeSource==='actual'?'actual':'estimate'}"></span>${fmtGBP(o.txFee)}</td>
       <td class="nm"><div class="fulfill-cell">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span><label class="ddp-toggle${r.isDdp?' on':''}" title="Alibaba DDP — this cost has no reclaimable VAT, so VAT is not stripped from it"><input type="checkbox" data-order="${o.id}" ${r.isDdp?'checked':''} ${o.isUnpaid?'disabled':''} onchange="saveDdp(this)">DDP</label></div></td>
       <td class="nm ${profitCls}">${profitTxt}</td>

@@ -53,6 +53,7 @@ query GetOrders($first: Int!, $after: String, $q: String!) {
         totalShippingPriceSet { shopMoney { amount } }
         totalTaxSet { shopMoney { amount } }
         currentTotalTaxSet { shopMoney { amount } }
+        taxesIncluded
         originalTotalPriceSet { shopMoney { amount } }
         lineItems(first: 25) {
           edges {
