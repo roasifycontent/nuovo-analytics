@@ -1054,9 +1054,18 @@ function normaliseOrder(o){
   if(refundedAmt>0&&base>0){
     estFee=(base-refundedAmt)*(cfgEst.pct/100)+cfgEst.fixed;
   }
-  // Choose: real fee when available (and not forced to estimate), else fallback
+  // Gateways that never carry a payment-processor fee: `manual` covers BACS / bank
+  // transfer / invoice, plus bank deposit, cash and money order. These return no fee
+  // data, so the % estimate would invent a cost that was never paid (e.g. #131202 paid
+  // by BACS was being charged an estimated £93.25). Real fee wins if one ever exists.
+  const FEE_FREE_GATEWAYS=/^(manual|bank[_ -]?deposit|cash[_ -]?on[_ -]?delivery|cash|money[_ -]?order)$/i;
+  const isFeeFree=!hasFee&&FEE_FREE_GATEWAYS.test((gateway||'').trim());
+  // Choose: no fee for manual/BACS, else real fee when available, else fallback estimate
   let txFee,txFeeSource;
-  if(hasFee&&feeCfg.mode==='actual'){
+  if(isFeeFree){
+    txFee=0;
+    txFeeSource='none';
+  } else if(hasFee&&feeCfg.mode==='actual'){
     txFee=realFee;
     if(refundedAmt>0&&originalAmt>0){
       const refundPct=refundedAmt/originalAmt;
@@ -1203,7 +1212,8 @@ function computeAggregates(){
     vatCollected+=o.vatAmount||0;
     feesTotal+=o.txFee;
     feesPaidOrders++;
-    if(o.txFeeSource==='actual')feesActualOrders++;
+    // 'none' (manual/BACS) is a KNOWN fee of £0, not a guess — count it as confirmed.
+    if(o.txFeeSource==='actual'||o.txFeeSource==='none')feesActualOrders++;
     const alloc=displayedAdSpend(allocs[o.id]||0);
     const{profit,fulfillment}=orderProfit(o,alloc);
     if(fulfillment!=null){
@@ -1585,7 +1595,7 @@ function renderTable(){
       <td><div class="customer-cell" title="${escapeHtml(o.customer)}">${escapeHtml(o.customer)||'—'}</div></td>
       <td><div class="products-cell" title="${escapeHtml(o.productsLabel)}">${escapeHtml(o.productsLabel)}</div></td>
       <td class="nm"${o.vatDerived?` title="Shopify recorded £0 VAT on this order (&quot;Charge tax&quot; was off for the variant), so VAT was derived at the standard rate — the price still included VAT and is owed to HMRC."`:''}>${fmtGBP(r.revenue)}${o.vatDerived?'<span style="color:var(--amber);font-size:10px;display:block">VAT derived</span>':''}${o.refundedAmt>0?`<span style="color:var(--red);font-size:10px;display:block">-${fmtGBP(o.refundedAmt)} refund</span>`:''}</td>
-      <td class="nm muted fee-cell" title="${o.txFeeSource==='actual'?`Actual fee from Shopify (${escapeHtml(o.gateway||'')})`:o.txFeeSource==='estimate_forced'?`Forced estimate — real fee was ${fmtGBP(o.txFeeReal||0)} (${escapeHtml(o.gateway||'')})`:`Estimated — ${escapeHtml(o.gateway||'no gateway data')} doesn't return fee data`}"><span class="fee-dot ${o.txFeeSource==='actual'?'actual':'estimate'}"></span>${fmtGBP(o.txFee)}</td>
+      <td class="nm muted fee-cell" title="${o.txFeeSource==='none'?`No processor fee — paid via ${escapeHtml(o.gateway||'manual')} (bank transfer / BACS / cash), so nothing was charged`:o.txFeeSource==='actual'?`Actual fee from Shopify (${escapeHtml(o.gateway||'')})`:o.txFeeSource==='estimate_forced'?`Forced estimate — real fee was ${fmtGBP(o.txFeeReal||0)} (${escapeHtml(o.gateway||'')})`:`Estimated — ${escapeHtml(o.gateway||'no gateway data')} doesn't return fee data`}"><span class="fee-dot ${(o.txFeeSource==='actual'||o.txFeeSource==='none')?'actual':'estimate'}"></span>${fmtGBP(o.txFee)}</td>
       <td class="nm"><div class="fulfill-cell">${warnIcon}<input type="number" class="cost-input ${fulfillCls}" data-order="${o.id}" data-idx="${idx}" value="${fulfillVal}" step="0.01" min="0" placeholder="—" ${o.isUnpaid?'disabled':''} onchange="saveCost(this)" onkeydown="costKeyNav(event,this)"><span class="cost-saved-tick" data-tick="${o.id}">✓</span><label class="ddp-toggle${r.isDdp?' on':''}" title="Alibaba DDP — this cost has no reclaimable VAT, so VAT is not stripped from it"><input type="checkbox" data-order="${o.id}" ${r.isDdp?'checked':''} ${o.isUnpaid?'disabled':''} onchange="saveDdp(this)">DDP</label></div></td>
       <td class="nm ${profitCls}">${profitTxt}</td>
       <td class="nm">${marginHtml}</td>
@@ -1595,7 +1605,7 @@ function renderTable(){
   // Totals row
   const totals=rows.reduce((a,r)=>{
     a.gross+=r.revenue;a.fee+=r.o.txFee;
-    if(r.o.txFeeSource==='actual')a.feeActualCount++;
+    if(r.o.txFeeSource==='actual'||r.o.txFeeSource==='none')a.feeActualCount++;
     if(r.fulfillment!=null)a.fulfill+=r.fulfillment;
     if(r.profit!=null)a.profit+=r.profit;
     return a;
