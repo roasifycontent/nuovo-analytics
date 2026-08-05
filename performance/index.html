@@ -221,7 +221,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
   <div class="main">
     <!-- Row 1: Hero metrics -->
     <div class="hero">
-      <div class="stat gold-bar"><div class="slbl">Total Revenue</div><div class="snum gold" id="h-rev">—</div><div class="ssub">all channels</div></div>
+      <div class="stat gold-bar"><div class="slbl">Total Revenue</div><div class="snum gold" id="h-rev">—</div><div class="ssub" id="h-rev-sub">all channels</div></div>
       <div class="stat"><div class="slbl">Total Ad Spend</div><div class="snum" id="h-spend">—</div><div class="ssub" id="h-spend-sub">Google + Microsoft</div></div>
       <div class="stat gold-bar"><div class="slbl">MER (efficiency)</div><div class="snum" id="h-mer">—</div><div class="ssub">revenue / spend</div></div>
       <div class="stat"><div class="slbl">Blended CAC</div><div class="snum" id="h-cac">—</div><div class="ssub">spend / new users</div></div>
@@ -230,7 +230,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
     <!-- Row 2: Secondary metrics -->
     <div class="hero" style="margin-bottom:20px">
       <div class="stat green-bar"><div class="slbl">New Users</div><div class="snum" id="h-new">—</div><div class="ssub">first-time visitors</div></div>
-      <div class="stat"><div class="slbl">Conv. Rate</div><div class="snum" id="h-cvr">—</div><div class="ssub">transactions / sessions</div></div>
+      <div class="stat"><div class="slbl">Conv. Rate</div><div class="snum" id="h-cvr">—</div><div class="ssub" id="h-cvr-sub">orders / sessions</div></div>
       <div class="stat"><div class="slbl">Sessions</div><div class="snum" id="h-sess">—</div><div class="ssub">all channels</div></div>
       <div class="stat"><div class="slbl">Funnel Events</div><div class="snum" id="h-ke">—</div><div class="ssub">forms + purchases + calls + WhatsApp + chat</div></div>
     </div>
@@ -690,22 +690,45 @@ function recalcAll(){
 
 function renderAll(){
   const d=lastData;
-  renderHero(d.chMap,d.gAdSpendTotal,d.newUsersTotal);
+  renderHero(d.chMap,d.gAdSpendTotal,d.newUsersTotal,d.shopifyAttr);
   renderChannelCompare(d.chMap,d.gAdSpendTotal,d.shopifyAttr);
-  renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend);
+  renderPnL(d.todayData,d.todayGAdSpend,d.dailyTrend,d.dailyAdSpend,d.shopifyAttr);
   renderProducts(d.products,d.shopifyAttr);
 }
 
+// Real trading totals from Shopify — the source of truth. GA4's attributed revenue
+// misses sales it never observed: manual/BACS orders created in admin (no session at
+// all) and orders whose session GA4 failed to tie to the purchase. Using GA4 here
+// under-reported real revenue (e.g. £1,739 shown vs £7,989 actually taken).
+function shopifyTotals(shopifyPayload){
+  const orders=(shopifyPayload&&shopifyPayload.orders)||[];
+  const VALID=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+  let revenue=0,count=0;
+  orders.forEach(o=>{
+    if(!VALID.has(o.displayFinancialStatus))return;
+    const total=parseFloat((o.currentTotalPriceSet&&o.currentTotalPriceSet.shopMoney&&o.currentTotalPriceSet.shopMoney.amount)||0);
+    const refund=parseFloat((o.totalRefundedSet&&o.totalRefundedSet.shopMoney&&o.totalRefundedSet.shopMoney.amount)||0);
+    revenue+=Math.max(0,total-refund);
+    count++;
+  });
+  const failed=!!(shopifyPayload&&shopifyPayload.error);
+  return{revenue,orders:count,hasData:!failed&&orders.length>0};
+}
+
 // --- Hero metrics ---
-function renderHero(chMap,gAdSpendTotal,newUsersTotal){
-  let totRev=0,totSess=0,totFunnel=0,totTxns=0;
+function renderHero(chMap,gAdSpendTotal,newUsersTotal,shopifyPayload){
+  let ga4Rev=0,totSess=0,totFunnel=0,totTxns=0;
   Object.values(chMap).forEach(d=>{
     totSess+=d.sessions;
-    totRev+=d.revenue;
+    ga4Rev+=d.revenue;
     totTxns+=d.txns;
     const f=d.funnel||{};
     totFunnel+=(f.form_submit||0)+(f.purchase||0)+(d.calls||0)+(d.whatsapp||0)+(d.chat||0);
   });
+  // Prefer real Shopify revenue/orders; fall back to GA4 only if Shopify is unavailable.
+  const shop=shopifyTotals(shopifyPayload);
+  const totRev=shop.hasData?shop.revenue:ga4Rev;
+  const totOrders=shop.hasData?shop.orders:totTxns;
   const gAdSpend=gAdSpendTotal||0;
   const totNewUsers=parseInt(((newUsersTotal.rows||[])[0]?.metricValues[0]?.value)||0);
   const msSpend=getMsTotalSpend();
@@ -714,6 +737,15 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
   const cac=totNewUsers>0?totalSpend/totNewUsers:0;
 
   document.getElementById('h-rev').textContent=fmtGBP(totRev);
+  const revSub=document.getElementById('h-rev-sub');
+  if(revSub){
+    if(!shop.hasData){
+      revSub.textContent='GA4 attributed · Shopify unavailable';
+    }else{
+      const gap=totRev-ga4Rev;
+      revSub.textContent=`${totOrders} Shopify order${totOrders===1?'':'s'}`+(Math.round(gap)>0?` · +${fmtGBP(gap)} GA4 missed`:'');
+    }
+  }
   document.getElementById('h-spend').textContent=fmtGBP(totalSpend);
   const msTag=_bingSheet.loaded?' · auto':(_bingSheet.error?' · sheet err':'');
   document.getElementById('h-spend-sub').textContent=msSpend>0?`Google £${Math.round(gAdSpend).toLocaleString()} + MS £${Math.round(msSpend).toLocaleString()}${msTag}`:'Google Ads'+(gAdSpend>0?` £${Math.round(gAdSpend).toLocaleString()}`:'');
@@ -724,7 +756,10 @@ function renderHero(chMap,gAdSpendTotal,newUsersTotal){
 
   document.getElementById('h-cac').textContent=totNewUsers>0?fmtGBP(cac):'—';
   document.getElementById('h-new').textContent=totNewUsers.toLocaleString();
-  document.getElementById('h-cvr').textContent=totSess>0?(totTxns/totSess*100).toFixed(2)+'%':'—';
+  // Conversion rate on REAL orders (same source as revenue) rather than GA4 transactions.
+  document.getElementById('h-cvr').textContent=totSess>0?(totOrders/totSess*100).toFixed(2)+'%':'—';
+  const cvrSub=document.getElementById('h-cvr-sub');
+  if(cvrSub)cvrSub.textContent=shop.hasData?'Shopify orders / sessions':'GA4 transactions / sessions';
   document.getElementById('h-sess').textContent=totSess.toLocaleString();
   document.getElementById('h-ke').textContent=totFunnel.toLocaleString();
 }
@@ -993,9 +1028,39 @@ function classifyOrderChannel(order){
   return 'Other';
 }
 // --- Daily P&L ---
-function renderPnL(todayData,todayGAdSpend,dailyTrend,dailyAdSpend){
+// True if the selected range covers today, i.e. the Shopify payload can be trusted
+// to contain today's orders. (endDate may be the GA4 token 'today' or a YYYY-MM-DD.)
+function rangeIncludesToday(){
+  const e=dateRange&&dateRange.endDate;
+  if(!e)return false;
+  if(e==='today')return true;
+  return /^\d{4}-\d{2}-\d{2}$/.test(e)&&e>=_drToday();
+}
+// Today's real revenue from Shopify orders (UK day), same source-of-truth reasoning
+// as the hero. Returns null when we can't know (range excludes today / no payload).
+function shopifyTodayRevenue(shopifyPayload){
+  if(!rangeIncludesToday())return null;
+  const orders=(shopifyPayload&&shopifyPayload.orders)||[];
+  if((shopifyPayload&&shopifyPayload.error)||!orders.length)return null;
+  const VALID=new Set(['PAID','AUTHORIZED','PARTIALLY_REFUNDED','PARTIALLY_PAID']);
+  const ukDay=d=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+  const today=_drToday();
+  let revenue=0;
+  orders.forEach(o=>{
+    if(!VALID.has(o.displayFinancialStatus))return;
+    if(ukDay(new Date(o.createdAt))!==today)return;
+    const total=parseFloat((o.currentTotalPriceSet&&o.currentTotalPriceSet.shopMoney&&o.currentTotalPriceSet.shopMoney.amount)||0);
+    const refund=parseFloat((o.totalRefundedSet&&o.totalRefundedSet.shopMoney&&o.totalRefundedSet.shopMoney.amount)||0);
+    revenue+=Math.max(0,total-refund);
+  });
+  return revenue;
+}
+
+function renderPnL(todayData,todayGAdSpend,dailyTrend,dailyAdSpend,shopifyPayload){
   const todayRow=(todayData.rows||[])[0];
-  const tRev=todayRow?parseFloat(todayRow.metricValues[0].value||0):0;
+  const ga4TodayRev=todayRow?parseFloat(todayRow.metricValues[0].value||0):0;
+  const shopToday=shopifyTodayRevenue(shopifyPayload);
+  const tRev=shopToday!=null?shopToday:ga4TodayRev;
   const tGSpend=todayGAdSpend||0;
   const tMsSpend=getMsDailySpend();
   const tSpend=tGSpend+tMsSpend;
