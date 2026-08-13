@@ -611,12 +611,44 @@ async function ensureFreshToken(){
   const cached=localStorage.getItem(TK.tok)||localStorage.getItem(TK.legacy);
   const exp=tokenExpiry();
   if(cached&&exp&&exp-Date.now()>5*60*1000){token=cached;scheduleTokenRefresh();return true;}
-  // No prior token → never signed in. Do NOT call the token client here (its popup gets
-  // blocked without a user gesture). The silent path only runs to renew an existing session.
-  if(!cached)return false;
-  token=cached;
-  const ok=await silentRefresh();
-  return ok||!!token;
+  // Try the GIS silent path first — it renews in-page when third-party cookies are allowed.
+  if(cached){
+    token=cached;
+    if(await silentRefresh())return true;
+  }
+  // GIS couldn't renew (cookie blocking) or there's no cached token: fall back to the
+  // first-party prompt=none redirect. This navigates away and returns with a token.
+  if(autoReauth())return false;
+  return !!token;
+}
+
+// ===== Automatic re-authentication =====
+// The GA4 token lasts ~1h. The GIS silent refresh needs third-party cookies, which
+// this browser blocks (it fails with popup_failed_to_open), so Google Ads spend
+// silently fell back to £0 every hour while Bing — fetched server-side from the sheet
+// — kept working. That's the recurring "ad spend is only Bing" breakage.
+//
+// A TOP-LEVEL redirect with prompt=none is a first-party navigation to
+// accounts.google.com, so the Google session cookie applies and no popup is involved.
+// Google bounces straight back with a fresh token. If there's no Google session it
+// returns #error=login_required, which we catch and fall back to the sign-in screen
+// instead of looping. sessionStorage guards against redirect loops.
+const REAUTH_MARK='nuovo_reauth_attempt';
+function autoReauth(){
+  const last=parseInt(sessionStorage.getItem(REAUTH_MARK)||'0',10);
+  if(Date.now()-last<120000)return false; // tried within 2 min — don't loop
+  sessionStorage.setItem(REAUTH_MARK,String(Date.now()));
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID,
+    redirect_uri:window.location.origin+'/profit',
+    response_type:'token',
+    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    include_granted_scopes:'true',
+    prompt:'none',
+    state:'auto'
+  });
+  window.location.replace('https://accounts.google.com/o/oauth2/v2/auth?'+params);
+  return true;
 }
 
 // ===== OAuth =====
@@ -626,6 +658,11 @@ async function ensureFreshToken(){
     // Store via the shared helper so an expiry is written and the refresh timer is armed.
     storeToken(hash.get('access_token'),hash.get('expires_in'));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
+    sessionStorage.removeItem(REAUTH_MARK); // renewed — clear the loop guard
+    window.history.replaceState(null,'',window.location.pathname);
+  }else if(hash.get('error')){
+    // prompt=none couldn't renew silently (login_required / consent_required).
+    // Leave the sign-in screen for a manual click rather than redirecting again.
     window.history.replaceState(null,'',window.location.pathname);
   }
 })();
@@ -1016,8 +1053,13 @@ async function fetchGoogleAdSpend(start,end){
   const call=t=>fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},body});
   try{
     let r=await call(freshToken());
-    // On 401 the token expired mid-session — silently refresh via GIS and retry once.
-    if(r.status===401&&await silentRefresh()){r=await call(freshToken());}
+    // On 401 the token expired mid-session — renew via GIS and retry once; if GIS
+    // can't (cookie blocking), fall back to the prompt=none redirect rather than
+    // silently reporting £0 Google spend.
+    if(r.status===401){
+      if(await silentRefresh())r=await call(freshToken());
+      else autoReauth();
+    }
     if(r.ok)return await r.json();
     const e=await r.json().catch(()=>({}));console.error('[GA4]',r.status,e.error?.message||'');
     return {rows:[],authError:r.status===401||r.status===403};
@@ -2017,12 +2059,15 @@ window.addEventListener('load',()=>{
   restoreDateRange();
   updateVatPill();
   const saved=localStorage.getItem('nuovo_access_token')||localStorage.getItem('nuovo_token');
-  if(saved){
-    token=saved;
-    // Renew the token before the first fetch so Google Ads spend loads even if the
-    // cached token is stale/expired (GIS silent-refresh, no user gesture needed).
-    ensureFreshToken().then(()=>launch());
+  const exp=tokenExpiry();
+  if(saved&&exp&&exp-Date.now()>5*60*1000){
+    token=saved;scheduleTokenRefresh();launch();return;
   }
+  // Token missing or expiring: renew before the first fetch so Google Ads spend loads
+  // instead of silently reading £0. ensureFreshToken may navigate away (prompt=none
+  // redirect) and the page returns with a fresh token; only launch if we still have one.
+  if(saved)token=saved;
+  ensureFreshToken().then(ok=>{if(ok||token)launch();});
 });
 </script>
 </body>
