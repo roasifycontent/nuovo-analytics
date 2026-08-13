@@ -571,7 +571,10 @@ let sortCol='date',sortDesc=true;
 // ~1h and Google Ads spend silently dropped to £0. This ports the same GIS silent-refresh
 // used on Paid/Home so the token renews itself.
 const TK={tok:'nuovo_access_token',exp:'nuovo_token_expiry',email:'nuovo_user_email',legacy:'nuovo_token'};
-const OAUTH_SCOPE='https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly';
+// Must match what Profit actually requests. It previously also asked for
+// webmasters.readonly — a scope this page never granted — so Google refused the silent
+// GIS renewal outright. Keep this identical to OAUTH_SCOPES below.
+const OAUTH_SCOPE='openid email https://www.googleapis.com/auth/analytics.readonly';
 let _tokenClient=null,_refreshTimer=null,_refreshing=null;
 function storeToken(tok,expiresIn){
   if(!tok)return;
@@ -633,21 +636,40 @@ async function ensureFreshToken(){
 // Google bounces straight back with a fresh token. If there's no Google session it
 // returns #error=login_required, which we catch and fall back to the sign-in screen
 // instead of looping. sessionStorage guards against redirect loops.
+// Scope includes `openid email` so we can learn WHICH Google account is signed in and
+// pass it as login_hint. Without a hint, a browser with several Google accounts makes
+// prompt=none fail with account_selection_required — Google won't guess. TK.email was
+// read for this but never written by any page, so the hint was always empty and silent
+// renewal could never succeed. That is the root cause of the hourly Google-spend loss.
+const OAUTH_SCOPES='openid email https://www.googleapis.com/auth/analytics.readonly';
 const REAUTH_MARK='nuovo_reauth_attempt';
+const REAUTH_ERR='nuovo_reauth_error';
+// Learn and remember the signed-in account so future silent renewals are unambiguous.
+async function captureUserEmail(tok){
+  if(!tok||localStorage.getItem(TK.email))return;
+  try{
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{'Authorization':'Bearer '+tok}});
+    if(!r.ok)return;
+    const j=await r.json();
+    if(j&&j.email)localStorage.setItem(TK.email,j.email);
+  }catch(e){/* non-fatal: hint just stays empty */}
+}
 function autoReauth(){
   const last=parseInt(sessionStorage.getItem(REAUTH_MARK)||'0',10);
   if(Date.now()-last<120000)return false; // tried within 2 min — don't loop
   sessionStorage.setItem(REAUTH_MARK,String(Date.now()));
-  const params=new URLSearchParams({
+  const p={
     client_id:CLIENT_ID,
     redirect_uri:window.location.origin+'/profit',
     response_type:'token',
-    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    scope:OAUTH_SCOPES,
     include_granted_scopes:'true',
     prompt:'none',
     state:'auto'
-  });
-  window.location.replace('https://accounts.google.com/o/oauth2/v2/auth?'+params);
+  };
+  const hint=localStorage.getItem(TK.email);
+  if(hint)p.login_hint=hint;
+  window.location.replace('https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams(p));
   return true;
 }
 
@@ -656,22 +678,29 @@ function autoReauth(){
   const hash=new URLSearchParams(window.location.hash.slice(1));
   if(hash.get('access_token')){
     // Store via the shared helper so an expiry is written and the refresh timer is armed.
-    storeToken(hash.get('access_token'),hash.get('expires_in'));
+    const at=hash.get('access_token');
+    storeToken(at,hash.get('expires_in'));
     localStorage.setItem('nuovo_scope',hash.get('scope')||'');
     sessionStorage.removeItem(REAUTH_MARK); // renewed — clear the loop guard
+    sessionStorage.removeItem(REAUTH_ERR);
+    captureUserEmail(at);                   // remember the account for future renewals
     window.history.replaceState(null,'',window.location.pathname);
   }else if(hash.get('error')){
-    // prompt=none couldn't renew silently (login_required / consent_required).
-    // Leave the sign-in screen for a manual click rather than redirecting again.
+    // prompt=none couldn't renew silently (account_selection_required / login_required
+    // / consent_required). Record why so the banner can tell the user what to do, and
+    // leave the sign-in screen for one manual click rather than redirecting again.
+    sessionStorage.setItem(REAUTH_ERR,hash.get('error'));
     window.history.replaceState(null,'',window.location.pathname);
   }
 })();
 function startOAuth(state){
+  // Same scopes as autoReauth so this one manual sign-in also captures the account
+  // email — after which every later renewal can run silently with login_hint.
   const params=new URLSearchParams({
     client_id:CLIENT_ID,
     redirect_uri:window.location.origin+'/profit',
     response_type:'token',
-    scope:'https://www.googleapis.com/auth/analytics.readonly',
+    scope:OAUTH_SCOPES,
     include_granted_scopes:'true',
     state:state||'sign-in'
   });
@@ -991,7 +1020,7 @@ async function refresh(){
     // from a genuine "no cost data" situation so the banner isn't misleading.
     const googleTotal=Object.values(dailyAdSpend).reduce((a,d)=>a+d.google,0);
     if(googleSpendResp&&googleSpendResp.authError){
-      addBanner('warn','<strong>Google Ads spend couldn\'t load — GA4 session expired.</strong> Open any other dashboard (Performance / Paid) to refresh the sign-in, then come back and hit ↻.','google-auth');
+      addBanner('warn','<strong>Google Ads spend couldn\'t load — Google session needs re-linking.</strong> Click <em>Sign out</em> then sign in once, choosing the Google account that has GA4 access. After that it renews itself automatically'+(sessionStorage.getItem(REAUTH_ERR)?` (auto-renew was refused: ${sessionStorage.getItem(REAUTH_ERR)})`:'')+'.','google-auth');
     }else if(googleTotal===0){
       addBanner('warn','Google Ads cost data not flowing from GA4 — check GA4 Admin → Google Ads links. Enter manually in settings if needed.','google-warn');
     }
