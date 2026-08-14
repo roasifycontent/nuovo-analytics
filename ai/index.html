@@ -206,6 +206,15 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
       <div class="sum"><div class="suml">Engagement rate</div><div class="sumv" id="seng">—</div><span class="delta" id="deng"></span></div>
       <div class="sum"><div class="suml">Key event rate</div><div class="sumv" id="sconv">—</div><span class="delta" id="dconv"></span></div>
     </div>
+    <!-- Contact leads promoted to first-class KPIs: on high-ticket considered purchases
+         an enquiry is the real conversion signal, not checkout completion. -->
+    <div class="sumrow">
+      <div class="sum" title="Forms + calls + WhatsApp + chat from AI-referred sessions"><div class="suml">Contact leads (total)</div><div class="sumv gold" id="slead">—</div></div>
+      <div class="sum" title="form_submit events from AI-referred sessions"><div class="suml">Form enquiries</div><div class="sumv" id="sform">—</div></div>
+      <div class="sum" title="Unique people firing phone_calls"><div class="suml">Calls</div><div class="sumv" id="scall">—</div></div>
+      <div class="sum" title="Unique people firing whatsapp_click"><div class="suml">WhatsApp</div><div class="sumv" id="swa">—</div></div>
+      <div class="sum" title="Unique people starting a Tidio conversation"><div class="suml">Chat</div><div class="sumv" id="schat">—</div></div>
+    </div>
     <div class="charts">
       <div class="card"><div class="ct">Daily sessions by AI source</div><div class="cw"><canvas id="tc"></canvas></div></div>
       <div class="card"><div class="ct">Source split</div><div class="cw"><canvas id="pc"></canvas></div></div>
@@ -286,7 +295,16 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px;text-align:left}
 <script>
 const PROP='346978985';
 const CLIENT_ID='697769040212-ne0khk2hhqn2v6cfvvssccju3eurq7i1.apps.googleusercontent.com';
-const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot.microsoft','copilot.bing']},gemini:{label:'Gemini',color:'#c084fc',terms:['gemini.google','bard.google']}};
+// These terms drive BOTH the GA4 fetch filter (joined into one PARTIAL_REGEXP on
+// sessionSource, see refresh()) and the cat() classifier, so a host missing here is
+// never even fetched — it cannot appear anywhere on the dashboard.
+//   chatgpt : chatgpt.com AND chat.openai.com — 'openai' was missing, so every
+//             chat.openai.com session was invisible (a measurement gap, not a citation gap).
+//   copilot : copilot.microsoft.com plus the Edge sidebar host edgeservices.bing.com.
+//             Deliberately NOT bare 'bing' — that would swallow all Bing search/paid
+//             traffic, since Bing Chat referrals arrive as plain bing.com.
+//   gemini  : gemini.google.com (+ legacy bard.google.com).
+const SOURCES={chatgpt:{label:'ChatGPT',color:'#10b981',terms:['chatgpt','openai']},claude:{label:'Claude',color:'#e8a87c',terms:['claude']},perplexity:{label:'Perplexity',color:'#818cf8',terms:['perplexity']},copilot:{label:'Copilot',color:'#38bdf8',terms:['copilot','edgeservices.bing']},gemini:{label:'Gemini',color:'#c084fc',terms:['gemini','bard.google']}};
 let token=null,charts={};
 
 // ===== Silent token refresh via the GIS token client =====
@@ -682,6 +700,12 @@ function render(bs,bd,bp,bev,bcontact,shopAiSales,prevShopAiSales){
     }
   }
   const tot=Object.values(t).reduce((a,b)=>a+b.sessions,0),rev=Object.values(t).reduce((a,b)=>a+b.revenue,0),eng=Object.values(t).reduce((a,b)=>a+b.engaged,0),ke=Object.values(t).reduce((a,b)=>a+b.ke,0);
+  // Contact leads as first-class KPIs — the meaningful conversion on high-ticket items.
+  const sumOf=f=>Object.values(t).reduce((a,b)=>a+(b[f]||0),0);
+  const nForm=sumOf('form'),nCall=sumOf('calls'),nWa=sumOf('whatsapp'),nChat=sumOf('chat');
+  const setNum=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v>0?v.toLocaleString():'—';};
+  setNum('slead',nForm+nCall+nWa+nChat);
+  setNum('sform',nForm);setNum('scall',nCall);setNum('swa',nWa);setNum('schat',nChat);
   document.getElementById('ncg').textContent=t.chatgpt.sessions.toLocaleString();
   document.getElementById('ncl').textContent=t.claude.sessions.toLocaleString();
   document.getElementById('npx').textContent=t.perplexity.sessions.toLocaleString();
@@ -743,17 +767,32 @@ function rPages(bp, pe){
     if(!pem[path])pem[path]={form_submit:0,phone_calls:0,click_to_call_ga4:0,add_to_cart:0,begin_checkout:0,purchase:0};
     if(pem[path][evt]!==undefined)pem[path][evt]+=cnt;
   });
-  // Match landing pages to event paths (landing page may have query strings)
-  function getEvts(landingPage){
-    const clean=landingPage.replace('https://www.nuovoluxury.co.uk','').split('?')[0];
-    if(pem[clean])return pem[clean];
-    for(const p of Object.keys(pem)){if(p.startsWith(clean)||clean.startsWith(p))return pem[p];}
-    return{form_submit:0,phone_calls:0,click_to_call_ga4:0,add_to_cart:0,begin_checkout:0,purchase:0};
-  }
-  pageRows=(bp.rows||[]).slice(0,8).map(r=>{
-    const pg=r.dimensionValues[0].value,e=getEvts(pg);
-    const sess=parseInt(r.metricValues[0].value||0),users=parseInt(r.metricValues[2].value||0);
-    return{pg,sess,users,eng:parseFloat(r.metricValues[1].value||0),form:e.form_submit,call:e.phone_calls,atc:e.add_to_cart,checkout:e.begin_checkout,purchase:e.purchase,cvr:users>0?e.purchase/users:0};
+  // Match landing pages to event paths — EXACT match only.
+  // The previous fallback (`p.startsWith(clean)||clean.startsWith(p)`) matched any page
+  // against '/' because every path starts with a slash, so every page lacking an exact
+  // key was handed the HOMEPAGE's bucket — the same object, by reference. That stamped
+  // one page's ATC/CHKOUT onto six unrelated pages and inflated the page-level sum well
+  // past the true source total. Both sides already strip query strings, so the fallback
+  // was never needed. No fuzzy matching: a page with no events shows zeros.
+  const EMPTY_EV={form_submit:0,phone_calls:0,click_to_call_ga4:0,add_to_cart:0,begin_checkout:0,purchase:0};
+  // Landing-page rows are also aggregated by clean path, so two rows differing only by
+  // query string collapse into one instead of each claiming the same event bucket.
+  const pageAgg={};
+  (bp.rows||[]).forEach(r=>{
+    const clean=(r.dimensionValues[0].value||'').replace('https://www.nuovoluxury.co.uk','').split('?')[0]||'/';
+    const sess=parseInt(r.metricValues[0].value||0);
+    const engRate=parseFloat(r.metricValues[1].value||0);
+    const users=parseInt(r.metricValues[2].value||0);
+    if(!pageAgg[clean])pageAgg[clean]={pg:clean,sess:0,users:0,engSessions:0};
+    pageAgg[clean].sess+=sess;
+    pageAgg[clean].users+=users;
+    pageAgg[clean].engSessions+=engRate*sess; // weight so the merged rate stays correct
+  });
+  pageRows=Object.values(pageAgg).sort((a,b)=>b.sess-a.sess).slice(0,8).map(p=>{
+    const e=pem[p.pg]||EMPTY_EV;
+    return{pg:p.pg,sess:p.sess,users:p.users,eng:p.sess>0?p.engSessions/p.sess:0,
+      form:e.form_submit,call:e.phone_calls,atc:e.add_to_cart,checkout:e.begin_checkout,
+      purchase:e.purchase,cvr:p.users>0?e.purchase/p.users:0};
   });
   renderPages();
 }

@@ -1,7 +1,7 @@
 // Shopify Orders API — fetches orders within a date range, handles GraphQL cursor pagination
 // Env vars required on Vercel: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN
 
-const API_VERSION = '2024-10';
+const API_VERSION = '2026-04';
 const TZ = 'Europe/London';
 
 // Convert a UK-local YYYY-MM-DD date to a UTC ISO instant for the start (00:00:00)
@@ -46,7 +46,7 @@ query GetOrders($first: Int!, $after: String, $q: String!) {
             }
           }
         }
-        customer { firstName lastName email }
+        customer { firstName lastName defaultEmailAddress { emailAddress } }
         currentTotalPriceSet { shopMoney { amount currencyCode } }
         currentSubtotalPriceSet { shopMoney { amount currencyCode } }
         totalRefundedSet { shopMoney { amount currencyCode } }
@@ -152,6 +152,11 @@ module.exports = async (req, res) => {
 
       ordersData.edges.forEach(e => {
         const o = e.node;
+        // Customer.email is deprecated in favour of defaultEmailAddress.emailAddress.
+        // Re-expose it as `email` so existing consumers keep working after the API bump.
+        if (o.customer && o.customer.email == null) {
+          o.customer.email = (o.customer.defaultEmailAddress && o.customer.defaultEmailAddress.emailAddress) || '';
+        }
         // Reflect Shopify order edits: currentQuantity is the truthful post-edit
         // count (a removed line item is 0). Consumers read `quantity`, so remap it
         // to currentQuantity — otherwise removed items still count as sold.
