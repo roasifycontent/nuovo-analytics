@@ -23,6 +23,14 @@
 const SHEET_ID = '1ntgddBfjOFrPhzt2Zc93t6ZG4EHCLkXnGRyt-mErMo4';
 const TAB_NAME = 'google';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(TAB_NAME)}`;
+// CRITICAL GUARD: the gviz endpoint does NOT error on an unknown tab name — it silently
+// returns the workbook's FIRST sheet. Since that first sheet is the Microsoft Ads
+// "history" tab, a missing "google" tab would hand back Bing's numbers labelled as
+// Google, double-counting Bing into total ad spend. So fetch "history" too and refuse to
+// serve data that is identical to it. Verified real: before the google tab existed, both
+// endpoints returned byte-identical daily values.
+const GUARD_TAB = 'history';
+const GUARD_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(GUARD_TAB)}`;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 let _cache = null; // { fetchedAt: number, daily: {...} }
@@ -87,9 +95,20 @@ async function loadDaily() {
   if (_cache && (now - _cache.fetchedAt) < CACHE_TTL_MS) {
     return { daily: _cache.daily, cached: true, fetchedAt: _cache.fetchedAt };
   }
-  const r = await fetch(CSV_URL, { redirect: 'follow' });
+  const [r, guardRes] = await Promise.all([
+    fetch(CSV_URL, { redirect: 'follow' }),
+    fetch(GUARD_URL, { redirect: 'follow' }).catch(() => null)
+  ]);
   if (!r.ok) throw new Error(`Sheet HTTP ${r.status} ${r.statusText}`);
   const text = await r.text();
+  // Missing-tab guard — see GUARD_URL above. Identical payload means gviz fell back to
+  // the Microsoft "history" tab, so serving it would report Bing spend as Google.
+  if (guardRes && guardRes.ok) {
+    const guardText = await guardRes.text();
+    if (text.trim() === guardText.trim()) {
+      throw new Error(`tab "${TAB_NAME}" not found — Google Sheets served the "${GUARD_TAB}" (Microsoft Ads) tab instead. Create a tab named exactly "${TAB_NAME}" with columns date,spend so Google spend is not double-counted from Bing.`);
+    }
+  }
   const daily = parseCsv(text);
   if (Object.keys(daily).length === 0) {
     throw new Error(`Sheet returned 0 valid rows — check the tab is named "${TAB_NAME}" with columns date,spend`);
