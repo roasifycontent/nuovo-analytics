@@ -973,10 +973,11 @@ async function refresh(){
 
   try{
     // Parallel: Shopify orders + GA4 Google Ads spend + Microsoft Ads sheet
-    const [ordersResp, googleSpendResp, bingResp]=await Promise.all([
+    const [ordersResp, googleSpendResp, bingResp, googleSheetResp]=await Promise.all([
       fetchShopifyOrders(start,end),
       fetchGoogleAdSpend(start,end),
-      fetchBingSpendFromSheet(start,end)
+      fetchBingSpendFromSheet(start,end),
+      fetchGoogleSpendFromSheet(start,end)
     ]);
 
     allOrders=(ordersResp.orders||[]).map(normaliseOrder);
@@ -985,12 +986,26 @@ async function refresh(){
     dailyAdSpend={};
     dates.forEach(d=>{dailyAdSpend[d]={google:0,microsoft:0,meta:0,tiktok:0,other:0,total:0};});
 
-    // Google from GA4
-    (googleSpendResp.rows||[]).forEach(r=>{
-      const raw=r.dimensionValues[0].value;
-      const d=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
-      if(dailyAdSpend[d])dailyAdSpend[d].google=parseFloat(r.metricValues[0].value||0);
-    });
+    // Google spend — SHEET FIRST (server-side, no browser token), GA4 only as fallback.
+    // GA4's advertiserAdCost needs the user's live OAuth token, which expires hourly and
+    // cannot renew silently in this browser; that is why Google spend kept vanishing to
+    // £0 while Microsoft (already sheet-backed) stayed correct. The sheet path works with
+    // nobody signed in, so once the Google Ads Script is running this stops depending on
+    // the session entirely.
+    let googleFromSheet=false;
+    if(googleSheetResp&&!googleSheetResp.error&&Object.keys(googleSheetResp.daily||{}).length){
+      googleFromSheet=true;
+      Object.entries(googleSheetResp.daily).forEach(([d,v])=>{
+        if(dailyAdSpend[d])dailyAdSpend[d].google=v;
+      });
+    }else{
+      // Fallback: GA4 (last-click cost, needs a live token — may be empty when expired)
+      (googleSpendResp.rows||[]).forEach(r=>{
+        const raw=r.dimensionValues[0].value;
+        const d=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+        if(dailyAdSpend[d])dailyAdSpend[d].google=parseFloat(r.metricValues[0].value||0);
+      });
+    }
     // Microsoft from the Bing spend sheet — auto, true daily values back to 2023-06-10
     let bingFromSheet=false;
     if(bingResp&&!bingResp.error){
@@ -1016,13 +1031,15 @@ async function refresh(){
     // Total per day
     dates.forEach(d=>{const r=dailyAdSpend[d];r.total=r.google+r.microsoft+r.meta+r.tiktok+r.other;});
 
-    // Detect Google Ads not flowing — distinguish an expired GA4 session (auth error)
-    // from a genuine "no cost data" situation so the banner isn't misleading.
+    // Google spend health. When the sheet is feeding us there is nothing to warn about —
+    // it is token-free and always available. Only the GA4 fallback can fail, so the
+    // banner now points at the permanent cure rather than another re-login.
     const googleTotal=Object.values(dailyAdSpend).reduce((a,d)=>a+d.google,0);
-    if(googleSpendResp&&googleSpendResp.authError){
-      addBanner('warn','<strong>Google Ads spend couldn\'t load — Google session needs re-linking.</strong> Click <em>Sign out</em> then sign in once, choosing the Google account that has GA4 access. After that it renews itself automatically'+(sessionStorage.getItem(REAUTH_ERR)?` (auto-renew was refused: ${sessionStorage.getItem(REAUTH_ERR)})`:'')+'.','google-auth');
-    }else if(googleTotal===0){
-      addBanner('warn','Google Ads cost data not flowing from GA4 — check GA4 Admin → Google Ads links. Enter manually in settings if needed.','google-warn');
+    if(!googleFromSheet&&googleTotal===0){
+      const why=(googleSpendResp&&googleSpendResp.authError)
+        ?'your Google session expired (GA4 needs a live login, and it lapses about hourly)'
+        :'GA4 returned no cost data';
+      addBanner('warn',`<strong>Google Ads spend is £0 — ${why}.</strong> This stops for good once the Google Ads Script writes daily spend to the <em>google</em> tab of the Microsoft Ads sheet: this page reads that server-side, exactly like Microsoft, so it never depends on being signed in.`,'google-warn');
     }
 
     renderAll();
@@ -1048,6 +1065,20 @@ async function fetchShopifyOrders(start,end){
 }
 // Microsoft Ads (Bing) daily spend from the shared Google Sheet. Never throws —
 // returns { daily, total, error } so a sheet outage doesn't take the page down.
+// Google Ads daily spend from the shared sheet (server-side, no OAuth token).
+// Never throws — returns { daily, total, error } so a sheet outage degrades to the
+// GA4 fallback instead of taking the page down.
+async function fetchGoogleSpendFromSheet(start,end){
+  try{
+    const r=await fetch(`/api/google-spend?startDate=${start}&endDate=${end}`,{cache:'no-store'});
+    if(!r.ok){
+      let err='Google sheet '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      return{daily:{},total:0,error:err};
+    }
+    return await r.json();
+  }catch(e){return{daily:{},total:0,error:e.message};}
+}
 async function fetchBingSpendFromSheet(start,end){
   try{
     const r=await fetch(`/api/bing-spend?startDate=${start}&endDate=${end}`,{cache:'no-store'});
