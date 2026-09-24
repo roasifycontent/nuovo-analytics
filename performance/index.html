@@ -450,6 +450,26 @@ function restoreDateRange(){
 
 // --- Microsoft Spend ---
 // Source priority: Bing-spend sheet (auto, fetched per refresh) → manual fields.
+let _googleSheet={daily:{},total:0,error:null,loaded:false};
+// Google spend server-side. GA4's advertiserAdCost needs the viewer's live OAuth
+// token and silently reads £0 once it expires (~1h) — the recurring "it's just
+// Bing" failure. /api/google-spend works with nobody signed in.
+async function fetchGoogleSheetSpend(){
+  try{
+    const st=ga4DateToYmd(dateRange.startDate), en=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/google-spend?startDate=${st}&endDate=${en}`,{cache:'no-store'});
+    if(!r.ok){
+      let err='Google '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      _googleSheet={daily:{},total:0,error:err,loaded:false};
+      return;
+    }
+    const data=await r.json();
+    _googleSheet={daily:data.daily||{},total:data.total||0,error:null,loaded:true};
+  }catch(err){
+    _googleSheet={daily:{},total:0,error:err.message,loaded:false};
+  }
+}
 let _bingSheet={daily:{},total:0,error:null,loaded:false};
 async function fetchBingSheetSpend(){
   try{
@@ -586,6 +606,7 @@ async function refresh(){
   // Bing spend from sheet — fire alongside everything else so it's ready when
   // renderAll runs. _bingSheet falls back to manual entry on failure.
   const bingSheetPromise=fetchBingSheetSpend();
+  const googleSheetPromise=fetchGoogleSheetSpend();
 
   const dr=[dateRange];
 
@@ -667,7 +688,10 @@ async function refresh(){
       if(k)chBucket(ch)[k]+=parseInt(r.metricValues[0].value||0);
     });
     // Sum ad spend from by-source rows
-    const gAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
+    await googleSheetPromise;
+    // Sheet first; the GA4 sum is only a fallback while the sheet is unavailable.
+    const gaAdSpendTotal=(adSpendBySource.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
+    const gAdSpendTotal=_googleSheet.loaded?_googleSheet.total:gaAdSpendTotal;
     const todayGAdSpend=(todayAdSpend.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
 
     // Ensure Bing sheet has resolved before renderAll uses getMsTotalSpend()

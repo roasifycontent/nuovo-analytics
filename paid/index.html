@@ -569,6 +569,28 @@ function ga4DateToYmd(token){
   else{const m=token.match(/^(\d+)daysAgo$/);if(m)d.setDate(d.getDate()-parseInt(m[1],10));}
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+let googleSheet={daily:{},total:0,error:null};
+// Google spend, server-side. Reading it from GA4's advertiserAdCost needs the
+// viewer's live OAuth token, which dies after ~1h — that is what kept making
+// Google spend read £0 while Bing (already served from a sheet) stayed correct.
+// /api/google-spend reads a Google Ads Script's sheet with nobody signed in.
+async function fetchGoogleSheetSpend(){
+  try{
+    const s=ga4DateToYmd(dateRange.startDate);
+    const e=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/google-spend?startDate=${s}&endDate=${e}`,{cache:'no-store'});
+    if(!r.ok){
+      let err='Google '+r.status;
+      try{const j=await r.json();err=j.error||err;}catch(_){}
+      googleSheet={daily:{},total:0,error:err};
+      return;
+    }
+    const data=await r.json();
+    googleSheet={daily:data.daily||{},total:data.total||0,error:null};
+  }catch(err){
+    googleSheet={daily:{},total:0,error:err.message};
+  }
+}
 let bingSheet={daily:{},total:0,error:null};
 async function fetchBingSheetSpend(){
   try{
@@ -757,10 +779,19 @@ async function renderSourceMetrics(data, funnelData){
     cache.google.addCart=Math.round((funnelEvents.add_to_cart||0)*gRatio);
     cache.bing.addCart=(funnelEvents.add_to_cart||0)-cache.google.addCart;
   }
-  // Auto-populate Google spend from GA4
-  if(cache.google.adCost>0){
-    document.getElementById('spend-google').value=cache.google.adCost.toFixed(2);
-    document.getElementById('spend-google').setAttribute('data-auto','1');
+  // Auto-populate Google spend: the sheet first (works signed out, never expires),
+  // GA4's advertiserAdCost only as a fallback while the sheet is unavailable.
+  await fetchGoogleSheetSpend();
+  const gInp=document.getElementById('spend-google');
+  const gManual=!gInp.getAttribute('data-auto')&&parseFloat(gInp.value)>0;
+  if(!gManual){
+    if(googleSheet.total>0){
+      gInp.value=googleSheet.total.toFixed(2);
+      gInp.setAttribute('data-auto','sheet');
+    }else if(cache.google.adCost>0){
+      gInp.value=cache.google.adCost.toFixed(2);
+      gInp.setAttribute('data-auto','ga4');
+    }
   }
   // Auto-populate Bing spend from the Microsoft Ads Google Sheet (GA4 doesn't
   // surface Microsoft Ads cost). Falls back to manual entry if the fetch fails.
@@ -779,10 +810,10 @@ function recalc(){
   const fmtSpend=v=>v>0?'£'+v.toLocaleString('en-GB',{maximumFractionDigits:2}):'—';
   document.getElementById('g-spend').textContent=fmtSpend(gSpend);
   document.getElementById('b-spend').textContent=fmtSpend(bSpend);
-  const gAuto=document.getElementById('spend-google').getAttribute('data-auto')==='1';
+  const gAutoSrc=document.getElementById('spend-google').getAttribute('data-auto');
   const bAuto=document.getElementById('spend-bing').getAttribute('data-auto')==='1';
   const bErr=document.getElementById('spend-bing').getAttribute('data-error');
-  document.getElementById('g-spend-sub').textContent=gSpend>0?(gAuto?'auto from GA4':'manual entry'):'enter spend';
+  document.getElementById('g-spend-sub').textContent=gSpend>0?(gAutoSrc==='sheet'?'auto from Google Ads':gAutoSrc==='ga4'?'auto from GA4 (token — set up the sheet)':'manual entry'):'enter spend';
   document.getElementById('b-spend-sub').textContent=bErr?'sheet error — manual fallback':(bSpend>0?(bAuto?'auto from Microsoft Ads':'manual entry'):(bingSheet&&bingSheet.error?'sheet error':'enter spend'));
   // ROAS
   setRoasCpa('g',cache.google,gSpend);

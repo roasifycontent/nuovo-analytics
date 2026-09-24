@@ -378,6 +378,28 @@ const PROP='346978985';
 let token=null;
 let dateRange={startDate:'30daysAgo',endDate:'today'};
 
+// Total ad spend, server-side. This page used to take spend from GA4's
+// advertiserAdCost alone, which meant two faults at once: it needed the viewer's
+// OAuth token (reads £0 once it expires, ~1h) and it covered GOOGLE ONLY, so
+// Microsoft Ads was missing from Ad spend entirely — understating spend and
+// overstating ROAS/MER. Both endpoints work with nobody signed in.
+function ga4DateToYmd(token){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(token))return token;
+  const d=new Date();
+  if(token==='yesterday')d.setDate(d.getDate()-1);
+  else{const m=token.match(/^(\d+)daysAgo$/);if(m)d.setDate(d.getDate()-parseInt(m[1],10));}
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+async function fetchSheetSpend(which){
+  try{
+    const st=ga4DateToYmd(dateRange.startDate), en=ga4DateToYmd(dateRange.endDate);
+    const r=await fetch(`/api/${which}-spend?startDate=${st}&endDate=${en}`,{cache:'no-store'});
+    if(!r.ok)return{total:0,ok:false};
+    const j=await r.json();
+    return{total:j.total||0,ok:true};
+  }catch(e){return{total:0,ok:false};}
+}
+
 // ===== Silent token refresh via the GIS token client — so the home page
 // self-heals when the ~1h GA4 token expires (instead of freezing the numbers
 // when you change the date). Mirrors the dashboards' auth. =====
@@ -560,7 +582,11 @@ async function loadPreviews(){
 
     // Headline metrics
     const siteRow=(siteData.rows||[])[0];
-    const spend=(adSpendData.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
+    const gaSpend=(adSpendData.rows||[]).reduce((a,r)=>a+parseFloat(r.metricValues[0].value||0),0);
+    const [gSheet,bSheet]=await Promise.all([fetchSheetSpend('google'),fetchSheetSpend('bing')]);
+    // Google from the sheet, falling back to GA4 only while the sheet is down.
+    // Bing has no GA4 equivalent at all, so it is sheet-or-nothing.
+    const spend=(gSheet.ok?gSheet.total:gaSpend)+bSheet.total;
     if(siteRow){
       const sess=parseInt(siteRow.metricValues[0].value||0);
       const rev=parseFloat(siteRow.metricValues[1].value||0);

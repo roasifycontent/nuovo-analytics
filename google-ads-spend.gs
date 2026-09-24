@@ -19,6 +19,13 @@ var SHEET_URL  = 'https://docs.google.com/spreadsheets/d/1ntgddBfjOFrPhzt2Zc93t6
 var TAB_NAME   = 'google';   // must match api/google-spend.js TAB_NAME exactly
 var LOOKBACK_DAYS = 90;      // rewrite this window each run; older rows are kept
 
+// ONE-TIME BACKFILL. Leave as '' for normal daily runs. To pull your whole spend
+// history, set this to the date to start from (e.g. '2023-01-01'), Run once, then
+// set it back to '' and save. Existing rows are merged, never dropped, so running
+// it twice is harmless. Google Ads Scripts only ever execute main(), which is why
+// this is a constant rather than a separate function you could pick from a menu.
+var BACKFILL_FROM = '';
+
 function main() {
   var ss = SpreadsheetApp.openByUrl(SHEET_URL);
   var sheet = ss.getSheetByName(TAB_NAME) || ss.insertSheet(TAB_NAME);
@@ -26,18 +33,27 @@ function main() {
   var tz  = AdsApp.currentAccount().getTimeZone();
   var fmt = function (d) { return Utilities.formatDate(d, tz, 'yyyy-MM-dd'); };
   var end   = new Date();
-  var start = new Date(end.getTime() - LOOKBACK_DAYS * 86400000);
+  var start = BACKFILL_FROM
+    ? new Date(BACKFILL_FROM + 'T12:00:00Z')   // noon avoids DST edge cases
+    : new Date(end.getTime() - LOOKBACK_DAYS * 86400000);
 
-  // Pull account-level cost per day.
+  // Pull account-level cost per day, a year at a time. Chunking keeps each report
+  // well inside Google Ads' row limits on a multi-year backfill; for the normal
+  // 90-day run it is a single pass.
   var spend = {};
-  var rows = AdsApp.search(
-    'SELECT segments.date, metrics.cost_micros FROM customer ' +
-    'WHERE segments.date BETWEEN "' + fmt(start) + '" AND "' + fmt(end) + '"'
-  );
-  while (rows.hasNext()) {
-    var r = rows.next();
-    spend[r.segments.date] = (spend[r.segments.date] || 0) +
-                             Number(r.metrics.costMicros) / 1000000;
+  var chunkStart = new Date(start.getTime());
+  while (chunkStart.getTime() <= end.getTime()) {
+    var chunkEnd = new Date(Math.min(chunkStart.getTime() + 364 * 86400000, end.getTime()));
+    var rows = AdsApp.search(
+      'SELECT segments.date, metrics.cost_micros FROM customer ' +
+      'WHERE segments.date BETWEEN "' + fmt(chunkStart) + '" AND "' + fmt(chunkEnd) + '"'
+    );
+    while (rows.hasNext()) {
+      var r = rows.next();
+      spend[r.segments.date] = (spend[r.segments.date] || 0) +
+                               Number(r.metrics.costMicros) / 1000000;
+    }
+    chunkStart = new Date(chunkEnd.getTime() + 86400000);
   }
 
   // Keep whatever history is already in the tab, so the sheet accumulates past
@@ -73,6 +89,9 @@ function main() {
   sheet.getRange(1, 1, out.length, 1).setNumberFormat('@');
   sheet.getRange(1, 1, out.length, 2).setValues(out);
 
-  Logger.log('Wrote ' + (out.length - 1) + ' rows to "' + TAB_NAME + '". ' +
-             'Latest: ' + dates[dates.length - 1] + ' = ' + merged[dates[dates.length - 1]]);
+  Logger.log('Wrote ' + (out.length - 1) + ' rows to "' + TAB_NAME + '"' +
+             (BACKFILL_FROM ? ' (BACKFILL from ' + BACKFILL_FROM + ')' : '') + '. ' +
+             'Range: ' + dates[0] + ' to ' + dates[dates.length - 1] + '. ' +
+             'Latest: ' + merged[dates[dates.length - 1]]);
+  if (BACKFILL_FROM) Logger.log('Backfill done - now set BACKFILL_FROM back to \'\' and save.');
 }
