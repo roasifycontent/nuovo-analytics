@@ -846,14 +846,22 @@ function renderFunnel(funnelData, bySource){
     {name:'Purchase',value:events.purchase||0,color:'var(--green)'}
   ];
   const max=stages[0].value||1;
+  // The funnel follows the selected date range, so label it with that range rather
+  // than the "last 28 days" this header used to claim unconditionally.
+  const per=document.getElementById('funnel-period'), lab=document.getElementById('dr-label');
+  if(per&&lab&&lab.textContent.trim())per.textContent=lab.textContent.trim().toLowerCase();
   document.getElementById('funnel').innerHTML=stages.map((s,i)=>{
     const pct=Math.round(s.value/max*100);
-    const dropPct=i>0&&stages[i-1].value>0?((1-s.value/stages[i-1].value)*100).toFixed(0):'';
+    // Step-over-step change, signed. This used to compute a DROP percentage and then
+    // prefix a second "-", so a stage that grew rendered as "--12%" (view_item counts
+    // events, so it legitimately exceeds sessions). Negative = drop, positive = growth.
+    const prev=i>0?stages[i-1].value:0;
+    const chg=i>0&&prev>0?Math.round((s.value/prev-1)*100):null;
     return`<div class="funnel-row">
       <span class="funnel-stage">${s.name}</span>
       <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
       <span class="fnum">${s.value.toLocaleString()}</span>
-      <span class="fpct">${i>0&&dropPct?'-'+dropPct+'%':'—'}</span>
+      <span class="fpct">${chg===null?'—':(chg>0?'+':'')+chg+'%'}</span>
     </div>`;
   }).join('');
 }
