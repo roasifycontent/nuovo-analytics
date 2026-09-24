@@ -632,5 +632,44 @@ async function loadPreviews(){
 restoreDateRange();
 ensureFreshToken().then(()=>loadPreviews());
 </script>
+<script>
+/* Same-day GA4 notice.
+   GA4 does not finish processing the current day for up to 24-48h: sessions, traffic
+   sources and key events for "today" are partial, and a large share arrives as
+   (not set) until attribution settles (measured: ~77% unattributed on the day vs ~0-4%
+   once settled). Without this banner a Today view reads as the dashboard under-
+   reporting visitors, which is what prompted this. Self-contained on purpose - these
+   pages are standalone with no shared bundle. `dateRange` is a top-level `let` in an
+   earlier classic script, so it is reachable as a free variable but NOT on window. */
+(function(){
+  var el=null;
+  function todayUK(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
+  function cur(){try{return dateRange;}catch(e){return null;}}
+  function includesToday(r){if(!r||!r.endDate)return false;var e=r.endDate;if(e==='today')return true;return /^\d{4}-\d{2}-\d{2}$/.test(e)&&e>=todayUK();}
+  function todayOnly(r){if(!r)return false;var s=r.startDate,e=r.endDate;return (s==='today'&&e==='today')||(s===e&&s===todayUK());}
+  function ensure(){
+    if(el&&el.isConnected)return el;
+    var bar=document.querySelector('.topbar');
+    if(!bar||!bar.parentNode)return null;
+    el=document.createElement('div');
+    el.id='sameday-notice';
+    el.style.cssText='display:none;margin:12px 28px 0;padding:10px 14px;border-radius:9px;font:500 12.5px/1.5 -apple-system,system-ui,sans-serif;background:rgba(234,179,8,0.10);border:1px solid rgba(234,179,8,0.32);color:var(--text,#1a1a1a)';
+    bar.parentNode.insertBefore(el,bar.nextSibling);
+    return el;
+  }
+  function tick(){
+    var n=ensure(); if(!n)return;
+    var r=cur();
+    if(!includesToday(r)){n.style.display='none';return;}
+    var msg=todayOnly(r)
+      ?'<span style="color:#eab308">&#9679;</span> <strong>Today is still being processed by Google Analytics.</strong> Sessions, traffic sources and key events for the current day are incomplete &mdash; much of it is still <em>(not set)</em> and settles over the next 24&ndash;48h. This is GA4&rsquo;s processing delay, not the dashboard under-reporting. Pick <strong>Yesterday</strong> or <strong>Last 7 days</strong> for figures you can trust.'
+      :'<span style="color:#eab308">&#9679;</span> <strong>This range includes today.</strong> Today&rsquo;s contribution is still being processed by Google Analytics and will rise over the next 24&ndash;48h.';
+    if(n.innerHTML!==msg)n.innerHTML=msg;
+    n.style.display='block';
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick);else tick();
+  setInterval(tick,1500);
+})();
+</script>
 </body>
 </html>
