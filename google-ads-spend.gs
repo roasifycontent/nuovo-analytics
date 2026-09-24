@@ -86,12 +86,22 @@ function main() {
   var out = [['date', 'spend']];
   for (var j = 0; j < dates.length; j++) out.push([dates[j], merged[dates[j]]]);
 
-  sheet.clear();
+  // Write OVER the existing rows and only then trim the leftovers. Deliberately no
+  // sheet.clear(): on an hourly schedule a run that died between clear() and the
+  // write would leave the tab empty, /api/google-spend would error, and every page
+  // would fall back to the GA4 token path — i.e. Google spend reads £0 again, the
+  // exact failure this whole pipeline exists to end. This way the tab always holds
+  // a complete dataset at every instant.
+  var need = out.length;
+  var maxRows = sheet.getMaxRows();
+  if (maxRows < need) sheet.insertRowsAfter(maxRows, need - maxRows);
   // Force column A to TEXT *before* writing. If Sheets stores these as Date
   // objects, gviz exports the date cell EMPTY and the dashboard loses the day.
   // That exact failure hit the Bing tab on 2026-06-10.
-  sheet.getRange(1, 1, out.length, 1).setNumberFormat('@');
-  sheet.getRange(1, 1, out.length, 2).setValues(out);
+  sheet.getRange(1, 1, need, 1).setNumberFormat('@');
+  sheet.getRange(1, 1, need, 2).setValues(out);
+  var extra = sheet.getMaxRows() - need;
+  if (extra > 0) sheet.deleteRows(need + 1, extra);
 
   Logger.log((backfilling ? 'BACKFILL: ' : 'Daily run: ') +
              'wrote ' + (out.length - 1) + ' rows to "' + TAB_NAME + '". ' +
