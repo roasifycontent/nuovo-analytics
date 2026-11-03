@@ -626,18 +626,45 @@ function applyBingSheetToInput(){
   markAuto('bing','auto from Microsoft Ads');
 }
 
+// Spend overrides are keyed by the RESOLVED dates. The key used to be built from
+// the raw range tokens, so "Last 7 days" was always the single key
+// spend_7daysAgo_today — one bucket shared by every day forever. Combined with
+// the two problems below, that is how September's £194.07 / £40.29 were still
+// on screen in November.
+function spendKey(){
+  return 'spend_'+ga4DateToYmd(dateRange.startDate)+'_'+ga4DateToYmd(dateRange.endDate);
+}
+// One-time purge of the legacy relative-token keys. They hold figures that look
+// like manual entries, so without this the stale numbers survive the fix.
+(function purgeLegacySpendKeys(){
+  try{
+    for(var i=localStorage.length-1;i>=0;i--){
+      var k=localStorage.key(i);
+      if(k&&k.indexOf('spend_')===0&&/daysAgo|today|yesterday/.test(k))localStorage.removeItem(k);
+    }
+  }catch(e){}
+})();
 function saveSpend(){
-  const key='spend_'+dateRange.startDate+'_'+dateRange.endDate;
-  const g=parseFloat(document.getElementById('spend-google').value)||0;
-  const b=parseFloat(document.getElementById('spend-bing').value)||0;
-  localStorage.setItem(key,JSON.stringify({google:g,bing:b}));
+  // Persist ONLY a genuine manual override. recalc() calls this on every render,
+  // so caching auto figures meant each render wrote the fetched number back as if
+  // the user had typed it — which then blocked the next day's refresh.
+  const gi=document.getElementById('spend-google'),bi=document.getElementById('spend-bing');
+  const g=gi.getAttribute('data-auto')?0:(parseFloat(gi.value)||0);
+  const b=bi.getAttribute('data-auto')?0:(parseFloat(bi.value)||0);
+  if(!g&&!b){localStorage.removeItem(spendKey());return;}
+  localStorage.setItem(spendKey(),JSON.stringify({google:g,bing:b}));
 }
 
 function loadSpend(){
-  const key='spend_'+dateRange.startDate+'_'+dateRange.endDate;
-  const saved=localStorage.getItem(key);
-  if(saved){const s=JSON.parse(saved);document.getElementById('spend-google').value=s.google||'';document.getElementById('spend-bing').value=s.bing||'';}
-  else{document.getElementById('spend-google').value='';document.getElementById('spend-bing').value='';}
+  const gi=document.getElementById('spend-google'),bi=document.getElementById('spend-bing');
+  // Anything restored here is a manual override by definition — auto figures are
+  // no longer persisted. Clear data-auto so the state matches the value.
+  gi.removeAttribute('data-auto');gi.removeAttribute('data-auto-source');
+  bi.removeAttribute('data-auto');bi.removeAttribute('data-auto-source');
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(spendKey()));}catch(e){}
+  gi.value=(saved&&saved.google)||'';
+  bi.value=(saved&&saved.bing)||'';
 }
 
 const EXCLUDE_COUNTRY={notExpression:{filter:{fieldName:'country',stringFilter:{matchType:'EXACT',value:'Vietnam'}}}};
