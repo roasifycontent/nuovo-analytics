@@ -1,0 +1,57 @@
+{%- comment -%}
+  Lead attribution for forms OUTSIDE /products/ — paste into layout/theme.liquid
+  just before </body>, AFTER the form_submit snippet.
+
+  WHY: the product quote form (nls-form) already posts contact[Google click ID],
+  contact[First-touch source] etc., so those emails name their own source. The
+  contact page and /pages/build-your-mobile-sauna did not, so their emails arrived
+  with no attribution at all and the source had to be reconstructed from GA4
+  session data afterwards — which only works while the data is still there.
+
+  Field names mirror the product form exactly, so both sets of emails read the same.
+{%- endcomment -%}
+<script>
+(function () {
+  if (/^\/products\//.test(location.pathname)) return;   // product form already does this
+
+  function ck(n){ var m = document.cookie.match('(?:^|; )' + n + '=([^;]*)'); return m ? decodeURIComponent(m[1]) : ''; }
+  function gaClientId(){ var m = document.cookie.match(/_ga=GA\d\.\d\.(\d+\.\d+)/); return m ? m[1] : ''; }
+
+  function add(form, label, value) {
+    if (!value) return;                                   // keep blanks out of the email
+    if (form.querySelector('input[name="contact[' + label + ']"]')) return;
+    var i = document.createElement('input');
+    i.type = 'hidden';
+    i.name = 'contact[' + label + ']';                    // contact[...] is what Shopify emails
+    i.value = value;
+    form.appendChild(i);
+  }
+
+  // Capture phase, so the fields are on the form before the nav-hold snippet
+  // calls preventDefault and re-submits it 900ms later.
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (!f || f.tagName !== 'FORM' || f.__leadTagged) return;
+    var ft = f.querySelector('input[name="form_type"]');
+    if (!ft || ft.value !== 'contact') return;
+    f.__leadTagged = true;
+
+    var p = new URLSearchParams(location.search);
+    add(f, 'First-touch source',   ck('nuovo_ft_source')   || p.get('utm_source')   || '');
+    add(f, 'First-touch medium',   ck('nuovo_ft_medium')   || p.get('utm_medium')   || '');
+    add(f, 'First-touch campaign', ck('nuovo_ft_campaign') || p.get('utm_campaign') || '');
+    add(f, 'Keyword (term)',       ck('nuovo_ft_term')     || p.get('utm_term')     || '');
+    add(f, 'Ad (content)',         ck('nuovo_ft_content')  || p.get('utm_content')  || '');
+    add(f, 'Landing page',         ck('nuovo_ft_landing'));
+    add(f, 'Referrer',             ck('nuovo_ft_referrer') || document.referrer     || '');
+    add(f, 'Google click ID',      ck('nuovo_ft_gclid')    || p.get('gclid')        || '');
+    add(f, 'Bing click ID',        ck('nuovo_ft_msclkid')  || p.get('msclkid')      || '');
+    add(f, 'Facebook click ID',    ck('nuovo_ft_fbclid')   || p.get('fbclid')       || '');
+    add(f, 'GA client ID',         gaClientId());
+    add(f, 'Visits',               ck('nuovo_visits'));
+    add(f, 'First seen',           ck('nuovo_first_seen'));
+    add(f, 'Last product viewed',  ck('nuovo_last_product_title') || ck('nuovo_last_product'));
+    add(f, 'Page URL',             location.href);
+  }, true);
+})();
+</script>
